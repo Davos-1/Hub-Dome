@@ -121,7 +121,7 @@ export function artifactSlots(count: number, footprint: number): Slot[] {
       const a = t * spread;
       slots.push({
         x: round(Math.sin(a) * radius),
-        y: round(1.1 + row * 0.35),
+        y: 0,
         z: round(Math.cos(a) * radius),
       });
     }

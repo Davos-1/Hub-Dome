@@ -14,3 +14,19 @@ test("Login-Formular lehnt ungültige E-Mail ab", async ({ page }) => {
   await page.getByRole("button", { name: "Anmelde-Link senden" }).click();
   await expect(page.locator("input:invalid, [role=alert]").first()).toBeVisible();
 });
+
+test("Eingabefelder bleiben im Dunkelmodus lesbar", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/login");
+  const style = await page.getByLabel("E-Mail-Adresse").evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      bg: s.backgroundColor,
+      color: s.color,
+      body: getComputedStyle(document.body).backgroundColor,
+    };
+  });
+  expect(style.bg).toBe("rgb(255, 255, 255)");
+  expect(style.color).toBe("rgb(23, 23, 23)");
+  expect(style.body).toBe("rgb(255, 255, 255)");
+});

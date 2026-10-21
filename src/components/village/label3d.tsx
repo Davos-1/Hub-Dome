@@ -8,7 +8,7 @@ type Props = {
   /** Zweiter, abgeschwächter Textteil (z.B. Anzahl). */
   sub?: string;
   position: [number, number, number];
-  /** Höhe des Schilds in Metern. */
+  /** Höhe des Schilds als Anteil der Bildschirmhöhe (bleibt beim Zoomen gleich gross). */
   height: number;
   dark?: boolean;
 };
@@ -48,7 +48,7 @@ function draw({ text, sub, dark }: Pick<Props, "text" | "sub" | "dark">) {
 }
 
 /**
- * Beschriftung als Sprite. Bewusst ohne DOM-Overlay (drei `Html`): das vermeidet
+ * Beschriftung als Sprite mit konstanter Bildschirmgrösse. Bewusst ohne DOM-Overlay (drei `Html`): das vermeidet
  * Portal-Fehler beim Verlassen der Seite und kostet nur eine Textur pro Schild.
  */
 export function Label3D({ text, sub, position, height, dark }: Props) {
@@ -57,7 +57,7 @@ export function Label3D({ text, sub, position, height, dark }: Props) {
 
   return (
     <sprite position={position} scale={[height * aspect, height, 1]} renderOrder={10}>
-      <spriteMaterial map={texture} transparent depthTest={false} />
+      <spriteMaterial map={texture} transparent depthTest={false} sizeAttenuation={false} />
     </sprite>
   );
 }

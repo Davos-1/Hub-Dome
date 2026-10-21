@@ -9,7 +9,7 @@ import type { Artifact, House } from "@/lib/types";
 import { Artifact3D } from "./artifact-3d";
 import { House3D, Zentrale3D } from "./buildings";
 import { CameraRig, housePose, overviewPose } from "./camera-rig";
-import { Ground, Paths, Trees } from "./decor";
+import { Ground, Nature, Paths, SkyBackground } from "./decor";
 
 export type SceneProps = {
   villageId: string;
@@ -99,6 +99,7 @@ export default function VillageScene(props: SceneProps) {
   return (
     <Canvas
       frameloop="demand"
+      shadows={lowDetail ? false : "soft"}
       dpr={lowDetail ? [1, 1.25] : [1, 2]}
       gl={{ antialias: !lowDetail, powerPreference: "high-performance" }}
       camera={{
@@ -116,14 +117,28 @@ export default function VillageScene(props: SceneProps) {
         /* Klick ins Leere ändert nichts (verhindert versehentliches Verlassen) */
       }}
     >
-      <color attach="background" args={["#cfe8ff"]} />
-      <fog attach="fog" args={["#cfe8ff", layout.extent * 1.8, layout.extent * 5]} />
-      <hemisphereLight args={["#ffffff", "#7aa06a", 1.1]} />
-      <directionalLight position={[20, 40, 25]} intensity={1.6} />
+      <SkyBackground />
+      <fog attach="fog" args={["#d9ebf8", layout.extent * 1.6, layout.extent * 4.5]} />
+      <hemisphereLight args={["#fff7ea", "#7fa56a", 1.0]} />
+      <directionalLight
+        position={[layout.extent * 0.7, layout.extent * 1.2, layout.extent * 0.9]}
+        intensity={2.1}
+        color="#fff3dc"
+        castShadow={!lowDetail}
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.04}
+        shadow-camera-near={1}
+        shadow-camera-far={layout.extent * 4}
+        shadow-camera-left={-(layout.extent + 14)}
+        shadow-camera-right={layout.extent + 14}
+        shadow-camera-top={layout.extent + 14}
+        shadow-camera-bottom={-(layout.extent + 14)}
+      />
 
       <Ground extent={layout.extent} />
       <Paths layout={layout} />
-      <Trees layout={layout} seed={villageId} count={lowDetail ? 14 : 42} />
+      <Nature layout={layout} seed={villageId} density={lowDetail ? 0.35 : 1} />
 
       {houses.map((house) => {
         const l = layout.houses[house.id];
@@ -152,6 +167,7 @@ export default function VillageScene(props: SceneProps) {
               </Zentrale3D>
             ) : (
               <House3D
+                id={house.id}
                 title={house.title}
                 color={house.color}
                 tier={l.tier}
