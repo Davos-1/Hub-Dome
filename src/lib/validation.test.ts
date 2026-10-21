@@ -67,8 +67,17 @@ describe("artifactSchema", () => {
     expect(r.description).toBeNull();
     expect(r.tags).toEqual(["statik", "beton", "a", "b", "c"]);
   });
-  it("lehnt fremde URLs und unbekannte Typen ab", () => {
-    expect(artifactSchema.safeParse({ ...base, url: "https://evil.com" }).success).toBe(false);
+  it("erkennt den Objekttyp automatisch", () => {
+    expect(artifactSchema.parse(base).itemType).toBe("claude_artifact");
+    const gh = artifactSchema.parse({ ...base, url: "https://github.com/a/b" });
+    expect(gh.itemType).toBe("github_repo");
+    expect(artifactSchema.parse({ ...base, url: "https://example.com/x" }).itemType).toBe("link");
+  });
+  it("lehnt ungültige Kombinationen, http und unbekannte Typen ab", () => {
+    const bad = { ...base, itemType: "github_repo" };
+    expect(artifactSchema.safeParse(bad).success).toBe(false);
+    expect(artifactSchema.safeParse({ ...base, itemType: "gist" }).success).toBe(false);
+    expect(artifactSchema.safeParse({ ...base, url: "http://example.com" }).success).toBe(false);
     expect(artifactSchema.safeParse({ ...base, kind: "virus" }).success).toBe(false);
   });
 });

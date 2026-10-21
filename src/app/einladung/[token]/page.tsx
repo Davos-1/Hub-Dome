@@ -14,7 +14,7 @@ async function EinladungContent({ params }: Pick<PageProps<"/einladung/[token]">
       <h1 className="text-3xl font-bold">Einladung in ein Dorf</h1>
       <p>
         Du wurdest eingeladen, ein Dorf in Hub Dome anzusehen. Mit dem Annehmen siehst du die
-        geteilten Artifacts.
+        geteilten Objekte.
       </p>
       <ActionForm action={acceptInvite} submitLabel="Einladung annehmen" pendingLabel="Nehme an…">
         <input type="hidden" name="token" value={token} />

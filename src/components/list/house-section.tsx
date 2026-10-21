@@ -6,7 +6,9 @@ import {
   updateHouse,
 } from "@/app/dorf/actions";
 import { ActionForm, dangerButton, inputClass } from "@/components/ui/action-form";
+import { hostOf, ITEM_TYPE_ICONS, ITEM_TYPE_LABELS } from "@/lib/item-types";
 import { ARTIFACT_KIND_LABELS, type Artifact, type House } from "@/lib/types";
+import { ObjectPreview } from "./object-preview";
 import { ArtifactForm } from "./artifact-form";
 
 type Props = {
@@ -24,14 +26,14 @@ export function HouseSection({ house, artifacts, houses, isOwner }: Props) {
         <h2 id={`h-${house.id}`} className="text-xl font-semibold">
           {house.title}
         </h2>
-        <span className="text-sm text-zinc-500">{artifacts.length} Artifacts</span>
+        <span className="text-sm text-zinc-500">{artifacts.length} Objekte</span>
       </div>
 
       {artifacts.length === 0 && (
         <p className="mt-3 text-sm text-zinc-500">
           {house.kind === "zentrale"
             ? "Noch nichts in der Zentrale."
-            : "Baustelle: noch keine Artifacts."}
+            : "Baustelle: noch keine Objekte."}
         </p>
       )}
 
@@ -51,7 +53,13 @@ export function HouseSection({ house, artifacts, houses, isOwner }: Props) {
                 {ARTIFACT_KIND_LABELS[a.kind]}
               </span>
             </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              <span aria-hidden>{ITEM_TYPE_ICONS[a.item_type]}</span>{" "}
+              {ITEM_TYPE_LABELS[a.item_type]}
+              {a.item_type !== "claude_artifact" && ` · ${hostOf(a.url)}`}
+            </p>
             {a.description && <p className="mt-1 text-sm">{a.description}</p>}
+            <ObjectPreview artifact={a} />
             {a.tags.length > 0 && (
               <p className="mt-1 text-xs text-zinc-500">#{a.tags.join(" #")}</p>
             )}
@@ -69,7 +77,7 @@ export function HouseSection({ house, artifacts, houses, isOwner }: Props) {
                   <ActionForm
                     action={deleteArtifact}
                     submitLabel="Löschen"
-                    confirm="Artifact wirklich löschen?"
+                    confirm="Objekt wirklich löschen?"
                     buttonClassName={dangerButton}
                   >
                     <input type="hidden" name="id" value={a.id} />
@@ -85,14 +93,14 @@ export function HouseSection({ house, artifacts, houses, isOwner }: Props) {
         <div className="mt-3 flex flex-col gap-2">
           <details>
             <summary className="cursor-pointer text-sm font-medium underline">
-              Artifact hinzufügen
+              Objekt hinzufügen
             </summary>
             <div className="mt-2">
               <ArtifactForm
                 action={createArtifact}
                 houses={houses}
                 defaultHouseId={house.id}
-                submitLabel="Artifact speichern"
+                submitLabel="Objekt speichern"
               />
             </div>
           </details>
@@ -127,7 +135,7 @@ export function HouseSection({ house, artifacts, houses, isOwner }: Props) {
                 <ActionForm
                   action={deleteHouse}
                   submitLabel="Haus löschen"
-                  confirm={`Haus «${house.title}» löschen? Alle ${artifacts.length} Artifacts darin werden ebenfalls gelöscht.`}
+                  confirm={`Haus «${house.title}» löschen? Alle ${artifacts.length} Objekte darin werden ebenfalls gelöscht.`}
                   buttonClassName={dangerButton}
                 >
                   <input type="hidden" name="id" value={house.id} />

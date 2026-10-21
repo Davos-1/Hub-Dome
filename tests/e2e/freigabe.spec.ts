@@ -35,15 +35,15 @@ test("Dorf teilen, ansehen und Zugriff entziehen", async ({ browser }) => {
 
   // A: ein geteiltes und ein privates Artifact
   async function addArtifact(title: string, url: string, visibility: "shared" | "private") {
-    const add = house.locator("details").filter({ hasText: "Artifact hinzufügen" }).first();
+    const add = house.locator("details").filter({ hasText: "Objekt hinzufügen" }).first();
     // Das Formular bleibt nach dem Speichern offen: nur öffnen, wenn geschlossen.
     if (!(await add.evaluate((d) => (d as HTMLDetailsElement).open))) {
       await add.locator("summary").click();
     }
-    await add.getByLabel("Link zum Artifact (claude.ai)").fill(url);
+    await add.getByLabel("Link", { exact: true }).fill(url);
     await add.getByLabel("Titel").fill(title);
     await add.getByLabel("Sichtbarkeit").selectOption(visibility);
-    await add.getByRole("button", { name: "Artifact speichern" }).click();
+    await add.getByRole("button", { name: "Objekt speichern" }).click();
     await expect(house.getByRole("link", { name: title })).toBeVisible();
   }
   await addArtifact("Geteilter Rechner", "https://claude.ai/public/artifacts/e2e-shared", "shared");
@@ -68,7 +68,7 @@ test("Dorf teilen, ansehen und Zugriff entziehen", async ({ browser }) => {
   await expect(pb).toHaveURL(new RegExp(`/dorf/${a.username}/liste`));
   await expect(pb.getByRole("link", { name: "Geteilter Rechner" })).toBeVisible();
   await expect(pb.getByText("Geheime Notiz")).toHaveCount(0);
-  await expect(pb.getByRole("button", { name: "Artifact speichern" })).toHaveCount(0);
+  await expect(pb.getByRole("button", { name: "Objekt speichern" })).toHaveCount(0);
 
   // B: Dorf in «Meine Dörfer»
   await pb.goto("/doerfer");

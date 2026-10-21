@@ -1,6 +1,7 @@
 "use client";
 
 import { ActionForm, inputClass } from "@/components/ui/action-form";
+import { ITEM_TYPE_LABELS, LINK_ITEM_TYPES } from "@/lib/item-types";
 import { ARTIFACT_KINDS, ARTIFACT_KIND_LABELS, type ActionState, type Artifact } from "@/lib/types";
 
 type Props = {
@@ -18,17 +19,33 @@ export function ArtifactForm({ action, houses, defaultHouseId, artifact, submitL
     <ActionForm action={action} submitLabel={submitLabel} successText="Gespeichert.">
       {artifact && <input type="hidden" name="id" value={artifact.id} />}
       <label htmlFor={`url-${id}`} className="text-sm font-medium">
-        Link zum Artifact (claude.ai)
+        Link
       </label>
       <input
         id={`url-${id}`}
         name="url"
         type="url"
         required
-        placeholder="https://claude.ai/…"
+        placeholder="https://…"
         defaultValue={artifact?.url}
         className={inputClass}
       />
+      <label htmlFor={`type-${id}`} className="text-sm font-medium">
+        Objekttyp
+      </label>
+      <select
+        id={`type-${id}`}
+        name="itemType"
+        defaultValue={artifact?.item_type ?? "auto"}
+        className={inputClass}
+      >
+        <option value="auto">Automatisch erkennen</option>
+        {LINK_ITEM_TYPES.map((t) => (
+          <option key={t} value={t}>
+            {ITEM_TYPE_LABELS[t]}
+          </option>
+        ))}
+      </select>
       <label htmlFor={`title-${id}`} className="text-sm font-medium">
         Titel
       </label>

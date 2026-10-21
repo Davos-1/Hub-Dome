@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { refreshArtifactMeta } from "@/lib/previews.server";
 import type { ActionState } from "@/lib/types";
 import { artifactSchema, houseSchema, houseUpdateSchema } from "@/lib/validation";
 
@@ -94,18 +96,21 @@ export async function createArtifact(_: ActionState, formData: FormData): Promis
   if (!parsed.success) return { error: firstError(parsed.error) };
   const { supabase, user } = await requireUser();
 
-  const { houseId, ...rest } = parsed.data;
-  const { error } = await supabase
+  const { houseId, itemType, ...rest } = parsed.data;
+  const { data: created, error } = await supabase
     .from("artifacts")
-    .insert({ ...rest, house_id: houseId, owner_id: user.id });
+    .insert({ ...rest, house_id: houseId, item_type: itemType, owner_id: user.id })
+    .select("id")
+    .single();
   if (error) {
     return {
       error:
         error.code === "23505"
           ? "Dieser Link ist schon in deinem Dorf."
-          : "Das Artifact konnte nicht gespeichert werden.",
+          : "Das Objekt konnte nicht gespeichert werden.",
     };
   }
+  after(() => refreshArtifactMeta(created.id, user.id));
   refresh();
   return { ok: true };
 }
@@ -116,10 +121,18 @@ export async function updateArtifact(_: ActionState, formData: FormData): Promis
   if (!parsed.success) return { error: firstError(parsed.error) };
   const { supabase, user } = await requireUser();
 
-  const { houseId, ...rest } = parsed.data;
+  const { houseId, itemType, ...rest } = parsed.data;
+  const { data: before } = await supabase
+    .from("artifacts")
+    .select("url")
+    .eq("id", id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  // Neue URL → alte Vorschau verwerfen, damit sie neu geladen wird.
+  const resetMeta = before && before.url !== rest.url ? { meta: {}, meta_refreshed_at: null } : {};
   const { data, error } = await supabase
     .from("artifacts")
-    .update({ ...rest, house_id: houseId })
+    .update({ ...rest, ...resetMeta, house_id: houseId, item_type: itemType })
     .eq("id", id)
     .eq("owner_id", user.id)
     .select("id");
@@ -128,9 +141,10 @@ export async function updateArtifact(_: ActionState, formData: FormData): Promis
       error:
         error?.code === "23505"
           ? "Dieser Link ist schon in deinem Dorf."
-          : "Das Artifact konnte nicht geändert werden.",
+          : "Das Objekt konnte nicht geändert werden.",
     };
   }
+  after(() => refreshArtifactMeta(id, user.id));
   refresh();
   return { ok: true };
 }
@@ -144,7 +158,7 @@ export async function deleteArtifact(_: ActionState, formData: FormData): Promis
     .eq("id", id)
     .eq("owner_id", user.id)
     .select("id");
-  if (error || !data?.length) return { error: "Das Artifact konnte nicht gelöscht werden." };
+  if (error || !data?.length) return { error: "Das Objekt konnte nicht gelöscht werden." };
   refresh();
   return { ok: true };
 }

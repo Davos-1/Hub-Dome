@@ -31,7 +31,7 @@ function VillageCard({ v, mine }: { v: VillageRow; mine: boolean }) {
         {v.name}
       </Link>
       <p className="text-sm text-zinc-500">
-        @{v.owner?.username} · {houseCount} Häuser · {artifacts.length} Artifacts
+        @{v.owner?.username} · {houseCount} Häuser · {artifacts.length} Objekte
         {last && ` · zuletzt ${fmt.format(new Date(last))}`}
       </p>
       {!mine && (
@@ -52,7 +52,7 @@ function VillageCard({ v, mine }: { v: VillageRow; mine: boolean }) {
 async function DoerferContent() {
   const { supabase, profile } = await requireProfile();
 
-  // RLS liefert nur eigene und freigegebene Dörfer (private Artifacts nur dem Besitzer).
+  // RLS liefert nur eigene und freigegebene Dörfer (private Objekte nur dem Besitzer).
   const { data } = await supabase
     .from("villages")
     .select(

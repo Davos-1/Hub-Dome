@@ -1,15 +1,29 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { after } from "next/server";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { AppHeader } from "@/components/ui/app-header";
 import { HouseCreateForm } from "@/components/list/house-create-form";
 import { HouseSection } from "@/components/list/house-section";
+import {
+  ITEM_TYPES,
+  ITEM_TYPE_ICONS,
+  ITEM_TYPE_LABELS,
+  needsRefresh,
+  type ItemType,
+} from "@/lib/item-types";
+import { refreshArtifactMeta } from "@/lib/previews.server";
 import type { Artifact, House, ModuleOption, Village } from "@/lib/types";
 
 export const metadata = { title: "Dorf – Hub Dome" };
 
-async function ListeContent({ params }: Pick<PageProps<"/dorf/[username]/liste">, "params">) {
+async function ListeContent({
+  params,
+  searchParams,
+}: Pick<PageProps<"/dorf/[username]/liste">, "params" | "searchParams">) {
   const { username } = await params;
+  const { typ } = await searchParams;
   const { supabase, profile: me } = await requireProfile();
 
   // RLS: ohne Besitz oder Freigabe kommt hier nichts zurück → 404 (verrät nicht, ob das Dorf existiert).
@@ -46,9 +60,23 @@ async function ListeContent({ params }: Pick<PageProps<"/dorf/[username]/liste">
     )
     .order("sort")
     .order("created_at");
-  const artifacts = (artifactRows ?? []) as Artifact[];
+  const allArtifacts = (artifactRows ?? []) as Artifact[];
+  const filter = ITEM_TYPES.find((t) => t === typ);
+  const artifacts = filter ? allArtifacts.filter((a) => a.item_type === filter) : allArtifacts;
+  const presentTypes = ITEM_TYPES.filter((t) => allArtifacts.some((a) => a.item_type === t));
 
   const isOwner = me.id === owner.id;
+  if (isOwner) {
+    // Veraltete GitHub-/Gist-Vorschauen (älter als 24 h) nach der Antwort aktualisieren.
+    const stale = allArtifacts
+      .filter(
+        (a) =>
+          (a.item_type === "github_repo" || a.item_type === "gist") &&
+          needsRefresh(a.meta_refreshed_at),
+      )
+      .slice(0, 5);
+    if (stale.length) after(() => Promise.all(stale.map((a) => refreshArtifactMeta(a.id, me.id))));
+  }
   let modules: ModuleOption[] = [];
   if (isOwner) {
     const { data } = await supabase.from("module_catalog").select("code, title").order("title");
@@ -66,6 +94,20 @@ async function ListeContent({ params }: Pick<PageProps<"/dorf/[username]/liste">
           {!isOwner && " · mit dir geteilt"}
         </p>
       </div>
+
+      {presentTypes.length > 1 && (
+        <nav aria-label="Nach Objekttyp filtern" className="flex flex-wrap gap-2 text-sm">
+          <FilterLink href={`/dorf/${owner.username}/liste`} active={!filter} label="Alle" />
+          {presentTypes.map((t: ItemType) => (
+            <FilterLink
+              key={t}
+              href={`/dorf/${owner.username}/liste?typ=${t}`}
+              active={filter === t}
+              label={`${ITEM_TYPE_ICONS[t]} ${ITEM_TYPE_LABELS[t]}`}
+            />
+          ))}
+        </nav>
+      )}
 
       {houses.map((house) => (
         <HouseSection
@@ -89,10 +131,22 @@ async function ListeContent({ params }: Pick<PageProps<"/dorf/[username]/liste">
   );
 }
 
+function FilterLink({ href, active, label }: { href: string; active: boolean; label: string }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "true" : undefined}
+      className={`rounded-full border px-3 py-1 ${active ? "bg-blue-600 text-white" : "border-zinc-300"}`}
+    >
+      {label}
+    </Link>
+  );
+}
+
 export default function ListePage(props: PageProps<"/dorf/[username]/liste">) {
   return (
     <Suspense>
-      <ListeContent params={props.params} />
+      <ListeContent params={props.params} searchParams={props.searchParams} />
     </Suspense>
   );
 }

@@ -245,6 +245,52 @@ describe("Daten-Validierung und Profile", () => {
       .insert({ house_id: houseA, owner_id: a.id, url: "https://evil.com/claude.ai/", title: "X" });
     expect(error).not.toBeNull();
   });
+  it("Objekttypen: bestehende Einträge sind claude_artifact, URL muss zum Typ passen", async () => {
+    const { data } = await a.client
+      .from("artifacts")
+      .select("item_type")
+      .eq("id", sharedArtifact)
+      .single();
+    expect(data?.item_type).toBe("claude_artifact");
+
+    const ok = await a.client.from("artifacts").insert({
+      house_id: houseA,
+      owner_id: a.id,
+      url: "https://github.com/octocat/Hello-World",
+      title: "Repo",
+      item_type: "github_repo",
+    });
+    expect(ok.error).toBeNull();
+
+    const wrong1 = await a.client.from("artifacts").insert({
+      house_id: houseA,
+      owner_id: a.id,
+      url: "https://claude.ai/x/9",
+      title: "X",
+      item_type: "github_repo",
+    });
+    expect(wrong1.error).not.toBeNull();
+    const wrong2 = await a.client.from("artifacts").insert({
+      house_id: houseA,
+      owner_id: a.id,
+      url: "https://github.com/a/b",
+      title: "X",
+      item_type: "claude_artifact",
+    });
+    expect(wrong2.error).not.toBeNull();
+    const http = await a.client.from("artifacts").insert({
+      house_id: houseA,
+      owner_id: a.id,
+      url: "http://example.com",
+      title: "X",
+      item_type: "link",
+    });
+    expect(http.error).not.toBeNull();
+  });
+  it("github_repo-Objekte unterliegen derselben Freigabe (Viewer ohne Zugriff sieht nichts)", async () => {
+    const { data } = await c.client.from("artifacts").select("id").eq("item_type", "github_repo");
+    expect(data).toEqual([]);
+  });
   it("doppelte URL pro Besitzer wird abgelehnt", async () => {
     const { error } = await a.client
       .from("artifacts")

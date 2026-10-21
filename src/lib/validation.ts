@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { detectItemType, LINK_ITEM_TYPES, urlMatchesType } from "@/lib/item-types";
 import { ARTIFACT_KINDS } from "@/lib/types";
 
 /** Nur claude.ai-Links sind als Artifact erlaubt (siehe PLAN.md Abschnitt 9). */
@@ -69,19 +70,33 @@ export const tagsSchema = z
   )
   .pipe(z.array(z.string().max(30, "Ein Tag darf höchstens 30 Zeichen haben.")));
 
-export const artifactSchema = z.object({
-  houseId: z.uuid({ message: "Bitte ein Haus wählen." }),
-  url: artifactUrlSchema,
-  title: z.string().trim().min(1, "Bitte einen Titel angeben.").max(120, "Maximal 120 Zeichen."),
-  description: z
-    .string()
-    .trim()
-    .max(500, "Maximal 500 Zeichen.")
-    .transform((d) => d || null),
-  kind: z.enum(ARTIFACT_KINDS),
-  tags: tagsSchema,
-  visibility: z.enum(["shared", "private"]),
+const httpsUrl = z.url().refine((u) => URL.parse(u)?.protocol === "https:", {
+  message: "Nur https://-Links sind erlaubt.",
 });
+
+export const artifactSchema = z
+  .object({
+    houseId: z.uuid({ message: "Bitte ein Haus wählen." }),
+    url: httpsUrl,
+    itemType: z.enum([...LINK_ITEM_TYPES, "auto"]).default("auto"),
+    title: z.string().trim().min(1, "Bitte einen Titel angeben.").max(120, "Maximal 120 Zeichen."),
+    description: z
+      .string()
+      .trim()
+      .max(500, "Maximal 500 Zeichen.")
+      .transform((d) => d || null),
+    kind: z.enum(ARTIFACT_KINDS),
+    tags: tagsSchema,
+    visibility: z.enum(["shared", "private"]),
+  })
+  .transform((d) => ({
+    ...d,
+    itemType: d.itemType === "auto" ? detectItemType(d.url) : d.itemType,
+  }))
+  .refine((d) => urlMatchesType(d.itemType, d.url), {
+    message: "Der Link passt nicht zum gewählten Objekttyp.",
+    path: ["url"],
+  });
 
 export const inviteSchema = z.object({
   maxUses: z.coerce.number().int().min(1).max(100),

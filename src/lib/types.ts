@@ -1,3 +1,6 @@
+import type { ItemType } from "./item-types";
+import type { PreviewMeta } from "./previews";
+
 export const ARTIFACT_KINDS = [
   "rechner",
   "quiz",
@@ -29,6 +32,9 @@ export type Artifact = {
   title: string;
   description: string | null;
   kind: ArtifactKind;
+  item_type: ItemType;
+  meta: PreviewMeta;
+  meta_refreshed_at: string | null;
   tags: string[];
   visibility: "shared" | "private";
   sort: number;

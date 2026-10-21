@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Hub Dome",
-  description: "Dein 3D-Dorf für Claude-Artifacts",
+  description: "Dein 3D-Dorf für Claude-Artifacts und mehr",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

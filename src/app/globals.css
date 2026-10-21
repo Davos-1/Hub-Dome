@@ -24,3 +24,92 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* README-Darstellung (react-markdown) */
+.readme {
+  line-height: 1.5;
+  max-height: 24rem;
+  overflow: auto;
+  margin-top: 0.5rem;
+}
+.readme h1,
+.readme h2,
+.readme h3 {
+  font-weight: 700;
+  margin: 0.75rem 0 0.25rem;
+}
+.readme h1 {
+  font-size: 1.25rem;
+}
+.readme h2 {
+  font-size: 1.1rem;
+}
+.readme p,
+.readme ul,
+.readme ol,
+.readme pre {
+  margin: 0.4rem 0;
+}
+.readme ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+.readme ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+.readme a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+.readme code {
+  background: #f4f4f5;
+  color: #18181b;
+  padding: 0 0.25rem;
+  border-radius: 0.25rem;
+}
+.readme pre {
+  background: #f4f4f5;
+  color: #18181b;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+.readme pre code {
+  background: none;
+  padding: 0;
+}
+.readme table {
+  border-collapse: collapse;
+}
+.readme th,
+.readme td {
+  border: 1px solid #d4d4d8;
+  padding: 0.15rem 0.4rem;
+}
+
+/* Syntax-Hervorhebung (highlight.js) */
+.hljs {
+  background: #18181b;
+  color: #e4e4e7;
+}
+.hljs-keyword,
+.hljs-built_in,
+.hljs-literal {
+  color: #c084fc;
+}
+.hljs-string,
+.hljs-attr {
+  color: #86efac;
+}
+.hljs-number {
+  color: #fdba74;
+}
+.hljs-comment {
+  color: #71717a;
+  font-style: italic;
+}
+.hljs-title,
+.hljs-function {
+  color: #7dd3fc;
+}
