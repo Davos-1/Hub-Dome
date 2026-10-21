@@ -80,7 +80,7 @@ test("Zentrale-Stil speichern, eigenes Modell hochladen, anzeigen und löschen",
   page.on("dialog", (d) => d.accept());
 
   // Stile wählen und speichern
-  await page.goto("/einstellungen");
+  await page.goto(`/dorf/${user.username}?d=einstellungen&t=dorf`);
   await page.getByRole("radio", { name: /Leuchtturm/ }).check();
   await page.getByRole("button", { name: "Stil speichern" }).click();
   await expect(page.getByText("Gespeichert. Dein Dorf sieht jetzt anders aus.")).toBeVisible();
@@ -125,7 +125,7 @@ test("Zentrale-Stil speichern, eigenes Modell hochladen, anzeigen und löschen",
   await page.waitForTimeout(2500); // Modell wird im Hintergrund geladen
 
   // Modell löschen: Zentrale fällt auf das Rathaus zurück
-  await page.goto("/einstellungen");
+  await page.goto(`/dorf/${user.username}?d=einstellungen&t=dorf`);
   await page.getByRole("button", { name: "Modell löschen" }).click();
   await expect(page.getByText("Modell gelöscht.")).toBeVisible();
   const { data: after } = await admin

@@ -1,25 +1,35 @@
 import { Suspense } from "react";
 import { requireProfile } from "@/lib/auth";
-import { ActionForm } from "@/components/ui/action-form";
-import { acceptInvite } from "./actions";
+import { VillageView } from "@/components/village/village-view";
+import { loadShell } from "@/lib/shell-data";
+import { loadVillage } from "@/lib/village-data";
 
 export const metadata = { title: "Einladung – Hub Dome" };
 
+/** Einladungslink: dein eigenes Dorf im Hintergrund, darüber der Dialog zum Annehmen. */
 async function EinladungContent({ params }: Pick<PageProps<"/einladung/[token]">, "params">) {
   const { token } = await params;
-  await requireProfile();
+  const { profile } = await requireProfile();
+  const { supabase, me, owner, village, houses, artifacts, isOwner, customModelUrl } =
+    await loadVillage(profile.username);
+  const shell = await loadShell(supabase, me);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-8">
-      <h1 className="text-3xl font-bold">Einladung in ein Dorf</h1>
-      <p>
-        Du wurdest eingeladen, ein Dorf in Hub Dome anzusehen. Mit dem Annehmen siehst du die
-        geteilten Objekte.
-      </p>
-      <ActionForm action={acceptInvite} submitLabel="Einladung annehmen" pendingLabel="Nehme an…">
-        <input type="hidden" name="token" value={token} />
-      </ActionForm>
-    </main>
+    <VillageView
+      villageId={village.id}
+      villageName={village.name}
+      ownerUsername={owner.username}
+      ownerName={owner.display_name}
+      avatarSeed={owner.avatar_seed}
+      isOwner={isOwner}
+      zentraleStyle={village.zentrale_style}
+      customModelUrl={customModelUrl}
+      houses={houses}
+      artifacts={artifacts}
+      previews={{}}
+      shell={shell}
+      inviteToken={token}
+    />
   );
 }
 

@@ -104,6 +104,11 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
       houses={houses}
       artifacts={artifacts}
       previews={{}}
+      shell={{
+        me: { id: "u", username: "vorschau", displayName: "Vorschau" },
+        villages: [],
+        own: null,
+      }}
     />
   );
 }

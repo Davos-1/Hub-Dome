@@ -4,9 +4,13 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { ShellData } from "@/lib/shell-data";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { buildVillageModel } from "@/lib/village-model";
+import { useDialog } from "../world/use-dialog";
+import { WelcomeBanner } from "../world/welcome-banner";
+import { WorldDialogs } from "../world/world-dialogs";
 import { BottomBar } from "./hud/bottom-bar";
 import { Breadcrumb } from "./hud/breadcrumb";
 import { SearchBox } from "./hud/search-box";
@@ -16,7 +20,7 @@ import { createSceneStore, loadSettings, saveSettings } from "./scene-store";
 
 const VillageScene = dynamic(() => import("./village-scene"), {
   ssr: false,
-  loading: () => <p className="p-6 text-zinc-500">3D-Dorf wird geladen…</p>,
+  loading: () => null,
 });
 
 type Props = {
@@ -32,6 +36,10 @@ type Props = {
   houses: House[];
   artifacts: Artifact[];
   previews: Record<string, ReactNode>;
+  /** Daten für die Dialoge (Start, Reise, Einstellungen, Hinzufügen). */
+  shell: ShellData;
+  /** Einladungslink: zeigt den Annehmen-Dialog über der Welt. */
+  inviteToken?: string;
 };
 
 /** Media-Query als Hook (Server: false). */
@@ -56,9 +64,13 @@ function hasWebGL() {
   }
 }
 
-/** Vollbild-3D: Dorf, schwebende Leiste unten, Brotkrumen, Suche und Fenster rechts. */
+const hint =
+  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 shadow";
+
+/** Vollbild-3D: Dorf, schwebende Leiste unten, Brotkrumen, Suche, Fenster rechts und Dialoge der Welt-Shell. */
 export function VillageView(props: Props) {
-  const { houses, artifacts, ownerUsername } = props;
+  const { houses, artifacts, ownerUsername, shell } = props;
+  const dialog = useDialog();
   const router = useRouter();
 
   const reducedMotion = useMedia("(prefers-reduced-motion: reduce)");
@@ -72,9 +84,19 @@ export function VillageView(props: Props) {
     () => null,
   );
 
+  // Welcher Dialog ist offen? Start, Hinzufügen und Einladung gelten nur in den passenden Fällen.
+  const ownerOnly = dialog.id === "start" || dialog.id === "objekt" || dialog.id === "haus";
+  const active =
+    props.inviteToken !== undefined
+      ? ("einladung" as const)
+      : ownerOnly && !props.isOwner
+        ? null
+        : dialog.id;
+
   const [now] = useState(() => Date.now());
   const model = useMemo(() => buildVillageModel(houses, artifacts, now), [houses, artifacts, now]);
-  const [store] = useState(() => createSceneStore());
+  // Einstieg: beim Start-Dialog steht die Kamera zuerst weit draussen
+  const [store] = useState(() => createSceneStore({ intro: dialog.id === "start" }));
   const actions = useMemo(() => makeActions(store, model), [store, model]);
   const windowOpen = useSideWindowOpen(store);
 
@@ -87,9 +109,16 @@ export function VillageView(props: Props) {
     });
   }, [store]);
 
-  // Esc schliesst zuerst offene Popups und Fenster, sonst geht es eine Ebene zurück (auch ohne Fokus im Canvas).
+  // Sobald der Start-Dialog nicht mehr offen ist, fliegt die Kamera zur Übersicht ein.
+  useEffect(() => {
+    if (active !== "start") store.set({ intro: false });
+  }, [active, store]);
+
+  // Esc schliesst zuerst offene Popups, sonst geht es eine Ebene zurück (nicht bei offenem Dialog:
+  // der Dialog behandelt Esc selbst).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (document.querySelector("[data-hd-dialog]")) return;
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.key === "Escape" && store.get().panel) {
@@ -107,6 +136,9 @@ export function VillageView(props: Props) {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [store, actions]);
 
+  const ownVillage = shell.villages.find((v) => v.mine);
+  const empty = model.houses.length <= 1;
+
   return (
     <div
       className="hubdome-ui fixed inset-0 overflow-hidden bg-[#cfe4f4] text-[#1c1b19]"
@@ -122,7 +154,12 @@ export function VillageView(props: Props) {
           .
         </p>
       ) : webgl ? (
-        <div className="absolute inset-0" tabIndex={-1}>
+        <div
+          className="hd-fade-in absolute inset-0"
+          tabIndex={-1}
+          inert={active !== null}
+          aria-hidden={active !== null || undefined}
+        >
           <VillageScene
             villageId={props.villageId}
             ownerName={props.ownerName}
@@ -133,14 +170,18 @@ export function VillageView(props: Props) {
             store={store}
             actions={actions}
             isOwner={props.isOwner}
-            onConstruction={(houseId) => router.push(`/dorf/${ownerUsername}/liste#h-${houseId}`)}
+            onConstruction={(houseId) => dialog.open("objekt", { houseId })}
             lowDetail={lowDetail}
             reducedMotion={reducedMotion}
           />
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-0">
+      <div
+        className="pointer-events-none absolute inset-0"
+        inert={active !== null}
+        aria-hidden={active !== null || undefined}
+      >
         <Breadcrumb model={model} store={store} actions={actions} />
         <SearchBox model={model} actions={actions} />
         <SideWindow
@@ -151,22 +192,39 @@ export function VillageView(props: Props) {
           previews={props.previews}
           isOwner={props.isOwner}
           ownerUsername={ownerUsername}
+          onAddObject={(houseId) => dialog.open("objekt", { houseId })}
         />
-        <BottomBar store={store} actions={actions} windowOpen={windowOpen} />
-        {model.houses.length <= 1 && (
-          <p className="pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 shadow">
-            {props.isOwner ? (
-              <>
-                Lege dein erstes Modulhaus an – in der{" "}
-                <Link href={`/dorf/${ownerUsername}/liste`} className="underline">
-                  Listenansicht
-                </Link>
-                .
-              </>
-            ) : (
-              "Hier gibt es noch keine Häuser."
-            )}
+        <BottomBar
+          store={store}
+          actions={actions}
+          windowOpen={windowOpen}
+          onTravel={() => dialog.open("reise")}
+          onSettings={() => dialog.open("einstellungen", { tab: "anzeige" })}
+          onAddHouse={props.isOwner ? () => dialog.open("haus") : undefined}
+        />
+        {empty && props.isOwner && (
+          <p className={hint}>
+            Lege dein erstes Modulhaus an –{" "}
+            <button type="button" onClick={() => dialog.open("haus")} className="underline">
+              Haus anlegen
+            </button>{" "}
+            oder in der{" "}
+            <Link href={`/dorf/${ownerUsername}/liste`} className="underline">
+              Listenansicht
+            </Link>
+            .
           </p>
+        )}
+        {empty && !props.isOwner && <p className={hint}>Hier gibt es noch keine Häuser.</p>}
+        {!props.isOwner && active === null && (
+          <WelcomeBanner
+            villageName={props.villageName}
+            ownerName={props.ownerName}
+            ownerUsername={ownerUsername}
+            onHome={() => {
+              router.push(ownVillage ? `/dorf/${ownVillage.ownerUsername}` : "/start");
+            }}
+          />
         )}
         <Link
           href={`/dorf/${ownerUsername}/liste`}
@@ -175,6 +233,21 @@ export function VillageView(props: Props) {
           Zur Listenansicht
         </Link>
       </div>
+
+      <WorldDialogs
+        active={active}
+        dialog={dialog}
+        inviteToken={props.inviteToken}
+        shell={shell}
+        model={model}
+        store={store}
+        actions={actions}
+        isOwner={props.isOwner}
+        villageName={props.villageName}
+        ownerUsername={ownerUsername}
+        lowDetail={lowDetail}
+        onEnter={dialog.close}
+      />
     </div>
   );
 }

@@ -10,13 +10,26 @@ type Props = {
   defaultHouseId?: string;
   artifact?: Artifact;
   submitLabel: string;
+  onSuccess?: () => void;
 };
 
-export function ArtifactForm({ action, houses, defaultHouseId, artifact, submitLabel }: Props) {
+export function ArtifactForm({
+  action,
+  houses,
+  defaultHouseId,
+  artifact,
+  submitLabel,
+  onSuccess,
+}: Props) {
   // Eindeutige IDs: dieselbe Seite enthält mehrere Formulare (pro Haus und pro Artifact).
   const id = artifact?.id ?? `neu-${defaultHouseId}`;
   return (
-    <ActionForm action={action} submitLabel={submitLabel} successText="Gespeichert.">
+    <ActionForm
+      action={action}
+      submitLabel={submitLabel}
+      successText="Gespeichert."
+      onSuccess={onSuccess}
+    >
       {artifact && <input type="hidden" name="id" value={artifact.id} />}
       <label htmlFor={`url-${id}`} className="text-sm font-medium">
         Link

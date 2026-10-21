@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, type ReactNode } from "react";
 import type { ActionState } from "@/lib/types";
 
 type Props = {
@@ -14,6 +14,8 @@ type Props = {
   buttonClassName?: string;
   /** Bei Erfolg angezeigter Text. */
   successText?: string;
+  /** Wird einmal pro erfolgreichem Absenden aufgerufen (z.B. Dialog schliessen). */
+  onSuccess?: () => void;
 };
 
 const initial: ActionState = {};
@@ -28,8 +30,14 @@ export function ActionForm({
   className = "flex flex-col gap-3",
   buttonClassName = "rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-60",
   successText,
+  onSuccess,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, initial);
+  const seen = useRef(state);
+  useEffect(() => {
+    if (state.ok && seen.current !== state) onSuccess?.();
+    seen.current = state;
+  }, [state, onSuccess]);
 
   return (
     <form

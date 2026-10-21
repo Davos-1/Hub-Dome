@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { TIME_LABELS, type TimeSetting } from "@/lib/daytime";
+import type { TimeSetting } from "@/lib/daytime";
 import { FACHBEREICHE } from "@/lib/fachbereiche";
 import { hostOf, ITEM_TYPE_ICONS, ITEM_TYPE_LABELS } from "@/lib/item-types";
 import { ARTIFACT_KIND_LABELS, type Artifact, type ArtifactKind } from "@/lib/types";
@@ -11,8 +11,8 @@ import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
 import { useScene, type SceneStore } from "../scene-store";
 
-const TIME_ORDER: TimeSetting[] = ["morgen", "mittag", "abend", "auto"];
-const FILTER_KINDS: ArtifactKind[] = [
+export const TIME_ORDER: TimeSetting[] = ["morgen", "mittag", "abend", "auto"];
+export const FILTER_KINDS: ArtifactKind[] = [
   "rechner",
   "quiz",
   "zusammenfassung",
@@ -20,7 +20,7 @@ const FILTER_KINDS: ArtifactKind[] = [
   "tool",
   "visualisierung",
 ];
-const KEY_HINTS: [string, string][] = [
+export const KEY_HINTS: [string, string][] = [
   ["Klick", "Quartier oder Haus öffnen"],
   ["← →", "Quartier oder Haus wählen"],
   ["Enter", "Auswahl öffnen"],
@@ -31,7 +31,7 @@ const seg = (on: boolean) => (on ? "bg-[#1c1b19] text-[#fffdf8]" : "bg-transpare
 const linkClass =
   "text-[13px] font-medium text-[#2f5d4a] underline underline-offset-2 hover:text-[#1c3f32]";
 
-function Segments<T extends string>({
+export function Segments<T extends string>({
   label,
   value,
   options,
@@ -103,78 +103,6 @@ function Shell({
   );
 }
 
-function SettingsWindow({
-  store,
-  actions,
-  isOwner,
-  ownerUsername,
-}: {
-  store: SceneStore;
-  actions: SceneActions;
-  isOwner: boolean;
-  ownerUsername: string;
-}) {
-  const time = useScene(store, (s) => s.time);
-  const view = useScene(store, (s) => s.view);
-  const filter = useScene(store, (s) => s.filter);
-  return (
-    <Shell
-      title="Einstellungen"
-      subtitle="Änderungen gelten sofort"
-      onClose={() => store.set({ panel: null })}
-    >
-      <Segments
-        label="Tageszeit"
-        value={time}
-        options={TIME_ORDER.map((t) => [t, TIME_LABELS[t]] as [TimeSetting, string])}
-        onPick={(t) => store.set({ time: t })}
-      />
-      <Segments
-        label="Ansicht"
-        value={view}
-        options={[
-          ["3d", "3D"],
-          ["karte", "Karte"],
-        ]}
-        onPick={(v) => actions.setView(v)}
-      />
-      <Segments
-        label="Nach Kategorie filtern"
-        value={filter}
-        options={[
-          ["", "Alle"],
-          ...FILTER_KINDS.map((k) => [k, ARTIFACT_KIND_LABELS[k]] as [ArtifactKind, string]),
-        ]}
-        onPick={(k) => store.set({ filter: k })}
-      />
-      <div className="flex flex-col gap-1.5 border-t border-[#ebe6dc] pt-2.5">
-        <div className="pt-2.5 text-[13px] font-semibold text-[#1c1b19]">Bedienung</div>
-        <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-[12.5px] text-[#3a3732]">
-          {KEY_HINTS.map(([k, text]) => (
-            <div key={k} className="contents">
-              <dt className="font-mono text-[11.5px] font-medium text-[#6d6a63]">{k}</dt>
-              <dd>{text}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-      <div className="flex flex-col gap-2 border-t border-[#ebe6dc] pt-3.5">
-        <Link href={`/dorf/${ownerUsername}/liste`} className={linkClass}>
-          {isOwner ? "In der Listenansicht bearbeiten" : "Zur Listenansicht"}
-        </Link>
-        {isOwner && (
-          <Link href="/einstellungen" className={linkClass}>
-            Zentrale-Stil und Einstellungen
-          </Link>
-        )}
-        <Link href="/doerfer" className={linkClass}>
-          Alle Dörfer
-        </Link>
-      </div>
-    </Shell>
-  );
-}
-
 function ObjectDetail({
   artifact,
   house,
@@ -225,12 +153,14 @@ function HouseDetail({
   isOwner,
   ownerUsername,
   actions,
+  onAdd,
 }: {
   house: HouseInfo;
   artifacts: Artifact[];
   isOwner: boolean;
   ownerUsername: string;
   actions: SceneActions;
+  onAdd: (houseId: string) => void;
 }) {
   const listHref = `/dorf/${ownerUsername}/liste#h-${house.id}`;
   return (
@@ -251,9 +181,9 @@ function HouseDetail({
           {isOwner && (
             <>
               {" "}
-              <Link href={listHref} className="underline">
+              <button type="button" onClick={() => onAdd(house.id)} className="underline">
                 Erstes Objekt hinzufügen
-              </Link>
+              </button>
               .
             </>
           )}
@@ -293,10 +223,21 @@ function HouseDetail({
           })}
         </ul>
       )}
-      {isOwner && artifacts.length > 0 && (
-        <Link href={listHref} className={linkClass}>
-          In der Listenansicht bearbeiten
-        </Link>
+      {isOwner && (
+        <div className="flex flex-col items-start gap-2">
+          {artifacts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onAdd(house.id)}
+              className="cursor-pointer rounded-lg bg-[#2f5d4a] px-3.5 py-2 text-[13px] font-semibold text-[#fffdf8]"
+            >
+              Objekt hinzufügen
+            </button>
+          )}
+          <Link href={listHref} className={linkClass}>
+            In der Listenansicht bearbeiten
+          </Link>
+        </div>
       )}
     </div>
   );
@@ -344,13 +285,11 @@ function QuarterDetail({
 }
 
 /**
- * Fenster rechts: Einstellungen (wenn geöffnet), sonst Details des gewählten Quartiers, Hauses oder Objekts.
+ * Fenster rechts: Details des gewählten Quartiers, Hauses oder Objekts (Einstellungen sind Dialoge).
  * Gibt zurück, ob ein Fenster offen ist (Leiste unten rückt dann nach links).
  */
 export function useSideWindowOpen(store: SceneStore): boolean {
-  const panel = useScene(store, (s) => s.panel);
-  const level = useScene(store, (s) => s.nav.level);
-  return panel === "drawer" || level !== "dorf";
+  return useScene(store, (s) => s.nav.level !== "dorf");
 }
 
 export function SideWindow({
@@ -361,6 +300,7 @@ export function SideWindow({
   previews,
   isOwner,
   ownerUsername,
+  onAddObject,
 }: {
   model: VillageModel;
   store: SceneStore;
@@ -369,22 +309,13 @@ export function SideWindow({
   previews: Record<string, ReactNode>;
   isOwner: boolean;
   ownerUsername: string;
+  /** Dialog «Objekt hinzufügen» für dieses Haus öffnen. */
+  onAddObject: (houseId: string) => void;
 }) {
-  const panel = useScene(store, (s) => s.panel);
   const nav = useScene(store, (s) => s.nav);
   const pinned = useScene(store, (s) => s.pinnedObjId);
   const closeDetail = () => actions.up();
 
-  if (panel === "drawer") {
-    return (
-      <SettingsWindow
-        store={store}
-        actions={actions}
-        isOwner={isOwner}
-        ownerUsername={ownerUsername}
-      />
-    );
-  }
   if (nav.level === "quartier") {
     const q = model.layout.quarters.find((x) => x.id === nav.q);
     return (
@@ -418,6 +349,7 @@ export function SideWindow({
             isOwner={isOwner}
             ownerUsername={ownerUsername}
             actions={actions}
+            onAdd={onAddObject}
           />
         )}
       </Shell>

@@ -36,7 +36,14 @@ export function CameraRig({
 
   const nav = useScene(store, (s) => s.nav);
   const view = useScene(store, (s) => s.view);
-  const pose: Pose = useMemo(() => poseFor(layout, nav, view), [layout, nav, view]);
+  const intro = useScene(store, (s) => s.intro);
+  const pose: Pose = useMemo(() => {
+    const p = poseFor(layout, nav, view);
+    // Einstieg: weit draussen beginnen, nach dem Start-Dialog zur Übersicht einfliegen
+    return intro
+      ? { position: p.position.map((c) => c * 1.45) as [number, number, number], target: p.target }
+      : p;
+  }, [layout, nav, view, intro]);
 
   const anim = useRef<{
     t: number;

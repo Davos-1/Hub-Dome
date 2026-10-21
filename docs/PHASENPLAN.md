@@ -9,7 +9,7 @@ Dieses Dokument fasst `PLAN.md`, `PLAN-ERWEITERUNG.md` und `PLAN-ERWEITERUNG-2.m
 | 3b | Objekttypen, GitHub-/Gist-Vorschau | PLAN-ERWEITERUNG.md | fertig (MCP-Anteil kommt mit Phase 5) |
 | 4, 4b | 3D-Dorf, Gestaltung, eigene Zentrale (GLB) | PLAN.md, docs/PLAN-4B-GESTALTUNG.md | fertig |
 | 4-Handoff | Design «3D-Dorf Endfassung» (Quartiere, Haustypen, Vollbild) | docs/design_handoff_dorf3d | fertig, Migration `semester` eingespielt |
-| **4c** | **Welt-Shell: Dialoge statt Seiten, Start- und Reise-Dialog** | dieses Dokument | **neu, als Nächstes** |
+| **4c** | **Welt-Shell: Dialoge statt Seiten, Start- und Reise-Dialog** | dieses Dokument | **fertig** (Details unten) |
 | 5 | MCP-Connector + Skill (+ Zusatz C: `im_topdorf_zeigen`, erst ab 5b aktiv) | PLAN.md, PLAN-ERWEITERUNG-2.md Teil C | offen |
 | 5b | Übernehmen + Nutzungsdaten (`/o/<id>`, `copy_artifact`, `item_events`) | PLAN-ERWEITERUNG-2.md Teil A | offen |
 | 6 | Deployment, Pilot (vorher: eigener Mailversand, Google-Freigabe, nDSG-Hinweis, Konto löschen) | PLAN.md | offen |
@@ -83,7 +83,16 @@ Das rechte Fenster bleibt für **Details** (Quartier, Haus, Objekt). Einstellung
 - [ ] Performance wie Phase 4 (Dialog offen: Szene rendert nur bei Bedarf, kein Dauer-Blur auf `lowDetail`)
 - [ ] E2E angepasst (`dorf3d`, `freigabe`, `gestaltung`) und neuer Test für Start- und Reise-Dialog
 
-## Offene Entscheidungen für Gian
+## Umsetzung (2026-10-22) und Entscheidungen
+
+- Start-Dialog erscheint **bei jedem Login** (`/start` leitet auf `/dorf/<eigener>?d=start`), nicht bei Deep-Links oder Neuladen. Die Kamera beginnt weit draussen und fliegt nach «Mein Dorf betreten» ein.
+- Besuch eines fremden Dorfs zeigt das **Willkommens-Banner «Dorf von …»** (7 s, mit «Zurück in mein Dorf»); Besucher sehen keine Bearbeiten-Knöpfe.
+- Dialoge: Start, Reise, Einstellungen (Profil, Dorf, Teilen, Anzeige), Objekt hinzufügen, Haus anlegen, Einladung. Alte Adressen `/doerfer` und `/einstellungen` leiten um; `/einladung/<token>` zeigt den Dialog über dem eigenen Dorf und führt nach dem Annehmen direkt ins Dorf.
+- **Listenansicht** bleibt vorerst eine Seite; Gian möchte sie **später auch als Dialog** (offen, nach Phase 5/6 einplanen).
+- `/onboarding` bleibt vorerst eine Seite (vor dem ersten Login existiert noch kein Dorf, das im Hintergrund laden könnte). Idee für später: Platzhalter-Dorf als Hintergrund.
+- Noch offen aus dem Konzept: Claude-Tab (kommt mit Phase 5), Konto löschen (Phase 6), Topdorf-Karte im Reise-Dialog (Phase 6b).
+
+## Ursprüngliche Entscheidungen für Gian (beantwortet)
 
 1. Soll der Start-Dialog **jedes Mal** nach dem Login erscheinen, oder nur beim ersten Mal und dann direkt die Welt (mit Button «Dörfer» in der Leiste)? Vorschlag: jedes Mal nach dem Login, aber nicht bei Deep-Links oder Neuladen.
 2. Soll die Listenansicht als Seite bleiben (Vorschlag: ja, als Fallback und für Mobile) oder später auch ein Dialog werden?

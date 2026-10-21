@@ -31,7 +31,7 @@ export async function createInvite(_: ActionState, formData: FormData): Promise<
   if (error) return { error: "Die Einladung konnte nicht erstellt werden." };
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  revalidatePath("/einstellungen");
+  revalidatePath("/", "layout");
   return { ok: true, inviteUrl: `${base}/einladung/${token}` };
 }
 
@@ -61,7 +61,7 @@ export async function deleteInvite(_: ActionState, formData: FormData): Promise<
   const { supabase } = await requireUser();
   const { error } = await supabase.from("invites").delete().eq("id", id);
   if (error) return { error: "Die Einladung konnte nicht gelöscht werden." };
-  revalidatePath("/einstellungen");
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 

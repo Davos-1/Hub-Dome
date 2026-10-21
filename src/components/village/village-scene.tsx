@@ -71,23 +71,26 @@ function PerfProbe({ houses, artifacts }: { houses: number; artifacts: number })
   return null;
 }
 
-/** Atlas aller Beschriftungen (nach dem Laden der Schrift). */
+/**
+ * Atlas aller Beschriftungen (nach dem Laden der Schrift). Gehört immer zu genau einem Modell: ändert sich
+ * das Dorf (z.B. neues Haus), gibt es bis zum neuen Atlas keinen, damit nie Modell und Atlas auseinanderlaufen.
+ */
 function useAtlas(model: VillageModel, ownerName: string): VillageAtlas | null {
-  const [atlas, setAtlas] = useState<VillageAtlas | null>(null);
+  const [built, setBuilt] = useState<{ model: VillageModel; atlas: VillageAtlas } | null>(null);
   useEffect(() => {
     let cancelled = false;
-    let built: VillageAtlas | null = null;
+    let atlas: VillageAtlas | null = null;
     loadLabelFont().then(() => {
       if (cancelled) return;
-      built = buildVillageAtlas(model, ownerName);
-      setAtlas(built);
+      atlas = buildVillageAtlas(model, ownerName);
+      setBuilt({ model, atlas });
     });
     return () => {
       cancelled = true;
-      built?.dispose();
+      atlas?.dispose();
     };
   }, [model, ownerName]);
-  return atlas;
+  return built?.model === model ? built.atlas : null;
 }
 
 /** Filter «Kategorie»: Objekte der Kategorie leuchten, andere werden grau (ohne Neuaufbau). */

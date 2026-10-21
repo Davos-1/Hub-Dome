@@ -17,7 +17,7 @@ async function OnboardingContent() {
     .select("display_name, onboarded")
     .eq("id", data.user.id)
     .single();
-  if (profile?.onboarded) redirect("/doerfer");
+  if (profile?.onboarded) redirect("/start");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-8">

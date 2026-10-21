@@ -34,7 +34,7 @@ describe("onboardingSchema", () => {
 describe("safeNextPath", () => {
   it("lässt interne Pfade zu", () => expect(safeNextPath("/einladung/abc")).toBe("/einladung/abc"));
   it.each(["https://evil.com", "//evil.com", "/\\evil.com", "evil", null])("blockt %j", (n) =>
-    expect(safeNextPath(n)).toBe("/doerfer"),
+    expect(safeNextPath(n)).toBe("/start"),
   );
 });
 

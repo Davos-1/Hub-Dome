@@ -18,7 +18,10 @@ export type SceneState = {
   highlight: { kind: "obj" | "house"; id: string; t0: number } | null;
   kbdQuarter: FachbereichId | null;
   kbdHouse: string | null;
-  panel: null | "filter" | "time" | "drawer";
+  /** Popups der Leiste unten (Tageszeit, Filter); Einstellungen und Co. sind Dialoge der Welt-Shell. */
+  panel: null | "filter" | "time";
+  /** Einstiegsbild: die Kamera steht weit weg, bis der Start-Dialog geschlossen wird. */
+  intro: boolean;
 };
 
 export const initialSceneState: SceneState = {
@@ -33,6 +36,7 @@ export const initialSceneState: SceneState = {
   kbdQuarter: null,
   kbdHouse: null,
   panel: null,
+  intro: false,
 };
 
 export type SceneStore = {

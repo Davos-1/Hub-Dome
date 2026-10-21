@@ -5,11 +5,22 @@ import { createHouse } from "@/app/dorf/actions";
 import { ActionForm, inputClass } from "@/components/ui/action-form";
 import type { ModuleOption } from "@/lib/types";
 
-export function HouseCreateForm({ modules }: { modules: ModuleOption[] }) {
+export function HouseCreateForm({
+  modules,
+  onSuccess,
+}: {
+  modules: ModuleOption[];
+  onSuccess?: () => void;
+}) {
   const [kind, setKind] = useState<"modul" | "thema">("modul");
 
   return (
-    <ActionForm action={createHouse} submitLabel="Haus anlegen" successText="Haus angelegt.">
+    <ActionForm
+      action={createHouse}
+      submitLabel="Haus anlegen"
+      successText="Haus angelegt."
+      onSuccess={onSuccess}
+    >
       <fieldset className="flex gap-4">
         <legend className="mb-1 text-sm font-medium">Art</legend>
         <label className="flex items-center gap-1">

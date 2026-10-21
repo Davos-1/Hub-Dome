@@ -24,9 +24,18 @@ export function BottomBar({
   store,
   actions,
   windowOpen,
+  onTravel,
+  onSettings,
+  onAddHouse,
 }: {
   store: SceneStore;
   actions: SceneActions;
+  /** Dialog «Dörfer besuchen» öffnen. */
+  onTravel: () => void;
+  /** Dialog «Einstellungen» öffnen. */
+  onSettings: () => void;
+  /** Dialog «Haus anlegen» (nur Besitzer). */
+  onAddHouse?: () => void;
   /** Rechtes Fenster offen: die Leiste rückt in die freie Fläche links davon. */
   windowOpen: boolean;
 }) {
@@ -35,7 +44,7 @@ export function BottomBar({
   const filter = useScene(store, (s) => s.filter);
   const panel = useScene(store, (s) => s.panel);
 
-  const toggle = (p: "filter" | "time" | "drawer") => store.set({ panel: panel === p ? null : p });
+  const toggle = (p: "filter" | "time") => store.set({ panel: panel === p ? null : p });
 
   return (
     <>
@@ -148,9 +157,24 @@ export function BottomBar({
           <div className="h-6 w-px bg-[#e2ddd2]" />
           <button
             type="button"
-            onClick={() => toggle("drawer")}
-            aria-expanded={panel === "drawer"}
-            className={`cursor-pointer rounded-[9px] px-3.5 py-2 text-[13px] font-semibold text-[#fffdf8] ${panel === "drawer" ? "bg-[#1c1b19]" : "bg-[#2f5d4a]"}`}
+            onClick={onTravel}
+            className="cursor-pointer rounded-[9px] px-3 py-2 text-[13px] font-medium text-[#1c1b19] hover:bg-[#efeae0]"
+          >
+            Reise
+          </button>
+          {onAddHouse && (
+            <button
+              type="button"
+              onClick={onAddHouse}
+              className="cursor-pointer rounded-[9px] px-3 py-2 text-[13px] font-medium text-[#1c1b19] hover:bg-[#efeae0]"
+            >
+              + Haus
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onSettings}
+            className="cursor-pointer rounded-[9px] bg-[#2f5d4a] px-3.5 py-2 text-[13px] font-semibold text-[#fffdf8]"
           >
             Einstellungen
           </button>

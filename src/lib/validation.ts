@@ -27,7 +27,7 @@ export const onboardingSchema = z.object({
 });
 
 /** Erlaubt nur interne Pfade als Weiterleitungsziel (kein Open Redirect). */
-export function safeNextPath(next: string | null | undefined, fallback = "/doerfer") {
+export function safeNextPath(next: string | null | undefined, fallback = "/start") {
   return next && /^\/(?![/\\])/.test(next) ? next : fallback;
 }
 
