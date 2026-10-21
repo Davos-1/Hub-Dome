@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +7,7 @@ import { OnboardingForm } from "./onboarding-form";
 export const metadata = { title: "Willkommen – Hub Dome" };
 
 async function OnboardingContent() {
+  await connection(); // Auth nutzt die aktuelle Zeit: erst zur Anfragezeit rendern
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login");

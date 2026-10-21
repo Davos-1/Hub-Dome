@@ -1,8 +1,10 @@
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 /** Liefert User und Profil. Leitet auf /login bzw. /onboarding um, wenn nötig. */
 export async function requireProfile() {
+  await connection(); // Auth nutzt die aktuelle Zeit: erst zur Anfragezeit rendern
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login");
