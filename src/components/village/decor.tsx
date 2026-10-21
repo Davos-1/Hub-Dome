@@ -2,9 +2,11 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { ZENTRALE_FOOTPRINT, type VillageLayout } from "@/lib/layout";
+import type { VillageLayout } from "@/lib/layout";
+import { distanceToPolyline } from "@/lib/paths";
 import { seededRandom } from "./colors";
 import { cyl, mergeParts, sphere, type Part } from "./geo";
+import { buildPathGeometry } from "./paths-geometry";
 
 const dummy = new THREE.Object3D();
 const color = new THREE.Color();
@@ -31,13 +33,14 @@ export function SkyBackground() {
 }
 
 /** Boden: Wiese mit hellerem Rand, Dorfplatz mit Steinring und Laternen. */
-export function Ground({ extent }: { extent: number }) {
+export function Ground({ extent, plaza }: { extent: number; plaza: number }) {
   const lamps = useMemo(() => {
     const parts: Part[] = [];
     const glowParts: Part[] = [];
-    const r = ZENTRALE_FOOTPRINT + 2.6;
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    const r = plaza - 1.1;
+    const count = Math.max(6, Math.round((2 * Math.PI * r) / 5.5));
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.PI / count;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       parts.push({ geo: cyl(0.05, 0.07, 1.5, 8), color: "#3f3f46", pos: [x, 0.75, z] });
@@ -45,7 +48,7 @@ export function Ground({ extent }: { extent: number }) {
       glowParts.push({ geo: sphere(0.15, 10), color: "#ffd479", pos: [x, 1.7, z] });
     }
     return { body: mergeParts(parts), glow: mergeParts(glowParts) };
-  }, []);
+  }, [plaza]);
   useEffect(
     () => () => {
       lamps.body.dispose();
@@ -65,11 +68,11 @@ export function Ground({ extent }: { extent: number }) {
         <meshStandardMaterial color="#86bf6c" />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} receiveShadow>
-        <circleGeometry args={[ZENTRALE_FOOTPRINT + 4, 48]} />
+        <circleGeometry args={[plaza + 0.1, 48]} />
         <meshStandardMaterial color="#c9bfa2" />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]} receiveShadow>
-        <ringGeometry args={[ZENTRALE_FOOTPRINT + 3.6, ZENTRALE_FOOTPRINT + 4, 48]} />
+        <ringGeometry args={[plaza - 0.3, plaza + 0.1, 48]} />
         <meshStandardMaterial color="#a8a29e" />
       </mesh>
       <mesh geometry={lamps.body} castShadow>
@@ -82,59 +85,16 @@ export function Ground({ extent }: { extent: number }) {
   );
 }
 
-/** Wege von der Zentrale zu jedem Haus – eine einzige InstancedMesh, mit Randsteinen. */
+/** Wege von der Dorfplatz-Kante zu den Haustüren: organische Kurven, ein einziger Draw Call. */
 export function Paths({ layout }: { layout: VillageLayout }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const edge = useRef<THREE.InstancedMesh>(null);
-  const paths = layout.paths;
-
-  useLayoutEffect(() => {
-    if (!ref.current || !edge.current) return;
-    paths.forEach((p, i) => {
-      const len = Math.hypot(p.x, p.z);
-      dummy.position.set(p.x / 2, 0.02, p.z / 2);
-      dummy.rotation.set(0, Math.atan2(p.x, p.z), 0);
-      dummy.scale.set(1.5, 1, len);
-      dummy.updateMatrix();
-      ref.current!.setMatrixAt(i, dummy.matrix);
-      dummy.scale.set(1.9, 1, len);
-      dummy.position.y = 0.012;
-      dummy.updateMatrix();
-      edge.current!.setMatrixAt(i, dummy.matrix);
-    });
-    ref.current.instanceMatrix.needsUpdate = true;
-    edge.current.instanceMatrix.needsUpdate = true;
-  }, [paths]);
-
-  if (paths.length === 0) return null;
+  const geometry = useMemo(() => buildPathGeometry(layout.paths), [layout.paths]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
+  if (!geometry) return null;
   return (
-    <group>
-      <instancedMesh
-        ref={edge}
-        args={[undefined, undefined, paths.length]}
-        key={`e${paths.length}`}
-        receiveShadow
-      >
-        <boxGeometry args={[1, 0.03, 1]} />
-        <meshStandardMaterial color="#a8a29e" />
-      </instancedMesh>
-      <instancedMesh
-        ref={ref}
-        args={[undefined, undefined, paths.length]}
-        key={`p${paths.length}`}
-        receiveShadow
-      >
-        <boxGeometry args={[1, 0.04, 1]} />
-        <meshStandardMaterial color="#d8cdae" />
-      </instancedMesh>
-    </group>
+    <mesh geometry={geometry} receiveShadow>
+      <meshStandardMaterial vertexColors roughness={0.95} />
+    </mesh>
   );
-}
-
-function distToSegment(px: number, pz: number, bx: number, bz: number) {
-  const l2 = bx * bx + bz * bz;
-  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + pz * bz) / l2));
-  return Math.hypot(px - t * bx, pz - t * bz);
 }
 
 type Spot = { x: number; z: number; s: number; r: number; c: number };
@@ -160,7 +120,7 @@ function scatter(
     const z = Math.sin(a) * r;
     const blocked =
       houses.some((h) => Math.hypot(h.x - x, h.z - z) < h.footprint * 2 + houseClear) ||
-      layout.paths.some((p) => distToSegment(x, z, p.x, p.z) < pathClear);
+      layout.paths.some((p) => distanceToPolyline(x, z, p.points) < pathClear);
     if (!blocked) out.push({ x, z, s: 0.75 + rnd() * 0.6, r: rnd() * Math.PI * 2, c: rnd() });
   }
   return out;

@@ -3,6 +3,8 @@
  * Gleiche Daten ergeben immer dasselbe Dorf – keine Zufallswerte, kein Date.now().
  */
 
+import { computePaths, type VillagePath } from "./paths";
+
 export type LayoutHouse = { id: string; kind: "zentrale" | "modul" | "thema" };
 
 export type Tier = 1 | 2 | 3;
@@ -21,15 +23,22 @@ export type HouseLayout = {
 
 export type VillageLayout = {
   houses: Record<string, HouseLayout>;
-  paths: { x: number; z: number }[];
+  /** Wege von der Dorfplatz-Kante zu den Haustüren (organisch, berühren sich nicht). */
+  paths: VillagePath[];
+  /** Radius des Dorfplatzes (wächst bei sehr vielen Häusern, damit alle Wege Platz haben). */
+  plazaRadius: number;
   /** Radius des äusseren Rings samt Rand (für Kamera und Begrenzung). */
   extent: number;
 };
 
-/** Plätze pro Ring und Ringradius. Ab dem 8. Haus beginnt der zweite Ring. */
-const RING_CAPACITY = [7, 12, 18, 24];
-const RING_RADIUS = [12, 22, 32, 42];
+/** Bis zu dieser Anzahl stehen alle Häuser auf einem Ring; ab dem 8. Haus kommt ein zweiter Ring dazu. */
+const SINGLE_RING_MAX = 7;
 const FIRST_RING_EXTENT = 8;
+const BASE_RADIUS = 12;
+/** Abstand der beiden Ringe (Meter): genug für grosse Häuser samt Objektbögen. */
+const RING_GAP = 13;
+/** Nötiger seitlicher Abstand eines Wegs zu einem Haus samt Objektbogen (Meter). */
+const PATH_CLEARANCE = 5.6;
 
 /** Hausgrösse wächst mit der Anzahl Objekte: 0–2 klein, 3–6 mittel, 7+ gross. */
 export function houseTier(artifactCount: number): Tier {
@@ -40,13 +49,16 @@ export function houseTier(artifactCount: number): Tier {
 
 const TIER_FOOTPRINT: Record<Tier, number> = { 1: 1.1, 2: 1.5, 3: 1.9 };
 export const ZENTRALE_FOOTPRINT = 2.3;
+/** Mindestradius des Dorfplatzes, an dessen Rand die Wege beginnen. */
+export const PLAZA_EDGE = ZENTRALE_FOOTPRINT + 3.9;
+/** Platz, den jeder Weg am Rand des Dorfplatzes braucht (Breite plus Lücke). */
+const PATH_SLOT = 1.95;
 
 export function computeLayout(
   houses: LayoutHouse[],
   artifactCounts: Record<string, number>,
 ): VillageLayout {
   const result: Record<string, HouseLayout> = {};
-  const paths: { x: number; z: number }[] = [];
 
   const zentrale = houses.find((h) => h.kind === "zentrale");
   if (zentrale) {
@@ -63,41 +75,53 @@ export function computeLayout(
 
   // Reihenfolge der Eingabe bleibt erhalten (der Aufrufer sortiert nach position_index).
   const others = houses.filter((h) => h.kind !== "zentrale");
-  let index = 0;
-  let ring = 0;
-  while (index < others.length) {
-    const capacity = RING_CAPACITY[Math.min(ring, RING_CAPACITY.length - 1)];
-    const members = others.slice(index, index + capacity);
-    const radius = RING_RADIUS[Math.min(ring, RING_RADIUS.length - 1)] + Math.max(0, ring - 3) * 10;
-    // Jeder Ring wird um einen halben Schritt versetzt, damit Häuser nicht hinter Häusern stehen.
-    const offset = ring % 2 === 1 ? Math.PI / members.length : 0;
+  const n = others.length;
+  const plazaRadius = Math.max(PLAZA_EDGE, round((n * PATH_SLOT) / (2 * Math.PI)));
 
-    members.forEach((h, i) => {
-      // Start unten (+z, zur Kamera), im Uhrzeigersinn.
-      const theta = Math.PI / 2 + offset + (2 * Math.PI * i) / members.length;
-      const x = round(radius * Math.cos(theta));
-      const z = round(radius * Math.sin(theta));
-      const tier = houseTier(artifactCounts[h.id] ?? 0);
-      result[h.id] = {
-        id: h.id,
-        x,
-        z,
-        angle: round(Math.atan2(-x, -z)),
-        ring: ring + 1,
-        tier,
-        footprint: TIER_FOOTPRINT[tier],
-      };
-      paths.push({ x, z });
-    });
-    index += members.length;
-    ring += 1;
-  }
+  // Bis 7 Häuser: ein Ring. Danach zwei Ringe, Häuser wechseln sich ab (gerade Position = innen,
+  // ungerade = aussen) und stehen auf Lücke. So führt kein Weg durch ein anderes Haus.
+  const twoRings = n > SINGLE_RING_MAX;
+  const inner = twoRings ? Math.ceil(n / 2) : n;
+  const innerRadius = twoRings
+    ? Math.max(BASE_RADIUS, plazaRadius + 8, PATH_CLEARANCE / Math.sin(Math.PI / inner))
+    : BASE_RADIUS;
+  const outerRadius = innerRadius + RING_GAP;
 
-  const outer =
-    ring === 0
-      ? 0
-      : RING_RADIUS[Math.min(ring - 1, RING_RADIUS.length - 1)] + Math.max(0, ring - 4) * 10;
-  return { houses: result, paths, extent: Math.max(outer, FIRST_RING_EXTENT) + 8 };
+  const place = (h: LayoutHouse, ring: number, radius: number, theta: number) => {
+    const x = round(radius * Math.cos(theta));
+    const z = round(radius * Math.sin(theta));
+    const tier = houseTier(artifactCounts[h.id] ?? 0);
+    result[h.id] = {
+      id: h.id,
+      x,
+      z,
+      angle: round(Math.atan2(-x, -z)),
+      ring,
+      tier,
+      footprint: TIER_FOOTPRINT[tier],
+    };
+  };
+
+  // Start unten (+z, zur Kamera), im Uhrzeigersinn.
+  const start = Math.PI / 2;
+  others.forEach((h, i) => {
+    if (!twoRings) {
+      place(h, 1, innerRadius, start + (2 * Math.PI * i) / n);
+    } else if (i % 2 === 0) {
+      place(h, 1, innerRadius, start + (2 * Math.PI * (i / 2)) / inner);
+    } else {
+      place(h, 2, outerRadius, start + Math.PI / inner + (2 * Math.PI * ((i - 1) / 2)) / inner);
+    }
+  });
+
+  const outer = n === 0 ? 0 : twoRings ? outerRadius : innerRadius;
+  const paths = computePaths(Object.values(result), plazaRadius);
+  return {
+    houses: result,
+    paths,
+    plazaRadius,
+    extent: Math.max(outer, FIRST_RING_EXTENT) + 8,
+  };
 }
 
 const round = (n: number) => Math.round(n * 1000) / 1000;

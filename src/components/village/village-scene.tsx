@@ -136,7 +136,7 @@ export default function VillageScene(props: SceneProps) {
         shadow-camera-bottom={-(layout.extent + 14)}
       />
 
-      <Ground extent={layout.extent} />
+      <Ground extent={layout.extent} plaza={layout.plazaRadius} />
       <Paths layout={layout} />
       <Nature layout={layout} seed={villageId} density={lowDetail ? 0.35 : 1} />
 

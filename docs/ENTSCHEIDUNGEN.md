@@ -112,3 +112,9 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Umgebung:** Himmel-Farbverlauf, weiche Schatten (aus auf Mobile), Wiese mit Randzonen, Dorfplatz mit Laternen, Wege mit Randstein; Natur als Instanzen (Bäume mit zwei Kronen, Büsche, Blumen, Steine; `density` für Mobile).
 - **Beschriftungen** haben konstante Bildschirmgrösse (`sizeAttenuation=false`), damit sie beim Heranzoomen nicht riesig werden.
 - Messung (10 Häuser/60 Objekte, Headless): ~250 Draw Calls, ~260k Dreiecke (inkl. Schattenpass). Deutlich mehr Dreiecke als zuvor (~5k), aber für Laptop-GPUs unkritisch; auf Mobile prüfen.
+
+## 2026-10-21 – Phase 4b / Etappe A: Organische Wege (Konzept in docs/PLAN-4B-GESTALTUNG.md)
+- Gian-Wunsch: Wege weniger gerade, mehrere Varianten, dürfen sich nicht berühren. Umsetzung `src/lib/paths.ts` («Korridor-Verfahren»): gerade Wege festlegen, pro Punkt den Abstand zu allen anderen Wegen und Häusern messen, die Auslenkung darf höchstens (Abstand − Breite − Lücke)/2 sein. Dadurch berühren sich zwei Kurven **rechnerisch** nie. 4 Kurvenformen × 4 Beläge (Sand, Kies, Platten mit Fugen, Trittsteine), pro Haus aus der ID abgeleitet. Tests bis 30 Häuser.
+- Erster Ansatz (Wege der Reihe nach ausweichen lassen) war falsch: er garantiert nichts, wenn spätere Wege keinen Platz mehr finden. Lehre: Zuerst die Invariante beweisen, dann die Form wählen.
+- **Layout geändert:** Bis 7 Häuser ein Ring (r=12). Ab 8 Häusern zwei Ringe, **abwechselnd** (gerade Position innen, ungerade aussen) und auf Lücke; Innenradius wächst so, dass jeder Weg ≥5.6 m Abstand zum nächsten Haus samt Objektbogen hat. Der Dorfplatz wächst bei sehr vielen Häusern, damit alle Wege am Rand Platz haben. Frühere Ringe-Kapazitäten (7/12/18/24) entfallen, weil Wege sonst direkt durch Häuser führten.
+- Wege sind ein einziges Mesh (ein Draw Call); `buildPathGeometry` in `paths-geometry.ts`.

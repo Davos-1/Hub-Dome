@@ -10,7 +10,7 @@ type Pose = { position: THREE.Vector3; target: THREE.Vector3 };
 /** Kameraposition für die Übersicht. */
 export function overviewPose(extent: number): Pose {
   return {
-    position: new THREE.Vector3(0, extent * 0.75 + 9, extent * 0.95 + 13),
+    position: new THREE.Vector3(0, extent * 0.95 + 10, extent * 1.2 + 14),
     target: new THREE.Vector3(0, 0, 0),
   };
 }
