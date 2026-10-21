@@ -85,3 +85,11 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 
 ## 2026-10-21 – PLAN-ERWEITERUNG.md (Objekttypen)
 - Gian hat `PLAN-ERWEITERUNG.md` ergänzt: **Phase 3b** (Objekttypen: github_repo, gist, cloud_ordner, link, …) kommt nach der Abnahme von Phase 3 und **vor** Phase 4; Phase 8 (Uploads) und 9 (Pakete) erst nach dem Pilot. UI-Begriff «Objekte» statt «Artifacts»; Tabelle bleibt `artifacts`. Vor Phase 3b: Constraint-Namen der URL-Prüfung in der DB nachschlagen.
+
+## 2026-10-21 – Phase 3b: Objekttypen (abgenommen bis auf MCP)
+- Migration `20261021000200_item_types.sql` eingespielt (Constraint-Name wird per `pg_constraint` gesucht, nicht geraten). RLS-Tests 22/22, E2E 5/5 (inkl. GitHub-Vorschau gegen echte API und 24-h-Cache).
+- Typerkennung/Validierung: `src/lib/item-types.ts` (spiegelt die DB-Prüfung `artifacts_url_by_type`). Vorschau-Logik: `src/lib/previews.ts` (rein, testbar mit injiziertem fetch) und `previews.server.ts` (Service Role, immer mit `owner_id`-Filter). Aktualisierung per `after()` nach Anlegen/Ändern und beim Öffnen durch den Besitzer (max. 5 pro Aufruf, nur wenn >24 h alt). Viewer lösen nie Abrufe aus.
+- README: `react-markdown` + `remark-gfm`, kein rohes HTML, Bilder nur als Text (kein Tracking), Links `noopener noreferrer nofollow`. Code: `highlight.js` (Kernmodul mit 10 Sprachen).
+- Gist/Repo nicht erreichbar → `{unavailable:true}`; eine frühere Vorschau bleibt erhalten. Rate-Limit → kein Speichern, späterer neuer Versuch.
+- **Offen für Phase 5 (MCP):** `artifact_platzieren` mit optionalem `objekt_typ` (sonst Auto-Erkennung via `detectItemType`), neues Tool `objekt_platzieren` (Alias), Skill-Vorlage um GitHub-Repo/Gist erweitern, Test «neues Tool platziert GitHub-Repo».
+- **Offen vor Phase 6:** Eigener SMTP-Dienst (z.B. Resend) für Auth-Mails; der eingebaute Supabase-Mailserver hat ein sehr tiefes Stundenlimit (zweiter Testaccount erhielt keine Mail). Außerdem Google-OAuth-App «veröffentlichen» oder Testnutzer eintragen.
