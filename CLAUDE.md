@@ -1,6 +1,6 @@
 # Hub Dome – Regeln für Claude Code
 
-- Spezifikation: PLAN.md und PLAN-ERWEITERUNG.md (Phase 3b vor Phase 4; 8 und 9 erst nach dem Pilot). Phasen der Reihe nach, nach jeder Phase stoppen und zusammenfassen.
+- Spezifikation: PLAN.md, PLAN-ERWEITERUNG.md (Phase 3b vor Phase 4; 8 und 9 erst nach dem Pilot) und PLAN-ERWEITERUNG-2.md (Reihenfolge ab jetzt: 5 → 5b Übernehmen → 6 Pilot → 6b Topdorf). Phasen der Reihe nach, nach jeder Phase stoppen und zusammenfassen.
 - **Entscheidungslog: docs/ENTSCHEIDUNGEN.md.** Zu Beginn jeder Sitzung lesen. Wichtige Entscheidungen, Fehler und Lehren sofort dort ergänzen (Datum, Kontext, Entscheidung, Grund).
 - UI-Texte Deutsch, Schweizer Schreibweise (kein ß).
 - Jede neue Tabelle braucht RLS und Tests dazu.

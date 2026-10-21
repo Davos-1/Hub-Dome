@@ -268,6 +268,8 @@ Gilt nur, wenn die Campusdorf-Tools (dorf_haeuser_auflisten, artifact_platzieren
 
 ## 10. Phasen mit Abnahmekriterien
 
+> **Aktuelle Reihenfolge und Stand: `docs/PHASENPLAN.md`.** Neu hinzugekommen: Phase 4c (Welt-Shell mit Dialogen), 5b (Übernehmen, `PLAN-ERWEITERUNG-2.md` Teil A) und 6b (Topdorf, Teil B). Die Phasen unten bleiben die Detailbeschreibung.
+
 ### Phase 0 – Abklärungen (ohne Code)
 
 - [ ] Prüfen: Lässt sich ein geteilter Artifact-Link ohne claude.ai-Login öffnen? Lässt er sich per iframe einbetten? Ergebnis dokumentieren. **Annahme bis dahin: nur «Öffnen im neuen Tab».**
