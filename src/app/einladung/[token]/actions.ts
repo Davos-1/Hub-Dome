@@ -17,5 +17,5 @@ export async function acceptInvite(_: ActionState, formData: FormData): Promise<
     .eq("id", villageId)
     .single();
   const owner = village?.owner as unknown as { username: string } | null;
-  redirect(owner ? `/dorf/${owner.username}/liste` : "/doerfer");
+  redirect(owner ? `/dorf/${owner.username}` : "/doerfer");
 }

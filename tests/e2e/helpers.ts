@@ -61,3 +61,48 @@ export async function loginAs(context: BrowserContext, user: E2EUser) {
     [...jar].map(([name, value]) => ({ name, value, url: "http://localhost:3000" })),
   );
 }
+
+/** Füllt das Dorf eines Users direkt per Admin-API (umgeht RLS, nur für Tests). */
+export async function seedVillage(userId: string, houseCount: number, perHouse: number) {
+  const { data: village } = await admin
+    .from("villages")
+    .select("id")
+    .eq("owner_id", userId)
+    .single();
+  const rows = Array.from({ length: houseCount }, (_, i) => ({
+    village_id: village!.id,
+    kind: "thema",
+    title: `Haus ${i + 1}`,
+    position_index: i + 1,
+  }));
+  const { data: houses, error } = await admin.from("houses").insert(rows).select("id, title");
+  if (error) throw error;
+
+  const kinds = ["rechner", "quiz", "zusammenfassung", "cheatsheet", "tool", "visualisierung"];
+  const types = [
+    ["claude_artifact", "https://claude.ai/public/artifacts/"],
+    ["github_repo", "https://github.com/seed/repo-"],
+    ["gist", "https://gist.github.com/seed/"],
+    ["cloud_ordner", "https://hslu.sharepoint.com/seed/"],
+    ["link", "https://example.com/"],
+  ];
+  const artifacts = houses!.flatMap((h, hi) =>
+    Array.from({ length: perHouse }, (_, i) => {
+      const [item_type, base] = types[(hi + i) % types.length];
+      return {
+        house_id: h.id,
+        owner_id: userId,
+        url: `${base}${hi}-${i}`.replace("/seed/repo-", "/seed/repo-"),
+        title: `Objekt ${hi + 1}.${i + 1}`,
+        kind: kinds[i % kinds.length],
+        item_type,
+        // Vorschau-Zeitstempel gesetzt: im Test keine GitHub-Abrufe
+        meta_refreshed_at: new Date().toISOString(),
+        meta: { unavailable: true },
+      };
+    }),
+  );
+  const { error: aError } = await admin.from("artifacts").insert(artifacts);
+  if (aError) throw aError;
+  return houses!;
+}

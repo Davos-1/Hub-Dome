@@ -1,20 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { after } from "next/server";
-import { notFound } from "next/navigation";
-import { requireProfile } from "@/lib/auth";
+import { loadVillage } from "@/lib/village-data";
 import { AppHeader } from "@/components/ui/app-header";
 import { HouseCreateForm } from "@/components/list/house-create-form";
 import { HouseSection } from "@/components/list/house-section";
-import {
-  ITEM_TYPES,
-  ITEM_TYPE_ICONS,
-  ITEM_TYPE_LABELS,
-  needsRefresh,
-  type ItemType,
-} from "@/lib/item-types";
-import { refreshArtifactMeta } from "@/lib/previews.server";
-import type { Artifact, House, ModuleOption, Village } from "@/lib/types";
+import { ITEM_TYPES, ITEM_TYPE_ICONS, ITEM_TYPE_LABELS, type ItemType } from "@/lib/item-types";
+import type { ModuleOption } from "@/lib/types";
 
 export const metadata = { title: "Dorf – Hub Dome" };
 
@@ -24,59 +15,20 @@ async function ListeContent({
 }: Pick<PageProps<"/dorf/[username]/liste">, "params" | "searchParams">) {
   const { username } = await params;
   const { typ } = await searchParams;
-  const { supabase, profile: me } = await requireProfile();
+  const {
+    supabase,
+    me,
+    owner,
+    village,
+    houses,
+    artifacts: allArtifacts,
+    isOwner,
+  } = await loadVillage(username);
 
-  // RLS: ohne Besitz oder Freigabe kommt hier nichts zurück → 404 (verrät nicht, ob das Dorf existiert).
-  const { data: owner } = await supabase
-    .from("profiles")
-    .select("id, username, display_name")
-    .eq("username", username)
-    .maybeSingle();
-  if (!owner) notFound();
-
-  const { data: village } = await supabase
-    .from("villages")
-    .select("id, owner_id, name, theme")
-    .eq("owner_id", owner.id)
-    .maybeSingle<Village>();
-  if (!village) notFound();
-
-  const { data: houseRows } = await supabase
-    .from("houses")
-    .select("*")
-    .eq("village_id", village.id)
-    .order("position_index")
-    .order("created_at");
-  const houses = ((houseRows ?? []) as House[]).sort(
-    (a, b) => Number(b.kind === "zentrale") - Number(a.kind === "zentrale"),
-  );
-
-  const { data: artifactRows } = await supabase
-    .from("artifacts")
-    .select("*")
-    .in(
-      "house_id",
-      houses.map((h) => h.id),
-    )
-    .order("sort")
-    .order("created_at");
-  const allArtifacts = (artifactRows ?? []) as Artifact[];
   const filter = ITEM_TYPES.find((t) => t === typ);
   const artifacts = filter ? allArtifacts.filter((a) => a.item_type === filter) : allArtifacts;
   const presentTypes = ITEM_TYPES.filter((t) => allArtifacts.some((a) => a.item_type === t));
 
-  const isOwner = me.id === owner.id;
-  if (isOwner) {
-    // Veraltete GitHub-/Gist-Vorschauen (älter als 24 h) nach der Antwort aktualisieren.
-    const stale = allArtifacts
-      .filter(
-        (a) =>
-          (a.item_type === "github_repo" || a.item_type === "gist") &&
-          needsRefresh(a.meta_refreshed_at),
-      )
-      .slice(0, 5);
-    if (stale.length) after(() => Promise.all(stale.map((a) => refreshArtifactMeta(a.id, me.id))));
-  }
   let modules: ModuleOption[] = [];
   if (isOwner) {
     const { data } = await supabase.from("module_catalog").select("code, title").order("title");
@@ -91,7 +43,10 @@ async function ListeContent({
         <h1 className="text-3xl font-bold">{village.name}</h1>
         <p className="text-sm text-zinc-500">
           @{owner.username}
-          {!isOwner && " · mit dir geteilt"}
+          {!isOwner && " · mit dir geteilt"} ·{" "}
+          <Link href={`/dorf/${owner.username}`} className="underline">
+            3D-Ansicht
+          </Link>
         </p>
       </div>
 

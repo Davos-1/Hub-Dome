@@ -15,7 +15,8 @@ npm run dev                  # http://localhost:3000
 | Befehl             | Zweck                          |
 | ------------------ | ------------------------------ |
 | `npm run check`    | Lint, Typecheck und Unit-Tests |
-| `npm run test:e2e` | Playwright-Smoke-Tests         |
+| `npm run test:e2e` | Playwright (Smoke, Freigabe, Objekttypen, 3D) |
+| `npm run test:rls` | RLS-Tests gegen das Supabase-Projekt |
 | `npm run format`   | Prettier                       |
 
 ## Struktur

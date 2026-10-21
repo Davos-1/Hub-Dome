@@ -93,3 +93,14 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - Gist/Repo nicht erreichbar → `{unavailable:true}`; eine frühere Vorschau bleibt erhalten. Rate-Limit → kein Speichern, späterer neuer Versuch.
 - **Offen für Phase 5 (MCP):** `artifact_platzieren` mit optionalem `objekt_typ` (sonst Auto-Erkennung via `detectItemType`), neues Tool `objekt_platzieren` (Alias), Skill-Vorlage um GitHub-Repo/Gist erweitern, Test «neues Tool platziert GitHub-Repo».
 - **Offen vor Phase 6:** Eigener SMTP-Dienst (z.B. Resend) für Auth-Mails; der eingebaute Supabase-Mailserver hat ein sehr tiefes Stundenlimit (zweiter Testaccount erhielt keine Mail). Außerdem Google-OAuth-App «veröffentlichen» oder Testnutzer eintragen.
+
+## 2026-10-21 – Phase 4: 3D-Dorf
+- **Struktur:** `src/lib/layout.ts` (deterministisch, getestet: Ringe 7/12/18/24 Plätze, Radien 12/22/32/42, Hausgrösse-Stufen 0–2/3–6/7+, Objekt-Slots als Bögen vor dem Haus). `src/lib/village-data.ts` = gemeinsamer Lader für 3D- und 2D-Seite. `src/components/village/`: `village-view` (Zustand, Panel, Media-Queries), `village-scene` (Canvas), `buildings`, `artifact-3d` (Form pro Objekttyp), `decor` (Boden, Wege, Bäume als InstancedMesh), `camera-rig` (Kamerafahrt, Pan-Begrenzung), `label3d`, `village-panel`.
+- **Routen:** `/dorf/[username]` = 3D, `/dorf/[username]/liste` = 2D (Link in beide Richtungen immer sichtbar). «Meine Dörfer» und angenommene Einladungen führen in die 3D-Ansicht.
+- **Keine DOM-Overlays im Canvas:** drei `Html` verursachte beim Verlassen der Seite `removeChild`-Fehler (React 19). Beschriftungen sind stattdessen Sprites mit Canvas-Textur (`label3d.tsx`, Systemschrift, kein Font-Download).
+- **Performance:** `frameloop="demand"`, geteilte Geometrien, Instancing für Bäume/Wege. Gemessen (Headless-Chromium, 10 Häuser + 60 Objekte): ~190–255 Draw Calls, ~5k Dreiecke. Echte fps muss Gian auf seinem Laptop bestätigen. Mobile/Touch (`pointer: coarse` oder <768 px): dpr ≤1.25, kein Antialiasing, 14 statt 42 Bäume.
+- **Barrierefreiheit:** Seitenpanel mit echten Buttons (alle Häuser/Objekte per Tastatur erreichbar), Esc = eine Ebene zurück, `prefers-reduced-motion` → Kamera springt, Dämpfung aus.
+- **Vorschauen im Panel:** README/Gist-Code werden serverseitig als `ObjectPreview` gerendert und als ReactNode an das Client-Panel übergeben.
+- **Test-Hook:** `window.__hubDome` (Draw Calls/Dreiecke der letzten Frame) für E2E-Performanztests.
+- **Lehre (Tests):** In Template-Literalen für RegExp `\b` schreiben (`\b` = Backspace). Gerenderte Szene im Test per Screenshot prüfen (`test-results/dorf3d-*.png`).
+- **Bekannt/offen:** Objekte direkt vor der Haustür überdecken diese teilweise (Slot-Bogen). THREE.Clock-Deprecation-Warnung stammt aus R3F, nicht von uns.

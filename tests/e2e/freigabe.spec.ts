@@ -65,7 +65,8 @@ test("Dorf teilen, ansehen und Zugriff entziehen", async ({ browser }) => {
   // B: Einladung annehmen
   await pb.goto(new URL(inviteUrl).pathname);
   await pb.getByRole("button", { name: "Einladung annehmen" }).click();
-  await expect(pb).toHaveURL(new RegExp(`/dorf/${a.username}/liste`));
+  await expect(pb).toHaveURL(new RegExp(`/dorf/${a.username}$`));
+  await pb.goto(`/dorf/${a.username}/liste`);
   await expect(pb.getByRole("link", { name: "Geteilter Rechner" })).toBeVisible();
   await expect(pb.getByText("Geheime Notiz")).toHaveCount(0);
   await expect(pb.getByRole("button", { name: "Objekt speichern" })).toHaveCount(0);

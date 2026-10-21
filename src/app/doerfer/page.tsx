@@ -23,7 +23,7 @@ function VillageCard({ v, mine }: { v: VillageRow; mine: boolean }) {
   const last = [...artifacts.map((a) => a.created_at), ...v.houses.map((h) => h.created_at)]
     .sort()
     .at(-1);
-  const href = `/dorf/${v.owner?.username}/liste`;
+  const href = `/dorf/${v.owner?.username}`;
 
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-zinc-300 p-4">
