@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "@/lib/validation";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
 /** Öffentliche Pfade (alles andere erfordert Login). */
@@ -31,13 +32,12 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
+    if (path !== "/") url.searchParams.set("next", path + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
   if (loggedIn && path === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/doerfer";
-    url.search = "";
-    return NextResponse.redirect(url);
+    const next = safeNextPath(request.nextUrl.searchParams.get("next"));
+    return NextResponse.redirect(new URL(next, request.url));
   }
   return response;
 }

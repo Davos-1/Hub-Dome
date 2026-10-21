@@ -19,3 +19,12 @@ export async function requireProfile() {
 
   return { supabase, user: data.user, profile };
 }
+
+/** Für Server Actions: eingeloggter User mit RLS-Client (ohne Onboarding-Prüfung). */
+export async function requireUser() {
+  await connection();
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) redirect("/login");
+  return { supabase, user: data.user };
+}

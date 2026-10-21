@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("Geschützte Seiten leiten auf /login um", async ({ page }) => {
   for (const path of ["/doerfer", "/onboarding"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login\?next=/);
   }
   await expect(page.getByRole("heading", { name: "Anmelden" })).toBeVisible();
 });

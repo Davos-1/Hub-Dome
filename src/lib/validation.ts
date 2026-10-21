@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ARTIFACT_KINDS } from "@/lib/types";
 
 /** Nur claude.ai-Links sind als Artifact erlaubt (siehe PLAN.md Abschnitt 9). */
 export const artifactUrlSchema = z.url().refine(
@@ -28,3 +29,60 @@ export const onboardingSchema = z.object({
 export function safeNextPath(next: string | null | undefined, fallback = "/doerfer") {
   return next && /^\/(?![/\\])/.test(next) ? next : fallback;
 }
+
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Ungültige Farbe.");
+
+export const houseSchema = z
+  .object({
+    kind: z.enum(["modul", "thema"]),
+    moduleCode: z.string().trim().optional(),
+    title: z.string().trim().max(80, "Maximal 80 Zeichen.").optional(),
+    color: hexColor.default("#8fb3ff"),
+  })
+  .refine((h) => h.kind !== "modul" || Boolean(h.moduleCode), {
+    message: "Bitte ein Modul wählen.",
+    path: ["moduleCode"],
+  })
+  .refine((h) => h.kind !== "thema" || Boolean(h.title), {
+    message: "Bitte einen Titel für das Themenhaus angeben.",
+    path: ["title"],
+  });
+
+export const houseUpdateSchema = z.object({
+  title: z.string().trim().min(1, "Bitte einen Titel angeben.").max(80, "Maximal 80 Zeichen."),
+  color: hexColor,
+});
+
+/** Komma-getrennte Tags → bereinigte Liste (max. 5, je max. 30 Zeichen). */
+export const tagsSchema = z
+  .string()
+  .default("")
+  .transform((s) =>
+    [
+      ...new Set(
+        s
+          .split(",")
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ].slice(0, 5),
+  )
+  .pipe(z.array(z.string().max(30, "Ein Tag darf höchstens 30 Zeichen haben.")));
+
+export const artifactSchema = z.object({
+  houseId: z.uuid({ message: "Bitte ein Haus wählen." }),
+  url: artifactUrlSchema,
+  title: z.string().trim().min(1, "Bitte einen Titel angeben.").max(120, "Maximal 120 Zeichen."),
+  description: z
+    .string()
+    .trim()
+    .max(500, "Maximal 500 Zeichen.")
+    .transform((d) => d || null),
+  kind: z.enum(ARTIFACT_KINDS),
+  tags: tagsSchema,
+  visibility: z.enum(["shared", "private"]),
+});
+
+export const inviteSchema = z.object({
+  maxUses: z.coerce.number().int().min(1).max(100),
+});
