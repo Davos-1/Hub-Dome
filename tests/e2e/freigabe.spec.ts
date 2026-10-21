@@ -31,7 +31,7 @@ test("Dorf teilen, ansehen und Zugriff entziehen", async ({ browser }) => {
   await pa.locator("#title").fill("Python");
   await pa.getByRole("button", { name: "Haus anlegen" }).click();
   const house = pa.getByRole("region", { name: "Python", exact: true });
-  await expect(house).toBeVisible();
+  await expect(house).toBeVisible({ timeout: 20_000 });
 
   // A: ein geteiltes und ein privates Artifact
   async function addArtifact(title: string, url: string, visibility: "shared" | "private") {

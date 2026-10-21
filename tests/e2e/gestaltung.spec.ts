@@ -99,7 +99,7 @@ test("Stile speichern, eigenes Modell hochladen, anzeigen und löschen", async (
     mimeType: "model/gltf-binary",
     buffer: Buffer.from("das ist keine glb-datei, nur Text in ausreichender Länge"),
   });
-  await expect(page.getByRole("alert")).toContainText("keine GLB-Datei");
+  await expect(page.getByRole("alert").filter({ hasText: "keine GLB-Datei" })).toBeVisible();
 
   // Gültige Datei hochladen
   await page.getByLabel("GLB-Datei auswählen").setInputFiles({

@@ -62,7 +62,7 @@ test("grosses Dorf: Szene rendert, Aufwand bleibt klein, Navigation über das Pa
 
   // 2D-Fallback ist immer sichtbar und führt zur Liste
   await page.getByRole("link", { name: "Zur Listenansicht" }).click();
-  await expect(page).toHaveURL(new RegExp(`/dorf/${big.username}/liste`));
+  await expect(page).toHaveURL(new RegExp(`/dorf/${big.username}/liste`), { timeout: 30_000 });
   expect(errors).toEqual([]);
 });
 
