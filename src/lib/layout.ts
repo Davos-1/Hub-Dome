@@ -47,7 +47,7 @@ export function houseTier(artifactCount: number): Tier {
   return 1;
 }
 
-const TIER_FOOTPRINT: Record<Tier, number> = { 1: 1.1, 2: 1.5, 3: 1.9 };
+export const TIER_FOOTPRINT: Record<Tier, number> = { 1: 1.1, 2: 1.5, 3: 1.9 };
 export const ZENTRALE_FOOTPRINT = 2.3;
 /** Mindestradius des Dorfplatzes, an dessen Rand die Wege beginnen. */
 export const PLAZA_EDGE = ZENTRALE_FOOTPRINT + 3.9;

@@ -311,3 +311,77 @@ describe("Daten-Validierung und Profile", () => {
     expect(other.data).toEqual([]);
   });
 });
+
+describe("Stile und eigene Modelle", () => {
+  const blob = () =>
+    new Blob([new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0])], { type: "model/gltf-binary" });
+  const bucket = (u: TestUser) => u.client.storage.from("village-models");
+
+  it("Besitzer darf Stile ändern, ungültige Werte werden abgelehnt, andere nicht", async () => {
+    const ok = await a.client
+      .from("villages")
+      .update({ house_style: "blockhuette", zentrale_style: "schule" })
+      .eq("id", a.villageId)
+      .select();
+    expect(ok.error).toBeNull();
+    expect(ok.data).toHaveLength(1);
+
+    const bad = await a.client
+      .from("villages")
+      .update({ house_style: "palast" })
+      .eq("id", a.villageId);
+    expect(bad.error).not.toBeNull();
+
+    const other = await c.client
+      .from("villages")
+      .update({ house_style: "tinyhaus" })
+      .eq("id", a.villageId)
+      .select();
+    expect(other.data).toEqual([]);
+  });
+
+  it("nur der Besitzer lädt hoch; fremde und falsch benannte Dateien werden abgelehnt", async () => {
+    const path = `${a.villageId}/zentrale.glb`;
+    expect(
+      (await bucket(a).upload(path, blob(), { upsert: true, contentType: "model/gltf-binary" }))
+        .error,
+    ).toBeNull();
+    expect(
+      (
+        await bucket(a).upload(`${a.villageId}/boese.glb`, blob(), {
+          contentType: "model/gltf-binary",
+        })
+      ).error,
+    ).not.toBeNull();
+    expect(
+      (await bucket(c).upload(path, blob(), { upsert: true, contentType: "model/gltf-binary" }))
+        .error,
+    ).not.toBeNull();
+    expect(
+      (await bucket(c).upload(`${a.villageId}/zentrale.glb`, blob(), { upsert: true })).error,
+    ).not.toBeNull();
+  });
+
+  it("ohne Freigabe gibt es keine signierte URL und keinen Download", async () => {
+    const path = `${a.villageId}/zentrale.glb`;
+    const signed = await bucket(c).createSignedUrl(path, 60);
+    expect(signed.data?.signedUrl).toBeUndefined();
+    expect((await bucket(c).download(path)).error).not.toBeNull();
+    expect((await bucket(a).createSignedUrl(path, 60)).data?.signedUrl).toBeTruthy();
+  });
+
+  it("Freigegebene dürfen laden, nach dem Entzug nicht mehr; Fremde dürfen nicht löschen", async () => {
+    const path = `${a.villageId}/zentrale.glb`;
+    const token = await invite();
+    expect((await c.client.rpc("accept_invite", { p_token: token })).error).toBeNull();
+    expect((await bucket(c).download(path)).error).toBeNull();
+    expect((await bucket(c).createSignedUrl(path, 60)).data?.signedUrl).toBeTruthy();
+    expect((await bucket(c).remove([path])).data ?? []).toEqual([]);
+
+    await a.client.from("village_access").delete().eq("viewer_id", c.id);
+    expect((await bucket(c).download(path)).error).not.toBeNull();
+
+    // Aufräumen
+    expect((await bucket(a).remove([path])).error).toBeNull();
+  });
+});

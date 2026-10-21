@@ -5,16 +5,22 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { WebGLRenderer } from "three";
 import { artifactSlots, computeLayout } from "@/lib/layout";
+import type { HouseStyle, ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { Artifact3D } from "./artifact-3d";
 import { House3D, Zentrale3D } from "./buildings";
 import { CameraRig, housePose, overviewPose } from "./camera-rig";
+import { computeEnvironment } from "@/lib/environment";
 import { Ground, Nature, Paths, SkyBackground } from "./decor";
+import { Life } from "./life";
 
 export type SceneProps = {
   villageId: string;
   ownerName: string;
   avatarSeed: string;
+  houseStyle: HouseStyle;
+  zentraleStyle: ZentraleStyle;
+  customModelUrl: string | null;
   houses: House[];
   artifacts: Artifact[];
   selectedHouseId: string | null;
@@ -64,6 +70,9 @@ export default function VillageScene(props: SceneProps) {
     villageId,
     ownerName,
     avatarSeed,
+    houseStyle,
+    zentraleStyle,
+    customModelUrl,
     houses,
     artifacts,
     selectedHouseId,
@@ -87,6 +96,11 @@ export default function VillageScene(props: SceneProps) {
         Object.fromEntries(houses.map((h) => [h.id, byHouse[h.id]?.length ?? 0])),
       ),
     [houses, byHouse],
+  );
+
+  const env = useMemo(
+    () => computeEnvironment(layout.extent, villageId),
+    [layout.extent, villageId],
   );
 
   const pose = useMemo(() => {
@@ -138,7 +152,8 @@ export default function VillageScene(props: SceneProps) {
 
       <Ground extent={layout.extent} plaza={layout.plazaRadius} />
       <Paths layout={layout} />
-      <Nature layout={layout} seed={villageId} density={lowDetail ? 0.35 : 1} />
+      <Life layout={layout} env={env} lowDetail={lowDetail} reducedMotion={reducedMotion} />
+      <Nature layout={layout} env={env} seed={villageId} density={lowDetail ? 0.35 : 1} />
 
       {houses.map((house) => {
         const l = layout.houses[house.id];
@@ -158,6 +173,8 @@ export default function VillageScene(props: SceneProps) {
           <group key={house.id} position={[l.x, 0, l.z]} rotation={[0, l.angle, 0]}>
             {house.kind === "zentrale" ? (
               <Zentrale3D
+                style={zentraleStyle}
+                modelUrl={customModelUrl}
                 name={ownerName}
                 avatarSeed={avatarSeed}
                 footprint={l.footprint}
@@ -168,6 +185,7 @@ export default function VillageScene(props: SceneProps) {
             ) : (
               <House3D
                 id={house.id}
+                style={houseStyle}
                 title={house.title}
                 color={house.color}
                 tier={l.tier}

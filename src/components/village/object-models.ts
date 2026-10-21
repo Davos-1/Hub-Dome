@@ -11,7 +11,7 @@ import {
   sphere,
   type Part,
 } from "./geo";
-import type { Model } from "./house-models";
+import type { Model } from "./models/common";
 
 const STONE = "#cfc9bd";
 const STONE_DARK = "#a8a29e";

@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { VillageLayout } from "@/lib/layout";
+import { isReserved, type Environment } from "@/lib/environment";
 import { distanceToPolyline } from "@/lib/paths";
 import { seededRandom } from "./colors";
 import { cyl, mergeParts, sphere, type Part } from "./geo";
@@ -108,6 +109,7 @@ function scatter(
   maxR: number,
   houseClear: number,
   pathClear: number,
+  env: Environment,
 ): Spot[] {
   const rnd = seededRandom(seed);
   const houses = Object.values(layout.houses);
@@ -119,6 +121,7 @@ function scatter(
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     const blocked =
+      isReserved(env, x, z, 1) ||
       houses.some((h) => Math.hypot(h.x - x, h.z - z) < h.footprint * 2 + houseClear) ||
       layout.paths.some((p) => distanceToPolyline(x, z, p.points) < pathClear);
     if (!blocked) out.push({ x, z, s: 0.75 + rnd() * 0.6, r: rnd() * Math.PI * 2, c: rnd() });
@@ -168,10 +171,12 @@ const placeRock = (s: Spot) => ({ y: 0.1 * s.s, sx: s.s * 0.35, sy: s.s * 0.25 }
  */
 export function Nature({
   layout,
+  env,
   seed,
   density,
 }: {
   layout: VillageLayout;
+  env: Environment;
   seed: string;
   density: number;
 }) {
@@ -183,20 +188,21 @@ export function Nature({
   const rocks = useRef<THREE.InstancedMesh>(null);
 
   const trees = useMemo(
-    () => scatter(layout, seed + "t", Math.round(46 * density), 8, layout.extent + 14, 5, 3.2),
-    [layout, seed, density],
+    () => scatter(layout, seed + "t", Math.round(46 * density), 8, layout.extent + 14, 5, 3.2, env),
+    [layout, env, seed, density],
   );
   const bushList = useMemo(
-    () => scatter(layout, seed + "b", Math.round(40 * density), 5, layout.extent + 8, 3, 2.2),
-    [layout, seed, density],
+    () => scatter(layout, seed + "b", Math.round(40 * density), 5, layout.extent + 8, 3, 2.2, env),
+    [layout, env, seed, density],
   );
   const flowerList = useMemo(
-    () => scatter(layout, seed + "f", Math.round(120 * density), 6, layout.extent + 6, 2.4, 1.6),
-    [layout, seed, density],
+    () =>
+      scatter(layout, seed + "f", Math.round(120 * density), 6, layout.extent + 6, 2.4, 1.6, env),
+    [layout, env, seed, density],
   );
   const rockList = useMemo(
-    () => scatter(layout, seed + "r", Math.round(18 * density), 6, layout.extent + 10, 3, 2),
-    [layout, seed, density],
+    () => scatter(layout, seed + "r", Math.round(18 * density), 6, layout.extent + 10, 3, 2, env),
+    [layout, env, seed, density],
   );
 
   useInstances(trunks, trees, placeTree, ["#6b4423", "#7a4f2a"]);

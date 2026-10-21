@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { HouseStyle, ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { VillagePanel } from "./village-panel";
 
@@ -18,6 +19,10 @@ type Props = {
   ownerName: string;
   avatarSeed: string;
   isOwner: boolean;
+  houseStyle: HouseStyle;
+  zentraleStyle: ZentraleStyle;
+  /** Signierte URL des eigenen Zentrale-Modells (nur bei Stil custom). */
+  customModelUrl?: string | null;
   houses: House[];
   artifacts: Artifact[];
   previews: Record<string, ReactNode>;
@@ -111,6 +116,9 @@ export function VillageView(props: Props) {
             villageId={props.villageId}
             ownerName={props.ownerName}
             avatarSeed={props.avatarSeed}
+            houseStyle={props.houseStyle}
+            zentraleStyle={props.zentraleStyle}
+            customModelUrl={props.customModelUrl ?? null}
             houses={houses}
             artifacts={artifacts}
             selectedHouseId={houseId}

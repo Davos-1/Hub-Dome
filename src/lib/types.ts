@@ -1,5 +1,6 @@
 import type { ItemType } from "./item-types";
 import type { PreviewMeta } from "./previews";
+import type { HouseStyle, ZentraleStyle } from "./styles";
 
 export const ARTIFACT_KINDS = [
   "rechner",
@@ -52,7 +53,20 @@ export type House = {
   created_at: string;
 };
 
-export type Village = { id: string; owner_id: string; name: string; theme: string };
+export type Village = {
+  id: string;
+  owner_id: string;
+  name: string;
+  theme: string;
+  house_style: HouseStyle;
+  zentrale_style: ZentraleStyle;
+  zentrale_model_meta: {
+    bytes: number;
+    triangles: number;
+    textures?: number;
+    uploaded_at: string;
+  } | null;
+};
 export type ModuleOption = { code: string; title: string };
 
 /** Zustand einer Server Action für useActionState. */

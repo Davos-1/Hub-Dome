@@ -60,6 +60,13 @@ export const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w,
 export const cyl = (rTop: number, rBottom: number, h: number, seg = 16) =>
   new THREE.CylinderGeometry(rTop, rBottom, h, seg);
 
+/** Zylinder mit Achse entlang z (liegend), damit eine Drehung um Y die Richtung bestimmt. */
+export const cylZ = (rTop: number, rBottom: number, len: number, seg = 16) => {
+  const g = new THREE.CylinderGeometry(rTop, rBottom, len, seg);
+  g.rotateX(Math.PI / 2);
+  return g;
+};
+
 /** Satteldach: Giebel zeigt nach +z, First verläuft entlang z, Unterkante liegt auf y=0. */
 export function gable(width: number, height: number, depth: number, bevel = 0.04) {
   const shape = new THREE.Shape();

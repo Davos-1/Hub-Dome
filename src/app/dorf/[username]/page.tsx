@@ -8,7 +8,8 @@ export const metadata = { title: "Dorf – Hub Dome" };
 
 async function DorfContent({ params }: Pick<PageProps<"/dorf/[username]">, "params">) {
   const { username } = await params;
-  const { me, owner, village, houses, artifacts, isOwner } = await loadVillage(username);
+  const { me, owner, village, houses, artifacts, isOwner, customModelUrl } =
+    await loadVillage(username);
 
   // Vorschauen (README, Gist-Code) werden auf dem Server gerendert und dem Detail-Panel übergeben.
   const previews = Object.fromEntries(
@@ -31,6 +32,9 @@ async function DorfContent({ params }: Pick<PageProps<"/dorf/[username]">, "para
         ownerName={owner.display_name}
         avatarSeed={owner.avatar_seed}
         isOwner={isOwner}
+        houseStyle={village.house_style}
+        zentraleStyle={village.zentrale_style}
+        customModelUrl={customModelUrl}
         houses={houses}
         artifacts={artifacts}
         previews={previews}

@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { requireProfile } from "@/lib/auth";
 import { AppHeader } from "@/components/ui/app-header";
 import { ActionForm, dangerButton, inputClass } from "@/components/ui/action-form";
+import { ModelUpload } from "@/components/settings/model-upload";
+import { StyleSettings } from "@/components/settings/style-settings";
 import { InviteForm } from "@/components/list/invite-form";
 import { deleteInvite, revokeAccess, updateDisplayName } from "./actions";
 
@@ -24,7 +26,7 @@ async function EinstellungenContent() {
 
   const { data: village } = await supabase
     .from("villages")
-    .select("id")
+    .select("id, house_style, zentrale_style, zentrale_model_meta")
     .eq("owner_id", profile.id)
     .single();
 
@@ -43,7 +45,7 @@ async function EinstellungenContent() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 p-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 p-6">
       <AppHeader displayName={profile.display_name} />
       <h1 className="text-3xl font-bold">Einstellungen</h1>
 
@@ -64,6 +66,23 @@ async function EinstellungenContent() {
         </ActionForm>
         <p className="text-sm text-zinc-500">Benutzername: @{profile.username}</p>
       </section>
+
+      {village && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-semibold">Dorf gestalten</h2>
+          <p className="text-sm text-zinc-600">
+            Der Haus-Stil gilt für alle deine Modul- und Themenhäuser. Je mehr Objekte ein Haus
+            enthält, desto grösser wird es; ein leeres Haus ist eine Baustelle im gewählten Stil.
+          </p>
+          <StyleSettings
+            houseStyle={village.house_style}
+            zentraleStyle={village.zentrale_style}
+            hasModel={Boolean(village.zentrale_model_meta)}
+          />
+          <h3 className="mt-4 text-lg font-semibold">Eigenes Modell für die Zentrale</h3>
+          <ModelUpload villageId={village.id} meta={village.zentrale_model_meta} />
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-semibold">Dorf teilen</h2>

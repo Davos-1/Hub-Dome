@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { generateToken, hashToken } from "@/lib/tokens";
 import type { ActionState } from "@/lib/types";
+import { houseStyleSchema, zentraleStyleSchema } from "@/lib/styles";
 import { inviteSchema } from "@/lib/validation";
 
 const INVITE_DAYS = 7;
@@ -74,6 +75,33 @@ export async function updateDisplayName(_: ActionState, formData: FormData): Pro
     .update({ display_name: name })
     .eq("id", user.id);
   if (error) return { error: "Der Name konnte nicht gespeichert werden." };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Stile des Dorfs speichern (gelten für alle Häuser bzw. die Zentrale). */
+export async function updateVillageStyle(_: ActionState, formData: FormData): Promise<ActionState> {
+  const house = houseStyleSchema.safeParse(formData.get("houseStyle"));
+  const zentrale = zentraleStyleSchema.safeParse(formData.get("zentraleStyle"));
+  if (!house.success || !zentrale.success) return { error: "Ungültige Stilauswahl." };
+  const { supabase, user } = await requireUser();
+
+  const { data: village } = await supabase
+    .from("villages")
+    .select("id, zentrale_model_meta")
+    .eq("owner_id", user.id)
+    .single();
+  if (!village) return { error: "Dorf nicht gefunden." };
+  if (zentrale.data === "custom" && !village.zentrale_model_meta) {
+    return { error: "Lade zuerst ein eigenes Modell hoch, bevor du «Eigenes Modell» wählst." };
+  }
+
+  const { error } = await supabase
+    .from("villages")
+    .update({ house_style: house.data, zentrale_style: zentrale.data })
+    .eq("id", village.id)
+    .eq("owner_id", user.id);
+  if (error) return { error: "Die Stile konnten nicht gespeichert werden." };
   revalidatePath("/", "layout");
   return { ok: true };
 }

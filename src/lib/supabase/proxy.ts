@@ -3,8 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safeNextPath } from "@/lib/validation";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
-/** Öffentliche Pfade (alles andere erfordert Login). */
-const PUBLIC_PATHS = ["/", "/login", "/auth", "/api/mcp"];
+/** Öffentliche Pfade (alles andere erfordert Login). `/dev` (Stil-Galerie) nur in der Entwicklung. */
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/auth",
+  "/api/mcp",
+  ...(process.env.NODE_ENV === "production" ? [] : ["/dev"]),
+];
 
 const isPublic = (path: string) =>
   PUBLIC_PATHS.some((p) => path === p || (p !== "/" && path.startsWith(p + "/")));

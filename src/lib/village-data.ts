@@ -21,7 +21,7 @@ export async function loadVillage(username: string) {
 
   const { data: village } = await supabase
     .from("villages")
-    .select("id, owner_id, name, theme")
+    .select("id, owner_id, name, theme, house_style, zentrale_style, zentrale_model_meta")
     .eq("owner_id", owner.id)
     .maybeSingle<Village>();
   if (!village) notFound();
@@ -60,5 +60,15 @@ export async function loadVillage(username: string) {
     if (stale.length) after(() => Promise.all(stale.map((a) => refreshArtifactMeta(a.id, me.id))));
   }
 
-  return { supabase, me, owner, village, houses, artifacts, isOwner };
+  // Eigenes Zentrale-Modell: kurzlebige signierte URL, nur wenn der Stil es verwendet. RLS auf dem
+  // Storage-Objekt entscheidet, ob der Aufrufer es sehen darf.
+  let customModelUrl: string | null = null;
+  if (village.zentrale_style === "custom" && village.zentrale_model_meta) {
+    const { data } = await supabase.storage
+      .from("village-models")
+      .createSignedUrl(`${village.id}/zentrale.glb`, 600);
+    customModelUrl = data?.signedUrl ?? null;
+  }
+
+  return { supabase, me, owner, village, houses, artifacts, isOwner, customModelUrl };
 }
