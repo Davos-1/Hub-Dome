@@ -47,7 +47,7 @@ export function computeEnvironment(extent: number, seed: string): Environment {
     const t = i / steps;
     const a = RIVER_CENTER - RIVER_HALF_SPAN + t * RIVER_HALF_SPAN * 2;
     const meander = 1.3 * Math.sin(t * 7 + phase) + 0.5 * Math.sin(t * 15 + phase * 2);
-    points.push(polar(a, extent + 4 + meander));
+    points.push(polar(a, extent + 4.5 + meander));
   }
   const first = polar(RIVER_CENTER - RIVER_HALF_SPAN - 0.12, extent + 14);
   const last = polar(RIVER_CENTER + RIVER_HALF_SPAN + 0.12, extent + 14);

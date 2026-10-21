@@ -57,6 +57,18 @@ export function HouseCreateForm({ modules }: { modules: ModuleOption[] }) {
           <input id="title" name="title" required maxLength={80} className={inputClass} />
         </>
       )}
+      <label htmlFor="semester" className="text-sm font-medium">
+        Semester (optional)
+      </label>
+      <input
+        id="semester"
+        name="semester"
+        type="number"
+        min={1}
+        max={12}
+        inputMode="numeric"
+        className={inputClass}
+      />
       <label htmlFor="color" className="text-sm font-medium">
         Farbe
       </label>

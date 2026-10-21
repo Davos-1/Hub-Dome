@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { box, cyl, rbox, sphere } from "../geo";
 import { Builder, type Model } from "./common";
-import { domeShape, solarPanel, tube } from "./house-marskuppel";
+import { domeShape, solarPanel, tube } from "./dome-parts";
 
 /** Grosse Marskuppel: zentrale Hauptkuppel mit vier Nebenkuppeln, Röhren, Solarfeld, Antenne und Landeplatz. */
 export function zentraleMarskuppelModel(fp: number): Model {

@@ -1,14 +1,19 @@
 import * as THREE from "three";
 import type { Tier } from "@/lib/layout";
-import type { HouseStyle, ZentraleStyle } from "@/lib/styles";
+import type { FachType } from "@/lib/fachbereiche";
+import type { ZentraleStyle } from "@/lib/styles";
 import { mergeParts, sphere, type Part } from "../geo";
-import { baumhausModel } from "./house-baumhaus";
-import { blockhuetteModel } from "./house-blockhuette";
-import { constructionModel as construction } from "./house-construction";
+import { baustelleModel } from "./house-baustelle";
+import {
+  atelierModel,
+  blockModel,
+  digitalModel,
+  solarModel,
+  stadtModel,
+  turmModel,
+  werkstattModel,
+} from "./house-fach";
 import { hausModel } from "./house-haus";
-import { marskuppelModel } from "./house-marskuppel";
-import { tinyhausModel } from "./house-tinyhaus";
-import { werkstattModel } from "./house-werkstatt";
 import type { Model } from "./common";
 import { hochhausModel } from "./zentrale-hochhaus";
 import { leuchtturmModel } from "./zentrale-leuchtturm";
@@ -17,47 +22,74 @@ import { rathausModel } from "./zentrale-rathaus";
 import { schuleModel } from "./zentrale-schule";
 import { villaModel } from "./zentrale-villa";
 
-export { roofColorFor, type Model } from "./common";
+export { type Model } from "./common";
 
-/** Modell eines Wohn-/Modulhauses im gewählten Stil und in der Grössenstufe. */
+const HOUSE_CACHE = new Map<string, Model>();
+
+/**
+ * Modell eines Hauses: Typ (aus dem Fachbereich), Grundmass, Stufe und Farben.
+ * Modelle werden pro Schlüssel zwischengespeichert und von allen gleichartigen Häusern geteilt
+ * (nicht beim Entfernen der Szene freigeben; der Zwischenspeicher bleibt klein).
+ */
 export function houseModel(
-  style: HouseStyle,
+  type: FachType,
   fp: number,
   tier: Tier,
   wall: string,
   roof: string,
+  accent: string,
+  /** Haus mit neuen Objekten: das Giebelhaus bekommt dann schon ab Stufe 1 einen Kamin (für den Rauch). */
+  active = false,
 ): Model {
-  switch (style) {
-    case "blockhuette":
-      return blockhuetteModel(fp, tier, wall, roof);
-    case "marskuppel":
-      return marskuppelModel(fp, tier, wall);
-    case "werkstatt":
-      return werkstattModel(fp, tier, wall);
-    case "tinyhaus":
-      return tinyhausModel(fp, tier, wall, roof);
-    case "baumhaus":
-      return baumhausModel(fp, tier, wall, roof);
-    default:
-      return hausModel(fp, tier, wall, roof);
+  const key = [type, fp, tier, wall, roof, accent, active].join("|");
+  let model = HOUSE_CACHE.get(key);
+  if (!model) {
+    switch (type) {
+      case "werkstatt":
+        model = werkstattModel(fp, tier, wall, roof, accent);
+        break;
+      case "block":
+        model = blockModel(fp, tier, wall, roof, accent);
+        break;
+      case "solar":
+        model = solarModel(fp, tier, wall, roof, accent);
+        break;
+      case "atelier":
+        model = atelierModel(fp, tier, wall, roof, accent);
+        break;
+      case "stadt":
+        model = stadtModel(fp, tier, wall, roof, accent);
+        break;
+      case "turm":
+        model = turmModel(fp, tier, wall, roof, accent);
+        break;
+      case "digital":
+        model = digitalModel(fp, tier, wall, roof, accent);
+        break;
+      default:
+        model = hausModel(fp, tier, wall, roof, accent, tier >= 2 || active);
+    }
+    HOUSE_CACHE.set(key, model);
   }
+  return model;
 }
 
-/** Baustelle (Haus ohne Objekte) passend zum Stil. */
-export const constructionModel = construction;
+/** Baustelle (Haus ohne Objekte), unabhängig vom Haustyp. */
+export function constructionModel(fp: number): Model {
+  const key = `baustelle|${fp}`;
+  let model = HOUSE_CACHE.get(key);
+  if (!model) {
+    model = baustelleModel(fp);
+    HOUSE_CACHE.set(key, model);
+  }
+  return model;
+}
 
-/** Höhe über dem Boden (in Vielfachen von `fp`), für Beschriftung und Trefferfläche. */
-export function houseTopFactor(style: HouseStyle, tier: Tier, empty: boolean): number {
-  if (empty) return 3.3;
-  const base: Record<HouseStyle, number> = {
-    haus: 2.8,
-    blockhuette: 2.9,
-    marskuppel: 2.4,
-    werkstatt: 2.5,
-    tinyhaus: 2.7,
-    baumhaus: 5.2,
-  };
-  return base[style] + (tier >= 3 ? (style === "werkstatt" ? 1.6 : 1) : 0);
+/** Position der Kaminöffnung (lokal) für den Rauch; `null` bei Typen ohne Kamin. */
+export function chimneyTop(type: FachType, fp: number): [number, number, number] | null {
+  if (type === "haus") return [fp * 0.55, 0.18 + fp * 1.5 + fp * 0.9, -fp * 2.1 * 0.18];
+  if (type === "block") return [fp * 0.9, 0.18 + fp * 2.02, -fp * 0.4];
+  return null;
 }
 
 /** Modell der Zentrale (Stil `custom` wird separat als hochgeladenes Modell geladen; hier Ersatz = Rathaus). */

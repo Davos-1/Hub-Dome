@@ -26,7 +26,7 @@ async function EinstellungenContent() {
 
   const { data: village } = await supabase
     .from("villages")
-    .select("id, house_style, zentrale_style, zentrale_model_meta")
+    .select("id, zentrale_style, zentrale_model_meta")
     .eq("owner_id", profile.id)
     .single();
 
@@ -71,11 +71,12 @@ async function EinstellungenContent() {
         <section className="flex flex-col gap-3">
           <h2 className="text-xl font-semibold">Dorf gestalten</h2>
           <p className="text-sm text-zinc-600">
-            Der Haus-Stil gilt für alle deine Modul- und Themenhäuser. Je mehr Objekte ein Haus
-            enthält, desto grösser wird es; ein leeres Haus ist eine Baustelle im gewählten Stil.
+            Die Häuser ergeben sich aus dem Fachbereich des Moduls (Werkstatt, Blockhaus, Solarhaus,
+            Atelier, Stadthaus, Turmhaus, Giebelhaus, Digital-Haus). Je mehr Objekte ein Haus
+            enthält, desto grösser wird es; ein leeres Haus ist eine Baustelle. Hier wählst du den
+            Stil deiner Zentrale.
           </p>
           <StyleSettings
-            houseStyle={village.house_style}
             zentraleStyle={village.zentrale_style}
             hasModel={Boolean(village.zentrale_model_meta)}
           />

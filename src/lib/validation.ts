@@ -33,12 +33,24 @@ export function safeNextPath(next: string | null | undefined, fallback = "/doerf
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Ungültige Farbe.");
 
+/** Optionales Semester 1–12; leeres Feld → null. */
+export const semesterSchema = z.preprocess(
+  (v) => (v === "" || v === undefined || v === null ? null : Number(v)),
+  z
+    .number({ message: "Semester: eine Zahl von 1 bis 12." })
+    .int("Semester: eine ganze Zahl.")
+    .min(1, "Semester: 1 bis 12.")
+    .max(12, "Semester: 1 bis 12.")
+    .nullable(),
+);
+
 export const houseSchema = z
   .object({
     kind: z.enum(["modul", "thema"]),
     moduleCode: z.string().trim().optional(),
     title: z.string().trim().max(80, "Maximal 80 Zeichen.").optional(),
     color: hexColor.default("#8fb3ff"),
+    semester: semesterSchema,
   })
   .refine((h) => h.kind !== "modul" || Boolean(h.moduleCode), {
     message: "Bitte ein Modul wählen.",
@@ -52,6 +64,7 @@ export const houseSchema = z
 export const houseUpdateSchema = z.object({
   title: z.string().trim().min(1, "Bitte einen Titel angeben.").max(80, "Maximal 80 Zeichen."),
   color: hexColor,
+  semester: semesterSchema,
 });
 
 /** Komma-getrennte Tags → bereinigte Liste (max. 5, je max. 30 Zeichen). */

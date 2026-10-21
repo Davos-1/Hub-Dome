@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { computeEnvironment, isReserved, RIVER_WIDTH } from "./environment";
+import { FACH_ORDER } from "./fachbereiche";
 import { computeLayout, type LayoutHouse } from "./layout";
 
 const make = (n: number): LayoutHouse[] => [
-  { id: "z", kind: "zentrale" },
-  ...Array.from({ length: n }, (_, i) => ({ id: `h${i}-abc`, kind: "modul" as const })),
+  { id: "z", kind: "zentrale", fach: "weitere", items: [] },
+  ...Array.from({ length: n }, (_, i) => ({
+    id: `h${i}-abc`,
+    kind: "modul" as const,
+    fach: FACH_ORDER[i % 5],
+    items: Array.from({ length: 9 }, (_, j) => ({ id: `a${i}-${j}`, kind: "quiz" as const })),
+  })),
 ];
 
 describe("Umgebung", () => {
@@ -19,7 +25,7 @@ describe("Umgebung", () => {
     "Fluss, Teich, Weide und Windmühle liegen ausserhalb der Häuser (%i Häuser)",
     (n) => {
       const hs = make(n);
-      const layout = computeLayout(hs, Object.fromEntries(hs.map((h) => [h.id, 9])));
+      const layout = computeLayout(hs);
       const env = computeEnvironment(layout.extent, "seed");
       for (const h of Object.values(layout.houses)) {
         // Haus samt Objektbogen (fp + ca. 4.5 m) darf keinen reservierten Bereich berühren

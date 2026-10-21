@@ -2,150 +2,187 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
-import type { Tier } from "@/lib/layout";
+import type { HouseLayout } from "@/lib/layout";
+import type { ZentraleStyle } from "@/lib/styles";
+import type { HouseInfo } from "@/lib/village-model";
 import { avatarColor } from "./colors";
-import type { HouseStyle, ZentraleStyle } from "@/lib/styles";
+import { CustomModel, type ModelStatus } from "./custom-model";
 import {
   constructionModel,
   figureModel,
   houseModel,
-  houseTopFactor,
-  roofColorFor,
   zentraleModel,
   zentraleTopFactor,
   type Model,
 } from "./models";
-import { CustomModel, type ModelStatus } from "./custom-model";
-import { Label3D } from "./label3d";
+import type { SceneActions } from "./scene-actions";
+import { useScene, type SceneStore } from "./scene-store";
+
+/** Höhe der Zentrale auf ihrer Terrasse. */
+export const ZENTRALE_LIFT = 0.22;
+
+/** Modell eines Modulhauses nach Fachbereich, Stufe und Wandfarbe; leere Häuser sind Baustellen. */
+export function modelOfHouse(info: HouseInfo, l: HouseLayout): Model {
+  return info.items.length === 0
+    ? constructionModel(l.footprint)
+    : houseModel(
+        info.style.type,
+        l.footprint,
+        l.tier,
+        info.style.wall,
+        info.style.roof,
+        info.style.accent,
+        info.newCount > 0,
+      );
+}
 
 /** Zeichnet ein Modell: farbige Karosserie plus leuchtende Teile (Fenster, Laternen). */
-export function ModelMesh({ model, hovered = false }: { model: Model; hovered?: boolean }) {
-  // Geometrien gehören dieser Komponente, nicht dem Cache: beim Entfernen freigeben.
+function ModelMesh({
+  model,
+  glow,
+  emphasis = 0,
+  tint = "#ffffff",
+  owned = false,
+}: {
+  model: Model;
+  glow: number;
+  emphasis?: number;
+  tint?: string;
+  /** Geometrie gehört dieser Komponente (nicht dem gemeinsamen Zwischenspeicher): beim Entfernen freigeben. */
+  owned?: boolean;
+}) {
   useEffect(
     () => () => {
+      if (!owned) return;
       model.body.dispose();
       model.glow.dispose();
     },
-    [model],
+    [model, owned],
   );
   return (
     <group>
       <mesh geometry={model.body} castShadow receiveShadow>
         <meshStandardMaterial
           vertexColors
+          color={tint}
           roughness={0.78}
           emissive="#ffffff"
-          emissiveIntensity={hovered ? 0.14 : 0}
+          emissiveIntensity={emphasis}
         />
       </mesh>
       <mesh geometry={model.glow}>
-        <meshStandardMaterial color="#ffe9b8" emissive="#ffb84d" emissiveIntensity={0.85} />
+        <meshStandardMaterial color="#ffe9b8" emissive="#ffb84d" emissiveIntensity={glow} />
       </mesh>
     </group>
   );
 }
 
-/** Interaktive Hülle: Hover-Cursor und Klick wählen das Haus. */
-function Clickable({
-  onSelect,
-  onHover,
-  children,
-}: {
-  onSelect: () => void;
-  onHover: (hovered: boolean) => void;
-  children: ReactNode;
-}) {
-  return (
-    <group
-      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-        e.stopPropagation();
-        onHover(true);
-        document.body.style.cursor = "pointer";
-      }}
-      onPointerOut={() => {
-        onHover(false);
-        document.body.style.cursor = "";
-      }}
-      onClick={(e: ThreeEvent<MouseEvent>) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-    >
-      {children}
-    </group>
-  );
-}
+const isClick = (e: ThreeEvent<MouseEvent>) => e.delta <= 5;
 
-type HouseProps = {
-  id: string;
-  style: HouseStyle;
-  title: string;
-  color: string;
-  tier: Tier;
-  footprint: number;
-  artifactCount: number;
-  onSelect: () => void;
-  children?: ReactNode;
-};
-
+/** Ein Modulhaus: Modell, Trefferflächen für Haus und Objekte. */
 export function House3D({
-  id,
-  style,
-  title,
-  color,
-  tier,
-  footprint: fp,
-  artifactCount,
-  onSelect,
-  children,
-}: HouseProps) {
-  const [hovered, setHovered] = useState(false);
-  const empty = artifactCount === 0;
-  const model = useMemo(
-    () =>
-      empty ? constructionModel(style, fp) : houseModel(style, fp, tier, color, roofColorFor(id)),
-    [empty, style, fp, tier, color, id],
+  info,
+  layout: l,
+  glow,
+  store,
+  actions,
+}: {
+  info: HouseInfo;
+  layout: HouseLayout;
+  glow: number;
+  store: SceneStore;
+  actions: SceneActions;
+}) {
+  const model = useMemo(() => modelOfHouse(info, l), [info, l]);
+  const hovered = useScene(store, (s) => s.hoverHouseId === info.id);
+  const dim = useScene(
+    store,
+    (s) => s.filter !== "" && !info.items.some((i) => i.kind === s.filter),
   );
-  const top = houseTopFactor(style, tier, empty);
-  const labelY = fp * top + 1;
+  const fp = l.footprint;
+  const top = Math.max(model.top, 1);
 
   return (
-    <group>
-      <Clickable onSelect={onSelect} onHover={setHovered}>
-        <ModelMesh model={model} hovered={hovered} />
-        {/* unsichtbare, etwas grössere Trefferfläche */}
-        <mesh position={[0, (fp * top) / 2, 0]} visible={false}>
-          <boxGeometry args={[fp * 3.2, fp * top, fp * 3.2]} />
+    <group position={[l.x, 0, l.z]} rotation={[0, l.angle, 0]}>
+      <ModelMesh
+        model={model}
+        glow={glow}
+        emphasis={hovered ? 0.14 : 0}
+        tint={dim ? "#8d8d8d" : "#ffffff"}
+      />
+      {/* unsichtbare, etwas grössere Trefferfläche */}
+      <mesh
+        position={[0, top / 2, 0]}
+        visible={false}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          store.set({ hoverHouseId: info.id });
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          if (store.get().hoverHouseId === info.id) store.set({ hoverHouseId: null });
+          document.body.style.cursor = "";
+        }}
+        onClick={(e) => {
+          if (!isClick(e)) return;
+          e.stopPropagation();
+          actions.openHouse(info.id);
+        }}
+      >
+        <boxGeometry args={[fp * 3.2, top, fp * 3.2]} />
+      </mesh>
+      {l.plot?.slots.map((s) => (
+        <mesh
+          key={s.id}
+          position={[s.x, 0.6, s.z]}
+          visible={false}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            store.set({ hoverObjId: s.id, hoverHouseId: null });
+            document.body.style.cursor = "pointer";
+          }}
+          onPointerOut={() => {
+            if (store.get().hoverObjId === s.id) store.set({ hoverObjId: null });
+            document.body.style.cursor = "";
+          }}
+          onClick={(e) => {
+            if (!isClick(e)) return;
+            e.stopPropagation();
+            actions.goToObject(info.id, s.id);
+          }}
+        >
+          <boxGeometry args={[0.7, 1.2, 0.7]} />
         </mesh>
-      </Clickable>
-      <Label3D text={title} sub={String(artifactCount)} position={[0, labelY, 0]} height={0.04} />
-      {children}
+      ))}
     </group>
   );
 }
 
+/** Die Zentrale auf ihrer Terrasse; eigenes GLB-Modell lädt im Hintergrund, bis dahin das Rathaus. */
 export function Zentrale3D({
+  info,
+  layout: l,
   style,
   modelUrl,
-  name,
   avatarSeed,
-  footprint: fp,
-  onSelect,
+  glow,
+  actions,
   children,
 }: {
+  info: HouseInfo;
+  layout: HouseLayout;
   style: ZentraleStyle;
   /** Signierte URL des hochgeladenen Modells (nur bei Stil `custom`). */
   modelUrl?: string | null;
-  name: string;
   avatarSeed: string;
-  footprint: number;
-  onSelect: () => void;
+  glow: number;
+  actions: SceneActions;
   children?: ReactNode;
 }) {
   const [hovered, setHovered] = useState(false);
+  const fp = l.footprint;
   const model = useMemo(() => zentraleModel(style, fp), [style, fp]);
-  const top = zentraleTopFactor(style);
-  // Eigenes Modell: bis es geladen ist (oder bei einem Fehler) zeigt die Szene das Rathaus.
+  const top = zentraleTopFactor(style) * fp;
   const [status, setStatus] = useState<ModelStatus>("loading");
   const custom = style === "custom" && Boolean(modelUrl);
   const showDefault = !custom || status !== "ready";
@@ -153,14 +190,29 @@ export function Zentrale3D({
   useEffect(() => () => figure.dispose(), [figure]);
 
   return (
-    <group>
-      <Clickable onSelect={onSelect} onHover={setHovered}>
-        {showDefault && <ModelMesh model={model} hovered={hovered} />}
+    <group position={[l.x, ZENTRALE_LIFT, l.z]}>
+      <group
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          setHovered(false);
+          document.body.style.cursor = "";
+        }}
+        onClick={(e) => {
+          if (!isClick(e)) return;
+          e.stopPropagation();
+          actions.openHouse(info.id);
+        }}
+      >
+        {showDefault && <ModelMesh model={model} glow={glow} emphasis={hovered ? 0.14 : 0} owned />}
         {custom && <CustomModel url={modelUrl!} onStatus={setStatus} />}
-        <mesh position={[0, (fp * top) / 2, 0]} visible={false}>
-          <boxGeometry args={[fp * 2.8, fp * top, fp * 2.8]} />
+        <mesh position={[0, top / 2, 0]} visible={false}>
+          <boxGeometry args={[fp * 2.8, top, fp * 2.8]} />
         </mesh>
-      </Clickable>
+      </group>
 
       {/* Figur vor der Zentrale */}
       <mesh
@@ -171,8 +223,6 @@ export function Zentrale3D({
       >
         <meshStandardMaterial vertexColors roughness={0.8} />
       </mesh>
-
-      <Label3D text={name} position={[0, fp * top + 1, 0]} height={0.05} />
       {children}
     </group>
   );

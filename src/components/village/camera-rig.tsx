@@ -1,90 +1,76 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import type { HouseLayout } from "@/lib/layout";
-
-type Pose = { position: THREE.Vector3; target: THREE.Vector3 };
-
-/** Kameraposition für die Übersicht. */
-export function overviewPose(extent: number): Pose {
-  return {
-    position: new THREE.Vector3(0, extent * 1.0 + 11, extent * 1.38 + 16),
-    target: new THREE.Vector3(0, 0, 0),
-  };
-}
-
-/** Kamera steht zwischen Zentrale und Haus und blickt auf die Hausfront samt Objekten. */
-export function housePose(h: HouseLayout): Pose {
-  const dx = Math.sin(h.angle);
-  const dz = Math.cos(h.angle);
-  const back = h.footprint + 8;
-  return {
-    position: new THREE.Vector3(h.x + dx * back, 5.5 + h.footprint, h.z + dz * back),
-    target: new THREE.Vector3(h.x + dx * 0.8, 1.4, h.z + dz * 0.8),
-  };
-}
+import { poseFor, type Pose } from "@/lib/camera-poses";
+import type { VillageLayout } from "@/lib/layout";
+import { useScene, type SceneStore } from "./scene-store";
 
 const DURATION = 0.9;
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 
+type Controls = {
+  target: THREE.Vector3;
+  update: () => void;
+  addEventListener: (type: string, fn: () => void) => void;
+  removeEventListener: (type: string, fn: () => void) => void;
+};
+
 /**
- * Fährt die Kamera sanft zum Ziel (frameloop="demand": es wird nur gerendert, solange die Fahrt läuft).
- * Bei `prefers-reduced-motion` springt die Kamera ohne Fahrt.
+ * Fährt die Kamera sanft zur Pose der aktuellen Ebene (Dorf › Quartier › Haus, 3D oder Karte). Übergang
+ * 0.9 s, ease-out; bei `prefers-reduced-motion` sofort. Es wird nur gerendert, solange die Fahrt läuft.
  */
 export function CameraRig({
-  pose,
+  layout,
+  store,
   reducedMotion,
-  extent,
 }: {
-  pose: Pose;
+  layout: VillageLayout;
+  store: SceneStore;
   reducedMotion: boolean;
-  extent: number;
 }) {
   const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as unknown as {
-    target: THREE.Vector3;
-    update: () => void;
-    addEventListener: (type: string, fn: () => void) => void;
-    removeEventListener: (type: string, fn: () => void) => void;
-  } | null;
+  const controls = useThree((s) => s.controls) as unknown as Controls | null;
   const invalidate = useThree((s) => s.invalidate);
+
+  const nav = useScene(store, (s) => s.nav);
+  const view = useScene(store, (s) => s.view);
+  const pose: Pose = useMemo(() => poseFor(layout, nav, view), [layout, nav, view]);
 
   const anim = useRef<{
     t: number;
-    fromPos: THREE.Vector3;
+    from: THREE.Vector3;
     fromTarget: THREE.Vector3;
-    pose: Pose;
+    to: Pose;
   } | null>(null);
   const first = useRef(true);
 
   useEffect(() => {
     if (!controls) return;
-    if (first.current) {
+    const to = new THREE.Vector3(...pose.position);
+    const target = new THREE.Vector3(...pose.target);
+    if (first.current || reducedMotion) {
       first.current = false;
-      return; // Startpose kommt aus der Canvas-Kamera
-    }
-    if (reducedMotion) {
-      camera.position.copy(pose.position);
-      controls.target.copy(pose.target);
+      camera.position.copy(to);
+      controls.target.copy(target);
       controls.update();
       invalidate();
       return;
     }
     anim.current = {
       t: 0,
-      fromPos: camera.position.clone(),
+      from: camera.position.clone(),
       fromTarget: controls.target.clone(),
-      pose,
+      to: pose,
     };
     invalidate();
   }, [pose, controls, camera, reducedMotion, invalidate]);
 
-  // Schwenken (Pan) auf das Dorf begrenzen.
+  // Schwenken (Pan) auf das Dorf begrenzen (nicht in der Kartenansicht: dort ist die Höhe wichtig).
   useEffect(() => {
     if (!controls) return;
-    const limit = extent + 6;
+    const limit = layout.extent + 6;
     const clamp = () => {
       const t = controls.target;
       const d = Math.hypot(t.x, t.z);
@@ -96,15 +82,15 @@ export function CameraRig({
     };
     controls.addEventListener("change", clamp);
     return () => controls.removeEventListener("change", clamp);
-  }, [controls, extent]);
+  }, [controls, layout.extent]);
 
   useFrame((_, delta) => {
     const a = anim.current;
     if (!a || !controls) return;
     a.t = Math.min(1, a.t + delta / DURATION);
     const k = ease(a.t);
-    camera.position.lerpVectors(a.fromPos, a.pose.position, k);
-    controls.target.lerpVectors(a.fromTarget, a.pose.target, k);
+    camera.position.lerpVectors(a.from, new THREE.Vector3(...a.to.position), k);
+    controls.target.lerpVectors(a.fromTarget, new THREE.Vector3(...a.to.target), k);
     controls.update();
     if (a.t >= 1) anim.current = null;
     else invalidate();

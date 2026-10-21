@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#cfe4f4;color:#1c1b19;font-family:"IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#2f5d4a}a:hover{color:#1c3f32}
+</style>
+</helmet>
+<div style="position:fixed;inset:0">
+  <x-import component-from-global-scope="dorf-viewer" from="./dorf-viewer.js" paths="{{ paths }}" garden="{{ garden }}" flowers="{{ flowers }}" labels="{{ labels }}" count="{{ count }}" filter="{{ filter }}" view="{{ view }}" time="{{ time }}" quarters="{{ quarters }}" features="{{ featuresStr }}" plaza="{{ plaza }}" qhouses="{{ qhouses }}" qlayout="{{ qlayout }}" qstyle="{{ qstyle }}" hud="off" hint-size="100%,100%" style="position:absolute;inset:0;width:100%;height:100%"></x-import>
+
+  <sc-if value="{{ popOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeAll }}" style="position:absolute;inset:0"></div>
+  </sc-if>
+
+  <div style="position:absolute;left:{{ barLeft }};bottom:18px;transform:translateX(-50%);transition:left .25s ease;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none">
+    <sc-if value="{{ filterOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="pointer-events:auto;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:rgba(255,253,248,.97);box-shadow:0 8px 28px rgba(28,27,25,.18);width:min(520px,calc(100vw - 32px))">
+        <div style="font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#7a766d">Nach Kategorie filtern</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="7">
+            <button onClick="{{ f.pick }}" style="display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;border:1px solid {{ f.border }};background:{{ f.bg }};color:{{ f.fg }};font:500 13px 'IBM Plex Sans';cursor:pointer"><span style="width:9px;height:9px;border-radius:2px;background:{{ f.color }}"></span>{{ f.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ timeOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="pointer-events:auto;display:flex;gap:4px;padding:6px;border-radius:12px;background:rgba(255,253,248,.97);box-shadow:0 8px 28px rgba(28,27,25,.18)">
+        <sc-for list="{{ times }}" as="t" hint-placeholder-count="4">
+          <button onClick="{{ t.pick }}" style="padding:8px 14px;border:0;border-radius:8px;background:{{ t.bg }};color:{{ t.fg }};font:500 13px 'IBM Plex Sans';cursor:pointer">{{ t.label }}</button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div style="pointer-events:auto;display:flex;align-items:center;gap:6px;padding:6px;border-radius:14px;background:rgba(255,253,248,.95);box-shadow:0 6px 24px rgba(28,27,25,.2)">
+      <div style="display:flex;gap:2px;padding:3px;border-radius:10px;background:#efeae0">
+        <sc-for list="{{ views }}" as="v" hint-placeholder-count="2">
+          <button onClick="{{ v.pick }}" style="padding:7px 14px;border:0;border-radius:8px;background:{{ v.bg }};color:{{ v.fg }};font:600 13px 'IBM Plex Sans';cursor:pointer">{{ v.label }}</button>
+        </sc-for>
+      </div>
+      <div style="width:1px;height:24px;background:#e2ddd2"></div>
+      <button onClick="{{ toggleTime }}" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border:0;border-radius:9px;background:{{ timeBtnBg }};font:500 13px 'IBM Plex Sans';color:#1c1b19;cursor:pointer"><span style="width:10px;height:10px;border-radius:50%;background:{{ timeDot }}"></span>{{ timeLabel }}</button>
+      <button onClick="{{ toggleFilter }}" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border:0;border-radius:9px;background:{{ filterBtnBg }};font:500 13px 'IBM Plex Sans';color:#1c1b19;cursor:pointer"><span style="width:10px;height:10px;border-radius:3px;background:{{ filterDot }}"></span>{{ filterLabel }}</button>
+      <div style="width:1px;height:24px;background:#e2ddd2"></div>
+      <button onClick="{{ toggleDrawer }}" style="padding:8px 14px;border:0;border-radius:9px;background:{{ drawerBtnBg }};color:{{ drawerBtnFg }};font:600 13px 'IBM Plex Sans';cursor:pointer">Einstellungen</button>
+    </div>
+  </div>
+
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+    <aside style="position:absolute;top:12px;right:12px;bottom:12px;width:min(380px,calc(100vw - 24px));display:flex;flex-direction:column;border-radius:16px;background:rgba(255,253,248,.98);box-shadow:0 12px 40px rgba(28,27,25,.25);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px 12px;border-bottom:1px solid #ebe6dc">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:17px;font-weight:600">Einstellungen</div>
+          <div style="font-size:12px;color:#7a766d">Änderungen gelten sofort</div>
+        </div>
+        <button onClick="{{ toggleDrawer }}" style="width:32px;height:32px;border:0;border-radius:8px;background:#efeae0;font:500 16px 'IBM Plex Sans';color:#3a3732;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:2px;margin:12px 18px 0;padding:3px;border-radius:10px;background:#efeae0">
+        <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="3">
+          <button onClick="{{ tb.pick }}" style="flex:1 1 0;padding:7px 6px;border:0;border-radius:8px;background:{{ tb.bg }};color:{{ tb.fg }};font:600 12.5px 'IBM Plex Sans';cursor:pointer">{{ tb.label }}</button>
+        </sc-for>
+      </div>
+      <div style="flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:16px 18px 18px;display:flex;flex-direction:column;gap:16px">
+        <sc-for list="{{ sections }}" as="sg" hint-placeholder-count="5">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+              <div style="font:600 13px 'IBM Plex Sans';color:#1c1b19">{{ sg.title }}</div>
+              <div style="font:400 11px 'IBM Plex Mono',monospace;color:#8a857a">{{ sg.note }}</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:9px;background:#efeae0">
+              <sc-for list="{{ sg.options }}" as="op" hint-placeholder-count="3">
+                <button onClick="{{ op.pick }}" style="flex:1 1 auto;padding:7px 6px;border:0;border-radius:7px;background:{{ op.bg }};color:{{ op.fg }};font:500 12.5px 'IBM Plex Sans';cursor:pointer">{{ op.label }}</button>
+              </sc-for>
+            </div>
+            <div style="font-size:12px;line-height:1.4;color:#6d6a63">{{ sg.desc }}</div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ showKeys }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:6px;padding-top:4px;border-top:1px solid #ebe6dc">
+            <div style="font:600 13px 'IBM Plex Sans';color:#1c1b19;padding-top:10px">Bedienung</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12.5px;color:#3a3732;align-items:baseline">
+              <span style="font:500 11.5px 'IBM Plex Mono',monospace;color:#6d6a63">Klick</span><span>Quartier oder Haus öffnen</span>
+              <span style="font:500 11.5px 'IBM Plex Mono',monospace;color:#6d6a63">← →</span><span>Quartier oder Haus wählen</span>
+              <span style="font:500 11.5px 'IBM Plex Mono',monospace;color:#6d6a63">Enter</span><span>Auswahl öffnen</span>
+              <span style="font:500 11.5px 'IBM Plex Mono',monospace;color:#6d6a63">Esc</span><span>eine Ebene zurück</span>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ showFeats }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="font:600 13px 'IBM Plex Sans';color:#1c1b19">Elemente</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+              <sc-for list="{{ feats }}" as="ft" hint-placeholder-count="10">
+                <button onClick="{{ ft.pick }}" style="display:flex;gap:7px;align-items:center;text-align:left;padding:8px;border-radius:8px;border:1px solid {{ ft.border }};background:{{ ft.bg }};font:500 12px 'IBM Plex Sans';color:#1c1b19;cursor:pointer;line-height:1.25"><span style="flex:none;width:14px;height:14px;border-radius:4px;border:1px solid #2f5d4a;background:{{ ft.box }};color:#fffdf8;font-size:10px;line-height:14px;text-align:center">{{ ft.mark }}</span>{{ ft.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-top:1px solid #ebe6dc">
+        <button onClick="{{ reset }}" style="padding:8px 12px;border:1px solid #d9d4c9;border-radius:8px;background:#fffdf8;font:500 12.5px 'IBM Plex Sans';color:#3a3732;cursor:pointer">Zurücksetzen</button>
+        <a href="Dorf%203D%20Varianten.dc.html" style="font:500 12.5px 'IBM Plex Sans'">Analyse und Varianten →</a>
+      </div>
+    </aside>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const DEFAULTS = { paths: 'bogen', garden: 'hecke', flowers: 'off', labels: 'kompakt-schild', count: 's4', filter: '', view: '3d', time: 'mittag', quarters: 'fach', plaza: 'eck', qhouses: 'rund', qlayout: 'kompakt', qstyle: 'typ', features: ['klein', 'huegel', 'wald', 'palette', 'belag', 'wasser', 'objekte', 'rauch', 'anschlag', 'bauschild'] };
+const KEY = 'hubdome-dorf3d-settings-v3';
+const KINDS = [['', 'Alle', '#1c1b19'], ['rechner', 'Rechner', '#f59e0b'], ['quiz', 'Quiz', '#ec4899'], ['zusammenfassung', 'Zusammenfassung', '#3b82f6'], ['cheatsheet', 'Cheatsheet', '#10b981'], ['tool', 'Tool', '#8b5cf6'], ['visualisierung', 'Visualisierung', '#06b6d4']];
+const TIMES = [['morgen', 'Morgen', '#f6c48f'], ['mittag', 'Mittag', '#f8d34a'], ['abend', 'Abend', '#7a6190'], ['auto', 'Auto', '#9aa2aa']];
+const TABS = { dorf: 'Dorf', gestaltung: 'Gestaltung', elemente: 'Elemente' };
+const SECTIONS = {
+  dorf: [
+    { key: 'count', title: 'Umfang', note: 'Testdaten', options: [['7', '7 Module'], ['s2', '2 Sem.'], ['s4', '4 Sem.'], ['s6', '6 Sem.']], desc: { '7': 'Kleiner Test, ein Ring.', s2: '16 Module', s4: '32 Module', s6: '45 Module, ganzes Bachelorstudium' } },
+    { key: 'quarters', title: 'Quartiere', note: 'braucht ein Grundstück', options: [['off', 'Aus'], ['semester', 'Semester'], ['fach', 'Fachbereich']], desc: { off: 'Alle Häuser direkt an der Zentrale.', semester: 'Ein Quartier pro Semester.', fach: 'Ein Quartier pro Fachbereich.' } },
+    { key: 'qstyle', title: 'Stil pro Fachbereich', note: 'Vorschläge', options: [['aus', 'Einheitlich'], ['farbe', 'Farbfamilie'], ['typ', 'Farbe + Haustyp']], desc: { aus: 'Alle Häuser gleich, Farbe pro Haus.', farbe: 'Jeder Fachbereich hat eine eigene Dach- und Akzentfarbe.', typ: 'Zusätzlich ein Haustyp pro Fachbereich: Werkstatt, Blockhütte, Solarhaus, Stadthaus, Atelier, Turmhaus, Giebelhaus.' } },
+    { key: 'qhouses', title: 'Häuser im Quartier', note: 'Anordnung', options: [['bogen', 'Bogen'], ['rund', 'Rund'], ['zeile', 'Zeile'], ['doppel', 'Doppelreihe'], ['locker', 'Locker']], desc: { bogen: 'Im Bogen auf der Aussenseite.', rund: 'Ganz um den Platz.', zeile: 'Nebeneinander, gleich ausgerichtet.', doppel: 'Zwei versetzte Reihen.', locker: 'Leicht verstreut.' } },
+    { key: 'qlayout', title: 'Quartiere zur Zentrale', note: 'Verteilung', options: [['kreis', 'Kreis'], ['kompakt', 'Kompakt'], ['faecher', 'Fächer'], ['versetzt', 'Versetzt'], ['fluegel', 'Flügel']], desc: { kreis: 'Gleichmässig rundherum.', kompakt: 'Platz nach Grösse, so nah wie möglich.', faecher: 'Alle vorne.', versetzt: 'Abwechselnd nah und fern.', fluegel: 'Links und rechts.' } },
+    { key: 'plaza', title: 'Platzform', note: 'n Wege = n-Eck', options: [['kreis', 'Kreis'], ['eck', 'Vieleck']], desc: { kreis: 'Runde Plätze.', eck: 'Jeder Weg hat seine eigene Seite, mindestens 5.' } },
+  ],
+  gestaltung: [
+    { key: 'paths', title: 'Wege', note: '', options: [['ist', 'Organisch'], ['bogen', 'Sanfter Bogen'], ['gerade', 'Gerade']], desc: { ist: 'Bisherige Variante mit starken Kurven.', bogen: 'Radial am Platz, senkrecht am Tor.', gerade: 'Direkt vom Platz aufs Tor.' } },
+    { key: 'garden', title: 'Grundstück', note: '', options: [['none', 'Keines'], ['hecke', 'Hecke'], ['zaun', 'Holzzaun'], ['kante', 'Steinkante']], desc: { none: 'Haus steht frei in der Wiese.', hecke: 'Geschnittene Hecke mit Pfosten am Tor.', zaun: 'Heller Lattenzaun.', kante: 'Niedrige Rasenkante.' } },
+    { key: 'labels', title: 'Beschriftung', note: '', options: [['ist', 'Pille'], ['karte', 'Karte'], ['kompakt', 'Kompakt'], ['schild', 'Schild'], ['kompakt-schild', 'Kompakt + Schild']], desc: { ist: '«Titel · 3» in Systemschrift.', karte: 'Kürzel, Titel, Anzahl, Kategorien.', kompakt: 'Kürzel und Anzahl, Karte beim Überfahren.', schild: 'Holzschild am Tor.', 'kompakt-schild': 'Chip in der Übersicht, Schild in der Nähe.' } },
+    { key: 'flowers', title: 'Blumenpunkte', note: '', options: [['on', 'Anzeigen'], ['off', 'Aus']], desc: { on: '', off: '' } },
+  ],
+};
+const FEAT = [['klein', 'Haus klein, Garten wächst'], ['huegel', 'Sanfte Hügel'], ['wald', 'Waldrand und Nebel'], ['palette', 'Abgestimmte Farben'], ['belag', 'Weg mit Körnung'], ['wasser', 'Fluss und Brunnen'], ['objekte', 'Objektform nach Typ'], ['rauch', 'Kaminrauch bei Aktivität'], ['anschlag', 'Anschlagbrett'], ['bauschild', 'Baustellenschild']];
+
+class Component extends DCLogic {
+  state = (() => { let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {} return { ...DEFAULTS, ...saved, panel: null, tab: 'dorf' }; })();
+  componentDidMount() {
+    this.onKey = (e) => { if (e.key === 'Escape' && this.state.panel) { this.setState({ panel: null }); e.stopPropagation(); } };
+    window.addEventListener('keydown', this.onKey, true);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this.onKey, true); }
+  set(patch) {
+    this.setState(patch, () => { const { panel, tab, ...rest } = this.state; try { localStorage.setItem(KEY, JSON.stringify(rest)); } catch (e) {} });
+  }
+  renderVals() {
+    const s = this.state, seg = (on) => ({ bg: on ? '#1c1b19' : 'transparent', fg: on ? '#fffdf8' : '#3a3732' });
+    const togglePanel = (p) => () => this.setState({ panel: s.panel === p ? null : p });
+    const sections = (SECTIONS[s.tab] || []).map((g) => ({ title: g.title, note: g.note, desc: g.desc[s[g.key]] || '', options: g.options.map(([v, label]) => ({ label, ...seg(s[g.key] === v), pick: () => this.set({ [g.key]: v }) })) }));
+    const kind = KINDS.find((k) => k[0] === (s.filter || '')) || KINDS[0], time = TIMES.find((t) => t[0] === s.time) || TIMES[1];
+    return {
+      ...s, featuresStr: s.features.join(','),
+      popOpen: s.panel === 'filter' || s.panel === 'time', filterOpen: s.panel === 'filter', timeOpen: s.panel === 'time', drawerOpen: s.panel === 'drawer',
+      closeAll: () => this.setState({ panel: null }),
+      // Offenes Fenster rechts: Leiste in der freien Fläche links davon zentrieren
+      barLeft: s.panel === 'drawer' ? 'max(calc(50% - 196px), 268px)' : '50%',
+      toggleFilter: togglePanel('filter'), toggleTime: togglePanel('time'), toggleDrawer: togglePanel('drawer'),
+      views: [['3d', '3D'], ['karte', 'Karte']].map(([v, label]) => ({ label, ...seg(s.view === v), pick: () => this.set({ view: v }) })),
+      times: TIMES.map(([v, label]) => ({ label, ...seg(s.time === v), pick: () => this.set({ time: v }) })),
+      timeLabel: time[1], timeDot: time[2], timeBtnBg: s.panel === 'time' ? '#efeae0' : 'transparent',
+      filters: KINDS.map(([v, label, color]) => { const on = (s.filter || '') === v; return { label, color, bg: on ? '#1c1b19' : '#fffdf8', fg: on ? '#fffdf8' : '#3a3732', border: on ? '#1c1b19' : '#d9d4c9', pick: () => this.set({ filter: v }) }; }),
+      filterLabel: s.filter ? kind[1] : 'Filter', filterDot: s.filter ? kind[2] : '#d9d4c9', filterBtnBg: s.panel === 'filter' || s.filter ? '#efeae0' : 'transparent',
+      drawerBtnBg: s.panel === 'drawer' ? '#1c1b19' : '#2f5d4a', drawerBtnFg: '#fffdf8',
+      tabs: Object.entries(TABS).map(([v, label]) => ({ label, ...seg(s.tab === v), pick: () => this.setState({ tab: v }) })),
+      sections, showFeats: s.tab === 'elemente', showKeys: s.tab === 'dorf',
+      feats: FEAT.map(([v, label]) => { const on = s.features.includes(v); return { label, mark: on ? '✓' : '', bg: on ? '#e6efe9' : '#fffdf8', border: on ? '#2f5d4a' : '#e2ddd2', box: on ? '#2f5d4a' : '#fffdf8', pick: () => this.set({ features: on ? s.features.filter((x) => x !== v) : [...s.features, v] }) }; }),
+      reset: () => this.set({ ...DEFAULTS }),
+    };
+  }
+}
+</script>
+</body>
+</html>

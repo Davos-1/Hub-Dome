@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { artifactSlots, computeLayout, houseTier, type LayoutHouse } from "./layout";
+import { FACH_ORDER } from "./fachbereiche";
+import { computeLayout, houseTier, plotCorners, satOverlap, type LayoutHouse } from "./layout";
+import { ARTIFACT_KINDS } from "./types";
 
-const make = (n: number): LayoutHouse[] => [
-  { id: "z", kind: "zentrale" },
-  ...Array.from({ length: n }, (_, i) => ({ id: `h${i}`, kind: "modul" as const })),
-];
+/** n Häuser, reihum auf `spread` Fachbereiche verteilt, je `items` Objekte. */
+function make(n: number, spread = 3, items = 0): LayoutHouse[] {
+  return [
+    { id: "z", kind: "zentrale", fach: "weitere", items: [] },
+    ...Array.from({ length: n }, (_, i) => ({
+      id: `h${i}`,
+      kind: "modul" as const,
+      fach: FACH_ORDER[(i * 7 + (i % spread)) % spread],
+      items: Array.from({ length: items + (i % 3 === 0 ? 2 : 0) }, (_, j) => ({
+        id: `a${i}-${j}`,
+        kind: ARTIFACT_KINDS[(i + j) % ARTIFACT_KINDS.length],
+      })),
+    })),
+  ];
+}
 
 describe("houseTier", () => {
   it.each([
@@ -18,75 +31,86 @@ describe("houseTier", () => {
 });
 
 describe("computeLayout", () => {
-  it("setzt die Zentrale in den Ursprung", () => {
-    const l = computeLayout(make(3), {});
-    expect(l.houses.z).toMatchObject({ x: 0, z: 0, ring: 0 });
+  it("setzt die Zentrale in den Ursprung, leeres Dorf hat keine Wege", () => {
+    const l = computeLayout(make(0));
+    expect(l.houses.z).toMatchObject({ x: 0, z: 0 });
+    expect(Object.keys(l.houses)).toEqual(["z"]);
+    expect(l.paths).toEqual([]);
   });
 
   it("ist deterministisch", () => {
-    expect(computeLayout(make(12), { h1: 5 })).toEqual(computeLayout(make(12), { h1: 5 }));
+    expect(computeLayout(make(12, 4, 2))).toEqual(computeLayout(make(12, 4, 2)));
   });
 
-  it("bis 7 Häuser auf dem ersten Ring, ab dem 8. auf dem zweiten", () => {
-    const seven = computeLayout(make(7), {});
-    expect(new Set(Object.values(seven.houses).map((h) => h.ring))).toEqual(new Set([0, 1]));
-    const eight = computeLayout(make(8), {});
-    expect(eight.houses.h7.ring).toBe(2);
-    expect(eight.houses.h6.ring).toBe(1);
+  it("gruppiert die Häuser nach Fachbereich in Quartieren", () => {
+    const l = computeLayout(make(9, 3));
+    expect(l.quarters).toHaveLength(3);
+    expect(l.quarters.reduce((s, q) => s + q.houseIds.length, 0)).toBe(9);
+    for (const q of l.quarters) {
+      for (const id of q.houseIds) expect(l.houses[id].quarterId).toBe(q.id);
+    }
   });
 
-  it("alle Häuser eines Rings haben denselben Abstand zur Zentrale", () => {
-    const l = computeLayout(make(7), {});
-    const radii = Object.values(l.houses)
-      .filter((h) => h.ring === 1)
-      .map((h) => Math.hypot(h.x, h.z));
-    radii.forEach((r) => expect(r).toBeCloseTo(radii[0], 2));
-  });
-
-  it("Häuser überlappen sich nicht (30 Häuser)", () => {
-    const l = computeLayout(make(30), Object.fromEntries(make(30).map((h) => [h.id, 9])));
-    const hs = Object.values(l.houses);
-    for (let i = 0; i < hs.length; i++) {
-      for (let j = i + 1; j < hs.length; j++) {
-        const d = Math.hypot(hs[i].x - hs[j].x, hs[i].z - hs[j].z);
-        expect(d).toBeGreaterThan(hs[i].footprint + hs[j].footprint);
+  it("Hausfront zeigt zum Nebenplatz des Quartiers", () => {
+    const l = computeLayout(make(6, 2));
+    for (const q of l.quarters) {
+      for (const id of q.houseIds) {
+        const h = l.houses[id];
+        const f = { x: Math.sin(h.angle), z: Math.cos(h.angle) };
+        const to = { x: q.x - h.x, z: q.z - h.z };
+        const len = Math.hypot(to.x, to.z);
+        expect(f.x * (to.x / len) + f.z * (to.z / len)).toBeGreaterThan(0.999);
       }
     }
   });
 
-  it("Hausfront zeigt zur Zentrale", () => {
-    const h = computeLayout(make(4), {}).houses.h0;
-    // lokale +z-Achse nach Drehung um `angle`
-    const dir = { x: Math.sin(h.angle), z: Math.cos(h.angle) };
-    const toCenter = { x: -h.x / Math.hypot(h.x, h.z), z: -h.z / Math.hypot(h.x, h.z) };
-    expect(dir.x).toBeCloseTo(toCenter.x, 2);
-    expect(dir.z).toBeCloseTo(toCenter.z, 2);
-  });
-
   it("Hausgrösse folgt der Anzahl Objekte", () => {
-    const l = computeLayout(make(3), { h0: 0, h1: 4, h2: 9 });
+    const hs = make(3, 1);
+    hs[1].items = [];
+    hs[2].items = Array.from({ length: 4 }, (_, i) => ({ id: `x${i}`, kind: "quiz" as const }));
+    hs[3].items = Array.from({ length: 9 }, (_, i) => ({ id: `y${i}`, kind: "quiz" as const }));
+    const l = computeLayout(hs);
     expect(l.houses.h0.tier).toBe(1);
     expect(l.houses.h1.tier).toBe(2);
     expect(l.houses.h2.tier).toBe(3);
     expect(l.houses.h2.footprint).toBeGreaterThan(l.houses.h0.footprint);
   });
 
-  it("leeres Dorf: nur Zentrale", () => {
-    const l = computeLayout(make(0), {});
-    expect(Object.keys(l.houses)).toEqual(["z"]);
-    expect(l.paths).toEqual([]);
-  });
-});
-
-describe("artifactSlots", () => {
-  it("liefert genau so viele Plätze wie Objekte, ohne Doppelungen", () => {
-    for (const n of [0, 1, 5, 6, 20, 60]) {
-      const s = artifactSlots(n, 1.5);
-      expect(s).toHaveLength(n);
-      expect(new Set(s.map((p) => `${p.x},${p.y},${p.z}`)).size).toBe(n);
+  it("Objekt-Plätze: genau ein Platz pro Objekt, links/rechts des Wegs, vor dem Haus", () => {
+    const l = computeLayout(make(4, 1, 7));
+    for (const h of Object.values(l.houses)) {
+      if (!h.plot) continue;
+      const ids = h.plot.slots.map((s) => s.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const s of h.plot.slots) {
+        expect(Math.abs(s.x)).toBeGreaterThan(1);
+        expect(s.z).toBeGreaterThan(h.footprint);
+        expect(s.z).toBeLessThan(h.plot.front);
+      }
     }
   });
-  it("Plätze liegen vor dem Haus (z > 0)", () => {
-    artifactSlots(10, 1.5).forEach((p) => expect(p.z).toBeGreaterThan(0));
+
+  it("kein Grundstück überlappt ein anderes (5–50 Häuser, verschiedene Verteilungen)", () => {
+    for (const n of [5, 8, 12, 20, 30, 40, 50]) {
+      for (const spread of [1, 3, 5, 9]) {
+        for (const items of [0, 3, 9]) {
+          const l = computeLayout(make(n, spread, items));
+          const hs = Object.values(l.houses).filter((h) => h.plot);
+          const cs = hs.map((h) => plotCorners(h.x, h.z, h.angle, h.plot!));
+          for (let i = 0; i < cs.length; i++) {
+            for (let j = i + 1; j < cs.length; j++) {
+              expect(satOverlap(cs[i], cs[j]), `n=${n} spread=${spread} items=${items}`).toBe(
+                false,
+              );
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("extent umfasst alle Häuser", () => {
+    const l = computeLayout(make(30, 5, 3));
+    for (const h of Object.values(l.houses)) expect(Math.hypot(h.x, h.z)).toBeLessThan(l.extent);
   });
 });

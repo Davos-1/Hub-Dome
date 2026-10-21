@@ -2,7 +2,12 @@ import * as THREE from "three";
 import { box, mergeParts, rbox, sphere, type Part } from "../geo";
 
 /** Geometrie eines Gebäudes: `body` mit Vertex-Farben, `glow` = leuchtende Teile (Fenster, Laternen). */
-export type Model = { body: THREE.BufferGeometry; glow: THREE.BufferGeometry };
+export type Model = {
+  body: THREE.BufferGeometry;
+  glow: THREE.BufferGeometry;
+  /** Höhe der Oberkante über dem Boden (Meter), für Beschriftung und Trefferfläche. */
+  top: number;
+};
 
 /** Sammelt Bauteile für Karosserie und leuchtende Teile. */
 export class Builder {
@@ -16,8 +21,9 @@ export class Builder {
     this.glow.push(p);
     return this;
   }
-  build(): Model {
+  build(top = 0): Model {
     return {
+      top,
       body: mergeParts(this.body),
       // mergeParts braucht mindestens ein Teil: bei Modellen ohne Leuchtteile ein unsichtbar kleines
       glow: mergeParts(

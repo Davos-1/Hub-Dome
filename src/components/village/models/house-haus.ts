@@ -5,7 +5,6 @@ import {
   Builder,
   darken,
   frontWindow,
-  SMOKE,
   STONE,
   WARM,
   WHITE,
@@ -14,13 +13,21 @@ import {
 } from "./common";
 
 /** Einfaches Haus: Satteldach, Läden, Blumenkästen; ab Stufe 2 Kamin und Vordach, ab Stufe 3 Anbau. */
-export function hausModel(fp: number, tier: Tier, wall: string, roof: string): Model {
+export function hausModel(
+  fp: number,
+  tier: Tier,
+  wall: string,
+  roof: string,
+  accent?: string,
+  chimney?: boolean,
+): Model {
   const b = new Builder();
   const w = fp * 2;
   const d = fp * 2.1;
   const h = fp * 1.5;
   const base = 0.18;
-  const shutter = darken(roof, 0.9);
+  const shutter = accent ?? darken(roof, 0.9);
+  const doorColor = accent ? darken(accent, 0.85) : WOOD;
 
   b.add({ geo: rbox(w + 0.14, base, d + 0.14, 0.04), color: STONE, pos: [0, base / 2, 0] });
   b.add({ geo: rbox(w, h, d, 0.08), color: wall, pos: [0, base + h / 2, 0] });
@@ -33,8 +40,12 @@ export function hausModel(fp: number, tier: Tier, wall: string, roof: string): M
 
   const doorW = fp * 0.55;
   const doorH = fp * 0.75;
-  b.add({ geo: box(doorW, doorH, 0.1), color: WOOD, pos: [0, base + doorH / 2, d / 2 + 0.01] });
-  b.add({ geo: arch(doorW / 2, 0.1), color: WOOD, pos: [0, base + doorH, d / 2 + 0.01] });
+  b.add({
+    geo: box(doorW, doorH, 0.1),
+    color: doorColor,
+    pos: [0, base + doorH / 2, d / 2 + 0.01],
+  });
+  b.add({ geo: arch(doorW / 2, 0.1), color: doorColor, pos: [0, base + doorH, d / 2 + 0.01] });
   b.add({
     geo: sphere(0.045, 8),
     color: "#e0b341",
@@ -61,7 +72,7 @@ export function hausModel(fp: number, tier: Tier, wall: string, roof: string): M
     });
   }
 
-  if (tier >= 2) {
+  if (chimney ?? tier >= 2) {
     const cx = fp * 0.55;
     const cz = -d * 0.18;
     const cy = base + h + fp * 0.45;
@@ -71,13 +82,9 @@ export function hausModel(fp: number, tier: Tier, wall: string, roof: string): M
       color: darken(BRICK, 0.8),
       pos: [cx, cy + fp * 0.47, cz],
     });
-    for (let i = 0; i < 3; i++) {
-      b.add({
-        geo: sphere(0.12 + i * 0.05, 8),
-        color: SMOKE,
-        pos: [cx + i * 0.12, cy + fp * 0.7 + i * 0.32, cz],
-      });
-    }
+  }
+
+  if (tier >= 2) {
     b.add({
       geo: rbox(doorW + 0.9, 0.07, 0.6, 0.02),
       color: darken(roof, 1.1),
@@ -137,5 +144,5 @@ export function hausModel(fp: number, tier: Tier, wall: string, roof: string): M
     });
     b.light({ geo: sphere(0.12, 8), color: "#ffd479", pos: [doorW + 0.55, 0.98, d / 2 + 0.7] });
   }
-  return b.build();
+  return b.build(base + h + fp * 0.95 + (tier >= 2 ? fp * 0.4 : 0));
 }

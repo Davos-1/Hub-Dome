@@ -1,75 +1,91 @@
 import { describe, expect, it } from "vitest";
-import { computeLayout, PLAZA_EDGE, type LayoutHouse } from "./layout";
-import { distanceToPolyline, PATH_WIDTH, polylineDistance } from "./paths";
+import { FACH_ORDER } from "./fachbereiche";
+import { computeLayout, type LayoutHouse } from "./layout";
+import { distanceToPolyline, polylineDistance } from "./paths";
 
-const make = (n: number, prefix = "h"): LayoutHouse[] => [
-  { id: "z", kind: "zentrale" },
-  ...Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}-abc`, kind: "modul" as const })),
-];
-const counts = (hs: LayoutHouse[], n: number) => Object.fromEntries(hs.map((h) => [h.id, n]));
+function make(n: number, spread: number): LayoutHouse[] {
+  return [
+    { id: "z", kind: "zentrale", fach: "weitere", items: [] },
+    ...Array.from({ length: n }, (_, i) => ({
+      id: `h${i}`,
+      kind: "modul" as const,
+      fach: FACH_ORDER[i % spread],
+      items: Array.from({ length: i % 4 === 0 ? 5 : 1 }, (_, j) => ({
+        id: `a${i}-${j}`,
+        kind: "quiz" as const,
+      })),
+    })),
+  ];
+}
 
-describe("Wege", () => {
-  it("jedes Haus hat genau einen Weg von der Platzkante zur Tür", () => {
-    const hs = make(9);
-    const l = computeLayout(hs, counts(hs, 4));
-    expect(l.paths).toHaveLength(9);
-    for (const p of l.paths) {
-      const house = l.houses[p.houseId];
-      const first = p.points[0];
-      const last = p.points.at(-1)!;
-      // Start nahe der Platzkante (inkl. Startverschiebung), Ende vor der Tür
-      expect(Math.hypot(first.x, first.z)).toBeGreaterThan(PLAZA_EDGE - 0.1);
-      expect(Math.hypot(first.x, first.z)).toBeLessThan(PLAZA_EDGE + 3.2);
-      expect(Math.hypot(last.x - house.x, last.z - house.z)).toBeLessThan(
-        house.footprint * 1.05 + 0.7,
-      );
+describe("computePaths", () => {
+  const cases: [number, number][] = [
+    [1, 1],
+    [5, 2],
+    [12, 4],
+    [20, 7],
+    [30, 9],
+    [45, 9],
+  ];
+
+  it("ein Hauptweg pro Quartier und ein Hausweg pro Haus", () => {
+    for (const [n, spread] of cases) {
+      const l = computeLayout(make(n, spread));
+      expect(l.paths.filter((p) => p.kind === "haupt")).toHaveLength(l.quarters.length);
+      expect(l.paths.filter((p) => p.kind === "haus")).toHaveLength(n);
     }
   });
 
-  it("Wege berühren sich nicht (bis 30 Häuser, verschiedene Hausgrössen)", () => {
-    for (const n of [3, 7, 8, 12, 19, 24, 30]) {
-      const hs = make(n);
-      const l = computeLayout(hs, Object.fromEntries(hs.map((h, i) => [h.id, (i * 3) % 11])));
-      for (let i = 0; i < l.paths.length; i++) {
-        for (let j = i + 1; j < l.paths.length; j++) {
-          expect(polylineDistance(l.paths[i].points, l.paths[j].points)).toBeGreaterThanOrEqual(
-            PATH_WIDTH + 0.34,
+  it("jeder Weg beginnt an einer eigenen Vieleckseite", () => {
+    for (const [n, spread] of cases) {
+      const l = computeLayout(make(n, spread));
+      for (const poly of l.polys) {
+        const sides = poly.used.map((a) => Math.round(((a - poly.rot) / (2 * Math.PI)) * poly.n));
+        const mod = sides.map((s) => ((s % poly.n) + poly.n) % poly.n);
+        expect(new Set(mod).size).toBe(mod.length);
+      }
+    }
+  });
+
+  it("Hauswege kommen senkrecht am Gartentor an", () => {
+    const l = computeLayout(make(12, 4));
+    for (const p of l.paths.filter((x) => x.kind === "haus")) {
+      const h = l.houses[p.ownerId];
+      const a = p.points[p.points.length - 2];
+      const b = p.points[p.points.length - 1];
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      const dir = { x: (b.x - a.x) / len, z: (b.z - a.z) / len };
+      // Richtung am Ende = zum Haus (-Front reversed): zeigt entgegen der Frontrichtung
+      expect(dir.x * -Math.sin(h.angle) + dir.z * -Math.cos(h.angle)).toBeGreaterThan(0.95);
+    }
+  });
+
+  it("Hauswege verschiedener Häuser berühren sich nicht", () => {
+    for (const [n, spread] of cases) {
+      const l = computeLayout(make(n, spread));
+      const ps = l.paths.filter((p) => p.kind === "haus");
+      for (let i = 0; i < ps.length; i++) {
+        for (let j = i + 1; j < ps.length; j++) {
+          const d = polylineDistance(ps[i].points, ps[j].points);
+          expect(d, `n=${n} ${ps[i].id} ${ps[j].id}`).toBeGreaterThan(
+            (ps[i].width + ps[j].width) / 2,
           );
         }
       }
     }
   });
 
-  it("Wege führen nicht durch fremde Häuser", () => {
-    for (const n of [8, 19, 30]) {
-      const hs = make(n);
-      const l = computeLayout(hs, counts(hs, 9));
-      for (const p of l.paths) {
+  it("Hauptwege führen nicht durch fremde Grundstücke", () => {
+    for (const [n, spread] of cases) {
+      const l = computeLayout(make(n, spread));
+      for (const p of l.paths.filter((x) => x.kind === "haupt")) {
         for (const h of Object.values(l.houses)) {
-          if (h.id === p.houseId || h.ring === 0) continue;
-          expect(distanceToPolyline(h.x, h.z, p.points)).toBeGreaterThan(h.footprint * 1.9);
+          if (!h.plot) continue;
+          expect(distanceToPolyline(h.x, h.z, p.points), `n=${n} ${p.id} ${h.id}`).toBeGreaterThan(
+            h.footprint,
+          );
         }
       }
     }
-  });
-
-  it("Auslenkung bleibt begrenzt, und es gibt mehrere Varianten", () => {
-    const hs = make(16);
-    const l = computeLayout(hs, counts(hs, 2));
-    l.paths.forEach((p) => expect(p.amplitude).toBeLessThanOrEqual(2.8));
-    expect(new Set(l.paths.map((p) => p.shape)).size).toBeGreaterThan(1);
-    expect(new Set(l.paths.map((p) => p.surface)).size).toBeGreaterThan(1);
-    expect(l.paths.some((p) => p.amplitude > 0.3)).toBe(true);
-  });
-
-  it("ist deterministisch", () => {
-    const hs = make(12);
-    expect(computeLayout(hs, counts(hs, 5)).paths).toEqual(computeLayout(hs, counts(hs, 5)).paths);
-  });
-
-  it("Wege hängen von der Haus-ID ab, nicht von der Reihenfolge der Häuser im Ring", () => {
-    const hs = make(6);
-    const a = computeLayout(hs, counts(hs, 1)).paths.map((p) => [p.houseId, p.shape, p.surface]);
-    expect(a.every(([id]) => typeof id === "string")).toBe(true);
   });
 });

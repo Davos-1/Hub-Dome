@@ -49,6 +49,15 @@ describe("houseSchema", () => {
   });
   it("lehnt ungültige Farbe ab", () =>
     expect(houseSchema.safeParse({ kind: "thema", title: "X", color: "rot" }).success).toBe(false));
+  it("Semester ist optional, 1–12", () => {
+    const base = { kind: "thema" as const, title: "X" };
+    expect(houseSchema.safeParse(base).data?.semester).toBeNull();
+    expect(houseSchema.safeParse({ ...base, semester: "" }).data?.semester).toBeNull();
+    expect(houseSchema.safeParse({ ...base, semester: "3" }).data?.semester).toBe(3);
+    for (const bad of ["0", "13", "2.5", "abc"]) {
+      expect(houseSchema.safeParse({ ...base, semester: bad }).success).toBe(false);
+    }
+  });
 });
 
 describe("artifactSchema", () => {

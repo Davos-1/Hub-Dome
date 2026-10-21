@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import { createTestUser, deleteTestUser, loginAs, type E2EUser } from "./helpers";
 
-// Abnahme Phase 4b: Stile wählen und speichern, eigenes Modell (GLB) hochladen, anzeigen, löschen.
+// Abnahme Phase 4b: Zentrale-Stil wählen und speichern, eigenes Modell (GLB) hochladen, anzeigen, löschen.
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,7 +68,9 @@ test.afterAll(async () => {
   await deleteTestUser(user.id);
 });
 
-test("Stile speichern, eigenes Modell hochladen, anzeigen und löschen", async ({ browser }) => {
+test("Zentrale-Stil speichern, eigenes Modell hochladen, anzeigen und löschen", async ({
+  browser,
+}) => {
   test.setTimeout(180_000);
   const ctx = await browser.newContext();
   await loginAs(ctx, user);
@@ -79,16 +81,15 @@ test("Stile speichern, eigenes Modell hochladen, anzeigen und löschen", async (
 
   // Stile wählen und speichern
   await page.goto("/einstellungen");
-  await page.getByRole("radio", { name: /Marskuppel Kuppelstation/ }).check();
   await page.getByRole("radio", { name: /Leuchtturm/ }).check();
-  await page.getByRole("button", { name: "Stile speichern" }).click();
+  await page.getByRole("button", { name: "Stil speichern" }).click();
   await expect(page.getByText("Gespeichert. Dein Dorf sieht jetzt anders aus.")).toBeVisible();
   const { data: saved } = await admin
     .from("villages")
-    .select("house_style, zentrale_style")
+    .select("zentrale_style")
     .eq("owner_id", user.id)
     .single();
-  expect(saved).toEqual({ house_style: "marskuppel", zentrale_style: "leuchtturm" });
+  expect(saved).toEqual({ zentrale_style: "leuchtturm" });
 
   // «Eigenes Modell» ist ohne Upload gesperrt
   await expect(page.getByRole("radio", { name: /Eigenes Modell/ })).toBeDisabled();
@@ -115,7 +116,7 @@ test("Stile speichern, eigenes Modell hochladen, anzeigen und löschen", async (
   // «Eigenes Modell» wählen, speichern, im Dorf sehen
   await page.reload();
   await page.getByRole("radio", { name: /Eigenes Modell/ }).check();
-  await page.getByRole("button", { name: "Stile speichern" }).click();
+  await page.getByRole("button", { name: "Stil speichern" }).click();
   await expect(page.getByText("Gespeichert. Dein Dorf sieht jetzt anders aus.")).toBeVisible();
 
   await page.goto(`/dorf/${user.username}`);

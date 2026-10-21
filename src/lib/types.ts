@@ -1,6 +1,6 @@
 import type { ItemType } from "./item-types";
 import type { PreviewMeta } from "./previews";
-import type { HouseStyle, ZentraleStyle } from "./styles";
+import type { ZentraleStyle } from "./styles";
 
 export const ARTIFACT_KINDS = [
   "rechner",
@@ -49,6 +49,7 @@ export type House = {
   title: string;
   module_code: string | null;
   color: string;
+  semester: number | null;
   position_index: number;
   created_at: string;
 };
@@ -58,7 +59,6 @@ export type Village = {
   owner_id: string;
   name: string;
   theme: string;
-  house_style: HouseStyle;
   zentrale_style: ZentraleStyle;
   zentrale_model_meta: {
     bytes: number;

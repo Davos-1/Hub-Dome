@@ -119,3 +119,12 @@ body {
 .hljs-function {
   color: #7dd3fc;
 }
+
+/* Vollbild-Ansicht des 3D-Dorfs: IBM Plex Sans / Mono */
+.hubdome-ui {
+  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.hubdome-ui .font-mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}

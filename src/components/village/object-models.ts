@@ -1,227 +1,120 @@
 import * as THREE from "three";
-import type { ItemType } from "@/lib/item-types";
-import {
-  arch,
-  arrowBoard,
-  box,
-  cyl,
-  gearGeometry,
-  mergeParts,
-  rbox,
-  sphere,
-  type Part,
-} from "./geo";
-import type { Model } from "./models/common";
+import type { ArtifactKind } from "@/lib/types";
+import { KIND_COLORS } from "./colors";
+import { box, cyl, type Part } from "./geo";
+import { darken, STONE, WOOD } from "./models/common";
 
-const STONE = "#cfc9bd";
-const STONE_DARK = "#a8a29e";
-export const PEDESTAL_HEIGHT = 0.62;
+/**
+ * Objektformen nach Kategorie: Rechner = Pult, Quiz = Tafel, Zusammenfassung = Buch, Cheatsheet = Blatt,
+ * Tool = Werkzeugkiste, Visualisierung = Staffelei, Sonstiges = Tafel auf Sockel. Neue Objekte tragen
+ * ein gelbes Fähnchen. Positionen sind lokal zum Haus (x, z = Platz im Grundstück).
+ */
+export function objectParts(kind: ArtifactKind, x: number, z: number, isNew: boolean): Part[] {
+  const k = KIND_COLORS[kind];
+  const out: Part[] = [];
+  const add = (
+    geo: THREE.BufferGeometry,
+    color: string,
+    px: number,
+    py: number,
+    pz: number,
+    rot?: [number, number, number],
+  ) => out.push({ geo, color, pos: [x + px, py, z + pz], rot });
 
-const tint = (hex: string, amount: number) => {
-  const c = new THREE.Color(hex);
-  c.lerp(new THREE.Color(amount > 0 ? "#ffffff" : "#000000"), Math.abs(amount));
-  return `#${c.getHexString()}`;
-};
-
-/** Sockel, auf dem jedes Objekt steht; der Ring zeigt die Inhaltskategorie. */
-function pedestal(kindColor: string): Part[] {
-  return [
-    {
-      geo: cyl(0.3, 0.4, PEDESTAL_HEIGHT - 0.1, 14),
-      color: STONE,
-      pos: [0, (PEDESTAL_HEIGHT - 0.1) / 2, 0],
-    },
-    { geo: cyl(0.45, 0.45, 0.07, 18), color: STONE_DARK, pos: [0, 0.035, 0] },
-    { geo: cyl(0.46, 0.46, 0.06, 18), color: kindColor, pos: [0, PEDESTAL_HEIGHT - 0.12, 0] },
-    { geo: cyl(0.42, 0.42, 0.07, 18), color: STONE, pos: [0, PEDESTAL_HEIGHT - 0.05, 0] },
-  ];
-}
-
-const Y = PEDESTAL_HEIGHT; // Oberkante des Sockels
-
-/** Claude-Artifact: leuchtender Kristall mit zwei kleinen Splittern. */
-function crystal(color: string): Part[] {
-  const bip = (
-    r: number,
-    h: number,
-    c: string,
-    pos: [number, number, number],
-    rot: [number, number, number] = [0, 0, 0],
-  ): Part[] => [
-    {
-      geo: new THREE.ConeGeometry(r, h * 0.55, 6),
-      color: c,
-      pos: [pos[0], pos[1] + h * 0.275, pos[2]],
-      rot,
-    },
-    {
-      geo: new THREE.ConeGeometry(r, h * 0.45, 6),
-      color: tint(c, -0.2),
-      pos: [pos[0], pos[1] - h * 0.225, pos[2]],
-      rot: [rot[0] + Math.PI, rot[1], rot[2]],
-    },
-  ];
-  return [
-    ...bip(0.2, 1.0, tint(color, 0.15), [0, Y + 0.62, 0], [0, 0.3, 0.06]),
-    ...bip(0.11, 0.55, tint(color, 0.3), [0.3, Y + 0.34, 0.06], [0, 0.6, -0.35]),
-    ...bip(0.09, 0.45, color, [-0.28, Y + 0.3, -0.05], [0, 0.2, 0.4]),
-  ];
-}
-
-/** GitHub-Repo: Zahnrad mit Nabe und kleinem Zweitrad. */
-function gear(color: string): Part[] {
-  return [
-    {
-      geo: gearGeometry(10, 0.3, 0.4, 0.1, 0.16),
-      color,
-      pos: [-0.06, Y + 0.55, 0],
-      rot: [0, 0, 0.2],
-    },
-    {
-      geo: cyl(0.14, 0.14, 0.22, 14),
-      color: tint(color, -0.25),
-      pos: [-0.06, Y + 0.55, 0],
-      rot: [Math.PI / 2, 0, 0],
-    },
-    {
-      geo: gearGeometry(7, 0.15, 0.22, 0.05, 0.12),
-      color: tint(color, 0.25),
-      pos: [0.38, Y + 0.28, 0.02],
-      rot: [0, 0, 0.5],
-    },
-  ];
-}
-
-/** Gist: kleiner Monitor mit Terminal. */
-function terminal(): { body: Part[]; glow: Part[] } {
-  const g = "#4ade80";
-  return {
-    body: [
-      { geo: rbox(0.72, 0.52, 0.14, 0.05), color: "#374151", pos: [0, Y + 0.58, 0] },
-      { geo: box(0.62, 0.42, 0.03), color: "#0b1220", pos: [0, Y + 0.58, 0.075] },
-      { geo: cyl(0.05, 0.07, 0.18, 8), color: "#4b5563", pos: [0, Y + 0.23, 0] },
-      { geo: rbox(0.3, 0.05, 0.2, 0.02), color: "#4b5563", pos: [0, Y + 0.14, 0] },
-    ],
-    glow: [
-      // «>_» und zwei Textzeilen
-      { geo: box(0.07, 0.025, 0.02), color: g, pos: [-0.2, Y + 0.7, 0.095], rot: [0, 0, -0.5] },
-      { geo: box(0.07, 0.025, 0.02), color: g, pos: [-0.2, Y + 0.66, 0.095], rot: [0, 0, 0.5] },
-      { geo: box(0.1, 0.025, 0.02), color: g, pos: [-0.08, Y + 0.64, 0.095] },
-      { geo: box(0.3, 0.025, 0.02), color: g, pos: [0.0, Y + 0.54, 0.095] },
-      { geo: box(0.2, 0.025, 0.02), color: g, pos: [-0.05, Y + 0.47, 0.095] },
-    ],
-  };
-}
-
-/** Cloud-Ordner: Holztruhe mit Eisenbändern, Schloss und kleiner Wolke. */
-function chest(color: string): Part[] {
-  const wood = "#8a5a33";
-  const metal = "#4b5563";
-  return [
-    { geo: rbox(0.74, 0.34, 0.5, 0.05), color: wood, pos: [0, Y + 0.19, 0] },
-    {
-      geo: arch(0.25, 0.74),
-      color: tint(wood, 0.08),
-      pos: [0, Y + 0.36, 0],
-      rot: [0, Math.PI / 2, 0],
-      scale: [1, 1, 1],
-    },
-    ...[-0.24, 0.24].flatMap((x): Part[] => [
-      { geo: box(0.07, 0.36, 0.52), color: metal, pos: [x, Y + 0.19, 0] },
-      { geo: arch(0.26, 0.07), color: metal, pos: [x, Y + 0.36, 0], rot: [0, Math.PI / 2, 0] },
-    ]),
-    { geo: rbox(0.12, 0.14, 0.05, 0.02), color: "#e0b341", pos: [0, Y + 0.34, 0.27] },
-    // Wolke als Kategorie-Symbol
-    { geo: sphere(0.13, 10), color: "#ffffff", pos: [-0.12, Y + 0.88, 0] },
-    { geo: sphere(0.17, 10), color: "#ffffff", pos: [0.02, Y + 0.93, 0] },
-    { geo: sphere(0.12, 10), color: "#ffffff", pos: [0.17, Y + 0.87, 0] },
-    { geo: rbox(0.42, 0.1, 0.2, 0.05), color: "#ffffff", pos: [0.02, Y + 0.84, 0] },
-    { geo: rbox(0.5, 0.04, 0.5, 0.02), color: tint(color, 0.3), pos: [0, Y + 0.0, 0] },
-  ];
-}
-
-/** Link: Wegweiser mit zwei Pfeilschildern. */
-function signpost(color: string): Part[] {
-  return [
-    { geo: cyl(0.05, 0.06, 1.15, 8), color: "#7a4a2b", pos: [0, Y + 0.58, 0] },
-    { geo: sphere(0.07, 8), color: "#7a4a2b", pos: [0, Y + 1.16, 0] },
-    {
-      geo: arrowBoard(0.7, 0.22, 0.05),
-      color: color,
-      pos: [0.12, Y + 0.95, 0.07],
-      rot: [0, 0.15, 0.06],
-    },
-    {
-      geo: arrowBoard(0.6, 0.2, 0.05),
-      color: tint(color, 0.35),
-      pos: [-0.1, Y + 0.65, 0.07],
-      rot: [0, -0.15, Math.PI - 0.05],
-    },
-  ];
-}
-
-/** Datei (ab Phase 8): aufgeschlagenes Buch. */
-function book(color: string): Part[] {
-  return [
-    { geo: rbox(0.62, 0.1, 0.46, 0.03), color, pos: [0, Y + 0.15, 0] },
-    { geo: rbox(0.56, 0.1, 0.4, 0.02), color: "#fbf7ec", pos: [0.02, Y + 0.2, 0] },
-    { geo: box(0.4, 0.02, 0.02), color: "#9ca3af", pos: [0.02, Y + 0.26, 0.1] },
-    { geo: box(0.3, 0.02, 0.02), color: "#9ca3af", pos: [0.02, Y + 0.26, 0] },
-    { geo: box(0.36, 0.02, 0.02), color: "#9ca3af", pos: [0.02, Y + 0.26, -0.1] },
-  ];
-}
-
-/** Paket (ab Phase 9): Kiste mit Deckel und Band. */
-function crate(color: string): Part[] {
-  return [
-    { geo: rbox(0.58, 0.44, 0.58, 0.04), color: "#b4833d", pos: [0, Y + 0.25, 0] },
-    { geo: rbox(0.64, 0.1, 0.64, 0.03), color: color, pos: [0, Y + 0.52, 0] },
-    { geo: box(0.1, 0.46, 0.6), color: "#e7d3a8", pos: [0, Y + 0.25, 0] },
-  ];
-}
-
-const cache = new Map<string, Model>();
-
-/** Modell eines Objekts (Sockel + Form), geteilt zwischen gleichen Typ/Farb-Kombinationen. */
-export function objectModel(type: ItemType, kindColor: string): Model {
-  const key = `${type}:${kindColor}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-
-  let body: Part[] = [];
-  let glow: Part[] = [];
-  switch (type) {
-    case "github_repo":
-      body = gear(kindColor);
+  switch (kind) {
+    case "rechner":
+      add(cyl(0.05, 0.07, 0.8, 8), "#4b4f55", 0, 0.4, 0);
+      add(box(0.34, 0.04, 0.26), "#4b4f55", 0, 0.8, 0);
+      add(box(0.56, 0.05, 0.42), k, 0, 0.87, 0, [0.42, 0, 0]);
+      add(box(0.4, 0.02, 0.13), "#1f2937", 0, 0.92, -0.07, [0.42, 0, 0]);
+      for (let i = 0; i < 3; i++)
+        add(box(0.09, 0.02, 0.07), "#f8fafc", -0.12 + i * 0.12, 0.88, 0.09, [0.42, 0, 0]);
       break;
-    case "gist": {
-      const t = terminal();
-      body = t.body;
-      glow = t.glow;
+    case "quiz":
+      for (const s of [-1, 1]) add(box(0.05, 1.0, 0.05), WOOD, s * 0.33, 0.5, 0);
+      add(box(0.6, 0.42, 0.04), "#2f4a3c", 0, 0.74, 0);
+      add(box(0.68, 0.05, 0.06), k, 0, 0.97, 0);
+      add(box(0.68, 0.05, 0.06), k, 0, 0.51, 0);
+      add(box(0.26, 0.025, 0.05), "#f1f5f9", -0.08, 0.8, 0.01);
+      add(box(0.36, 0.025, 0.05), "#f1f5f9", 0, 0.7, 0.01);
       break;
-    }
-    case "cloud_ordner":
-      body = chest(kindColor);
+    case "zusammenfassung":
+      add(cyl(0.24, 0.28, 0.5, 10), STONE, 0, 0.25, 0);
+      add(box(0.52, 0.04, 0.36), k, 0, 0.52, 0);
+      add(box(0.24, 0.05, 0.32), "#fbf7ee", -0.125, 0.56, 0, [0, 0, 0.12]);
+      add(box(0.24, 0.05, 0.32), "#fbf7ee", 0.125, 0.56, 0, [0, 0, -0.12]);
       break;
-    case "link":
-      body = signpost(kindColor);
+    case "cheatsheet":
+      add(cyl(0.025, 0.03, 0.85, 6), "#3f3f46", 0, 0.42, -0.04);
+      add(box(0.4, 0.52, 0.015), "#fbf7ee", 0, 0.98, 0, [-0.22, 0, 0]);
+      add(box(0.4, 0.1, 0.02), k, 0, 1.18, -0.05, [-0.22, 0, 0]);
+      for (let i = 0; i < 3; i++)
+        add(box(0.28, 0.022, 0.02), "#b8b2a7", 0, 1.02 - i * 0.1, 0.02 + i * 0.022, [-0.22, 0, 0]);
       break;
-    case "datei":
-      body = book(kindColor);
+    case "tool":
+      add(box(0.6, 0.17, 0.36), "#4a3424", 0, 0.085, 0);
+      add(box(0.55, 0.3, 0.32), k, 0, 0.32, 0);
+      add(box(0.56, 0.03, 0.33), darken(k, 0.7), 0, 0.42, 0);
+      for (const s of [-1, 1]) add(box(0.04, 0.1, 0.04), "#2b2b2b", s * 0.15, 0.52, 0);
+      add(box(0.34, 0.04, 0.05), "#2b2b2b", 0, 0.58, 0);
       break;
-    case "paket":
-      body = crate(kindColor);
+    case "visualisierung":
+      for (const s of [-1, 1])
+        add(cyl(0.025, 0.025, 1.25, 6), WOOD, s * 0.22, 0.6, 0.04, [-0.08, 0, s * 0.1]);
+      add(cyl(0.025, 0.025, 1.2, 6), WOOD, 0, 0.58, -0.2, [0.32, 0, 0]);
+      add(box(0.54, 0.44, 0.03), "#fbf7ee", 0, 0.88, 0.06, [-0.08, 0, 0]);
+      [0.12, 0.22, 0.3].forEach((hh, i) =>
+        add(box(0.08, hh, 0.02), k, -0.13 + i * 0.13, 0.7 + hh / 2, 0.085, [-0.08, 0, 0]),
+      );
       break;
     default:
-      glow = crystal(kindColor);
+      add(cyl(0.26, 0.3, 0.32, 10), STONE, 0, 0.2, 0);
+      add(box(0.44, 0.54, 0.08), k, 0, 0.66, 0, [-0.22, 0, 0]);
   }
-  const model: Model = {
-    body: mergeParts([...pedestal(kindColor), ...body]),
-    // Leere Glow-Geometrie vermeiden: mergeParts braucht mind. ein Teil
-    glow: glow.length
-      ? mergeParts(glow)
-      : mergeParts([{ geo: box(0.001, 0.001, 0.001), color: "#000000" }]),
-  };
-  cache.set(key, model);
-  return model;
+  if (isNew) {
+    add(cyl(0.015, 0.015, 0.8, 5), "#3f3f46", 0.36, 0.9, -0.14);
+    add(box(0.3, 0.18, 0.012), "#facc15", 0.51, 1.2, -0.14);
+  }
+  return out;
+}
+
+/** Beet unter zusammenhängenden Objekten gleicher Kategorie: Erde mit Kante in der Kategoriefarbe. */
+export function bedParts(
+  slots: { kind: ArtifactKind; side: -1 | 1; row: number; col: number; x: number; z: number }[],
+): Part[] {
+  const out: Part[] = [];
+  const groups = new Map<string, typeof slots>();
+  for (const s of slots) {
+    const key = `${s.side}|${s.row}`;
+    const list = groups.get(key) ?? [];
+    list.push(s);
+    groups.set(key, list);
+  }
+  for (const g of groups.values()) {
+    g.sort((a, b) => a.col - b.col);
+    let run = [g[0]];
+    const flush = () => {
+      const xs = run.map((s) => s.x);
+      const x0 = Math.min(...xs) - 0.56;
+      const x1 = Math.max(...xs) + 0.56;
+      const z = run[0].z;
+      const w = x1 - x0;
+      const cx = (x0 + x1) / 2;
+      const col = KIND_COLORS[run[0].kind];
+      out.push({ geo: box(w, 0.05, 1.08), color: "#7b5d45", pos: [cx, 0.025, z] });
+      out.push({ geo: box(w, 0.1, 0.07), color: col, pos: [cx, 0.05, z - 0.54] });
+      out.push({ geo: box(w, 0.1, 0.07), color: col, pos: [cx, 0.05, z + 0.54] });
+      out.push({ geo: box(0.07, 0.1, 1.08), color: col, pos: [x0, 0.05, z] });
+      out.push({ geo: box(0.07, 0.1, 1.08), color: col, pos: [x1, 0.05, z] });
+    };
+    for (let i = 1; i < g.length; i++) {
+      if (g[i].kind === run[0].kind && g[i].col === run[run.length - 1].col + 1) run.push(g[i]);
+      else {
+        flush();
+        run = [g[i]];
+      }
+    }
+    flush();
+  }
+  return out;
 }

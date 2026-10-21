@@ -1,43 +1,5 @@
 import { z } from "zod";
 
-/** Haus-Stile (gelten für alle Modul- und Themenhäuser eines Dorfs). */
-export const HOUSE_STYLES = [
-  "haus",
-  "blockhuette",
-  "marskuppel",
-  "werkstatt",
-  "tinyhaus",
-  "baumhaus",
-] as const;
-export type HouseStyle = (typeof HOUSE_STYLES)[number];
-
-export const HOUSE_STYLE_INFO: Record<HouseStyle, { label: string; description: string }> = {
-  haus: {
-    label: "Einfaches Haus",
-    description: "Gemütliches Wohnhaus mit Satteldach, Läden und Kamin.",
-  },
-  blockhuette: {
-    label: "Blockhütte",
-    description: "Rundholz-Hütte mit Steinkamin, Veranda und Holzstapel.",
-  },
-  marskuppel: {
-    label: "Marskuppel",
-    description: "Kuppelstation auf rotem Marsboden mit Schleuse und Solarfeld.",
-  },
-  werkstatt: {
-    label: "Werkstatt",
-    description: "Industriehalle mit Rolltor, Oblichtern, Kran und Silo.",
-  },
-  tinyhaus: {
-    label: "Tinyhaus",
-    description: "Schmales Häuschen auf Rädern mit Terrasse und Lichterkette.",
-  },
-  baumhaus: {
-    label: "Baumhaus",
-    description: "Hütte in einem grossen Baum mit Leiter, Plattformen und Seilbrücke.",
-  },
-};
-
 /** Stile der Zentrale; `custom` = eigenes hochgeladenes Modell (GLB). */
 export const ZENTRALE_STYLES = [
   "rathaus",
@@ -78,7 +40,6 @@ export const ZENTRALE_STYLE_INFO: Record<ZentraleStyle, { label: string; descrip
   },
 };
 
-export const houseStyleSchema = z.enum(HOUSE_STYLES);
 export const zentraleStyleSchema = z.enum(ZENTRALE_STYLES);
 
 /** Grenzen für eigene Modelle (siehe docs/PLAN-4B-GESTALTUNG.md). */

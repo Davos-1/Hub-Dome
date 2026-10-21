@@ -21,7 +21,7 @@ export async function loadVillage(username: string) {
 
   const { data: village } = await supabase
     .from("villages")
-    .select("id, owner_id, name, theme, house_style, zentrale_style, zentrale_model_meta")
+    .select("id, owner_id, name, theme, zentrale_style, zentrale_model_meta")
     .eq("owner_id", owner.id)
     .maybeSingle<Village>();
   if (!village) notFound();

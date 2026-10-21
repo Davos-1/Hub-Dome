@@ -53,6 +53,8 @@ export async function createHouse(_: ActionState, formData: FormData): Promise<A
     title: title!,
     module_code: moduleCode,
     color: parsed.data.color,
+    // Spalte `semester` nur schreiben, wenn gesetzt (ältere Datenbanken ohne Migration 5 funktionieren weiter)
+    ...(parsed.data.semester === null ? {} : { semester: parsed.data.semester }),
     position_index: count ?? 0,
   });
   if (error) return { error: "Das Haus konnte nicht angelegt werden." };

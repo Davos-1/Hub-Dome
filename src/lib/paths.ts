@@ -1,51 +1,21 @@
-import type { HouseLayout } from "./layout";
+import { fnv } from "./fachbereiche";
+import { HOUSE_PATH_WIDTH, MAIN_PATH_WIDTH, type VillageLayout } from "./layout";
 
-/** Ein Weg von der Dorfplatz-Kante zur Haustür als Linienzug. */
+/** Ein Weg als Linienzug: Hauptweg (Hauptplatz → Nebenplatz) oder Hausweg (Nebenplatz → Gartentor). */
 export type VillagePath = {
-  houseId: string;
+  id: string;
+  kind: "haupt" | "haus";
+  /** Haus (Hausweg) bzw. Quartier-Id (Hauptweg). */
+  ownerId: string;
+  /** Index in der Quartierfarbe, `null` für Wege ohne Quartier. */
+  quarterIndex: number | null;
   points: { x: number; z: number }[];
-  /** Kurvenform 0–3 (Bogen, S-Kurve, Gegenbogen, Schlängeln). */
-  shape: number;
-  /** Belag 0–3 (Sand, Kies, Platten, Trittsteine). */
-  surface: number;
   width: number;
-  /** Tatsächlich verwendete maximale seitliche Auslenkung in Metern. */
-  amplitude: number;
+  /** Phase der leichten Breitenschwankung. */
+  seed: number;
 };
 
 type Pt = { x: number; z: number };
-
-export const PATH_WIDTH = 1.5;
-/** Mindestabstand zwischen den Kanten zweier Wege. */
-const GAP = 0.35;
-const MAX_AMPLITUDE = 2.8;
-const SAMPLES = 40;
-
-function hash(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** Seitliche Auslenkung (−1…1) über t ∈ [0,1], an beiden Enden 0. */
-function shapeFn(shape: number, t: number): number {
-  switch (shape) {
-    case 0:
-      return Math.sin(Math.PI * t);
-    case 1:
-      return Math.sin(2 * Math.PI * t);
-    case 2:
-      return -Math.sin(Math.PI * t);
-    default:
-      return (
-        (0.65 * Math.sin(2 * Math.PI * t) + 0.45 * Math.sin(3 * Math.PI * t + 0.8)) *
-        Math.sin(Math.PI * t) ** 0.3
-      );
-  }
-}
 
 function distPointToSegment(px: number, pz: number, a: Pt, b: Pt) {
   const dx = b.x - a.x;
@@ -73,111 +43,107 @@ export function polylineDistance(a: Pt[], b: Pt[]): number {
 }
 
 /**
- * Verteilt die Startwinkel am Dorfplatz so, dass benachbarte Wege mindestens `minSpacing` (Bogenmass)
- * Abstand haben. Einfache Relaxation; bei sehr vielen Wegen (> ca. 19) ist das nicht mehr möglich.
+ * Sanfter Bogen (Hermite-Kurve) von S nach G mit Anfangsrichtung dS und Endrichtung dG.
+ * `amp` biegt die Mitte seitlich aus (`sign` = Seite).
  */
-function spreadStartAngles(angles: number[], minSpacing: number): number[] {
-  const n = angles.length;
-  if (n < 2) return angles.slice();
-  const order = angles.map((a, i) => ({ a, i })).sort((p, q) => p.a - q.a);
-  const a = order.map((o) => o.a);
-  for (let iter = 0; iter < 200; iter++) {
-    let moved = false;
-    for (let k = 0; k < n; k++) {
-      const next = (k + 1) % n;
-      const nextA = next === 0 ? a[0] + Math.PI * 2 : a[next];
-      const gap = nextA - a[k];
-      if (gap < minSpacing - 1e-6) {
-        const push = (minSpacing - gap) / 2;
-        a[k] -= push;
-        if (next === 0) a[0] += push;
-        else a[next] += push;
-        moved = true;
-      }
-    }
-    if (!moved) break;
+export function hermite(S: Pt, dS: Pt, G: Pt, dG: Pt, amp: number, sign: number): Pt[] {
+  const D = Math.hypot(G.x - S.x, G.z - S.z);
+  const N = Math.max(20, Math.round(D * 3));
+  const kk = D * 0.5;
+  const nx = -(G.z - S.z) / D;
+  const nz = (G.x - S.x) / D;
+  const pts: Pt[] = [];
+  for (let k = 0; k <= N; k++) {
+    const t = k / N;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const h00 = 2 * t3 - 3 * t2 + 1;
+    const h10 = t3 - 2 * t2 + t;
+    const h01 = -2 * t3 + 3 * t2;
+    const h11 = t3 - t2;
+    const bow = amp * sign * Math.sin(Math.PI * t) ** 2;
+    pts.push({
+      x: h00 * S.x + h10 * dS.x * kk + h01 * G.x + h11 * dG.x * kk + nx * bow,
+      z: h00 * S.z + h10 * dS.z * kk + h01 * G.z + h11 * dG.z * kk + nz * bow,
+    });
   }
-  const result = new Array<number>(n);
-  order.forEach((o, k) => (result[o.i] = a[k]));
-  return result;
+  return pts;
 }
 
-/**
- * Erzeugt für jedes Haus einen organisch geschwungenen Weg.
- *
- * Garantie gegen Berührung («Korridor-Verfahren»): Zuerst wird für jedes Haus der gerade Weg
- * (Startpunkt am Dorfplatz → Haustür) festgelegt. An jedem Punkt eines geraden Wegs wird der Abstand
- * e zu allen anderen geraden Wegen gemessen. Darf jeder Weg dort höchstens (e − Breite − Lücke)/2 seitlich
- * ausweichen, bleiben zwei Kurven rechnerisch mindestens Breite + Lücke voneinander entfernt.
- * Ebenso hält jeder Weg Abstand zu fremden Häusern. Die Auslenkung wird gleichmässig skaliert, damit die
- * Kurvenform glatt bleibt. Form und Belag hängen deterministisch von der Haus-ID ab.
- */
-export function computePaths(houses: HouseLayout[], plazaRadius: number): VillagePath[] {
-  const homes = houses.filter((h) => h.ring > 0);
-  if (homes.length === 0) return [];
-  const W = PATH_WIDTH + GAP + 0.05;
+const dir = (a: number): Pt => ({ x: Math.cos(a), z: Math.sin(a) });
 
-  // 1) Startwinkel auf dem Dorfplatz entzerren, gerade Wege festlegen
-  const baseAngles = homes.map((h) => Math.atan2(h.z, h.x));
-  const starts = spreadStartAngles(baseAngles, W / plazaRadius);
-  const rays = homes.map((h, i) => {
-    const len = Math.hypot(h.x, h.z);
-    const rx = h.x / len;
-    const rz = h.z / len;
-    const s: Pt = { x: Math.cos(starts[i]) * plazaRadius, z: Math.sin(starts[i]) * plazaRadius };
-    const reach = h.footprint * 1.05 + 0.55;
-    const d: Pt = { x: h.x - rx * reach, z: h.z - rz * reach };
-    return { s, d };
-  });
-  const straight = rays.map(({ s, d }) =>
-    Array.from({ length: SAMPLES + 1 }, (_, k) => ({
-      x: s.x + (d.x - s.x) * (k / SAMPLES),
-      z: s.z + (d.z - s.z) * (k / SAMPLES),
-    })),
-  );
-
-  return homes.map((h, i) => {
-    const k = hash(h.id);
-    const shape = k % 4;
-    const surface = (k >>> 3) % 4;
-    const sign = (k >>> 6) % 2 === 0 ? 1 : -1;
-    const wanted = MAX_AMPLITUDE * (0.55 + ((k >>> 9) % 100) / 220);
-
-    const { s, d } = rays[i];
-    const dx = d.x - s.x;
-    const dz = d.z - s.z;
-    const len = Math.hypot(dx, dz);
-    const nx = -dz / len;
-    const nz = dx / len;
-
-    // 2) Erlaubte Auslenkung an jedem Stützpunkt
-    const allowed = straight[i].map((p) => {
-      let bound = Infinity;
-      for (let j = 0; j < homes.length; j++) {
-        if (j === i) continue;
-        const e = distanceToPolyline(p.x, p.z, straight[j]);
-        bound = Math.min(bound, (e - W) / 2);
-      }
-      for (const o of homes) {
-        if (o.id === h.id) continue;
-        const clear = o.footprint * 1.9 + 0.8 + PATH_WIDTH / 2;
-        bound = Math.min(bound, Math.hypot(p.x - o.x, p.z - o.z) - clear);
-      }
-      return Math.max(0, bound);
+/** Wege des Dorfs: ein Hauptweg pro Quartier, ein Hausweg pro Haus. */
+export function computePaths(layout: Omit<VillageLayout, "paths">): VillagePath[] {
+  const out: VillagePath[] = [];
+  const plaza = layout.plazaRadius;
+  for (const q of layout.quarters) {
+    const s0 = dir(q.mainSide);
+    const e0 = dir(q.entrySide);
+    out.push({
+      id: `haupt-${q.id}`,
+      kind: "haupt",
+      ownerId: q.id,
+      quarterIndex: q.index,
+      width: MAIN_PATH_WIDTH,
+      seed: 1,
+      points: hermite(
+        { x: s0.x * (plaza - 0.35), z: s0.z * (plaza - 0.35) },
+        s0,
+        { x: q.x + e0.x * (q.rp - 0.35), z: q.z + e0.z * (q.rp - 0.35) },
+        { x: -e0.x, z: -e0.z },
+        0,
+        1,
+      ),
     });
-
-    // 3) Kurve gleichmässig so weit skalieren, dass sie überall im Korridor bleibt
-    let scale = 1;
-    for (let q = 1; q < SAMPLES; q++) {
-      const want = Math.abs(wanted * shapeFn(shape, q / SAMPLES));
-      if (want > 1e-6) scale = Math.min(scale, allowed[q] / want);
+    for (const id of q.houseIds) {
+      const h = layout.houses[id];
+      if (!h.plot) continue;
+      const sd = dir(h.side);
+      const f = { x: Math.sin(h.angle), z: Math.cos(h.angle) };
+      const sign = (fnv(h.id) >>> 6) % 2 ? 1 : -1;
+      out.push({
+        id: `haus-${h.id}`,
+        kind: "haus",
+        ownerId: h.id,
+        quarterIndex: q.index,
+        width: HOUSE_PATH_WIDTH,
+        seed: (fnv(h.id) % 100) / 10,
+        points: hermite(
+          { x: q.x + sd.x * (q.rp - 0.35), z: q.z + sd.z * (q.rp - 0.35) },
+          sd,
+          { x: h.x + f.x * h.plot.front, z: h.z + f.z * h.plot.front },
+          { x: -f.x, z: -f.z },
+          0.3,
+          sign,
+        ),
+      });
     }
-    const amp = wanted * Math.max(0, scale);
+  }
+  return out;
+}
 
-    const points = straight[i].map((p, q) => {
-      const lateral = sign * amp * shapeFn(shape, q / SAMPLES);
-      return { x: p.x + nx * lateral, z: p.z + nz * lateral };
-    });
-    return { houseId: h.id, points, shape, surface, width: PATH_WIDTH, amplitude: amp };
-  });
+/** Länge des Linienzugs in Metern. */
+export function pathLength(pts: Pt[]): number {
+  let l = 0;
+  for (let i = 1; i < pts.length; i++)
+    l += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+  return l;
+}
+
+/** Punkt und Richtung (Winkel `atan2(dx, dz)`) bei Bogenlänge `s`. */
+export function pointAlong(pts: Pt[], s: number): { x: number; z: number; angle: number } {
+  let acc = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = pts[i + 1].x - pts[i].x;
+    const dz = pts[i + 1].z - pts[i].z;
+    const l = Math.hypot(dx, dz);
+    if (acc + l >= s) {
+      const t = (s - acc) / l;
+      return { x: pts[i].x + dx * t, z: pts[i].z + dz * t, angle: Math.atan2(dx, dz) };
+    }
+    acc += l;
+  }
+  const a = pts[pts.length - 2];
+  const b = pts[pts.length - 1];
+  return { x: b.x, z: b.z, angle: Math.atan2(b.x - a.x, b.z - a.z) };
 }

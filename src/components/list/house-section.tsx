@@ -26,7 +26,10 @@ export function HouseSection({ house, artifacts, houses, isOwner }: Props) {
         <h2 id={`h-${house.id}`} className="text-xl font-semibold">
           {house.title}
         </h2>
-        <span className="text-sm text-zinc-500">{artifacts.length} Objekte</span>
+        <span className="text-sm text-zinc-500">
+          {house.semester ? `${house.semester}. Semester · ` : ""}
+          {artifacts.length} Objekte
+        </span>
       </div>
 
       {artifacts.length === 0 && (
@@ -119,6 +122,19 @@ export function HouseSection({ house, artifacts, houses, isOwner }: Props) {
                     required
                     maxLength={80}
                     defaultValue={house.title}
+                    className={inputClass}
+                  />
+                  <label htmlFor={`hs-${house.id}`} className="text-sm font-medium">
+                    Semester (optional)
+                  </label>
+                  <input
+                    id={`hs-${house.id}`}
+                    name="semester"
+                    type="number"
+                    min={1}
+                    max={12}
+                    inputMode="numeric"
+                    defaultValue={house.semester ?? ""}
                     className={inputClass}
                   />
                   <label htmlFor={`hc-${house.id}`} className="text-sm font-medium">

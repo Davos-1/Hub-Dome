@@ -2,10 +2,17 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { HouseStyle, ZentraleStyle } from "@/lib/styles";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
-import { VillagePanel } from "./village-panel";
+import { buildVillageModel } from "@/lib/village-model";
+import { BottomBar } from "./hud/bottom-bar";
+import { Breadcrumb } from "./hud/breadcrumb";
+import { SearchBox } from "./hud/search-box";
+import { SideWindow, useSideWindowOpen } from "./hud/side-window";
+import { makeActions } from "./scene-actions";
+import { createSceneStore, loadSettings, saveSettings } from "./scene-store";
 
 const VillageScene = dynamic(() => import("./village-scene"), {
   ssr: false,
@@ -19,7 +26,6 @@ type Props = {
   ownerName: string;
   avatarSeed: string;
   isOwner: boolean;
-  houseStyle: HouseStyle;
   zentraleStyle: ZentraleStyle;
   /** Signierte URL des eigenen Zentrale-Modells (nur bei Stil custom). */
   customModelUrl?: string | null;
@@ -50,10 +56,10 @@ function hasWebGL() {
   }
 }
 
+/** Vollbild-3D: Dorf, schwebende Leiste unten, Brotkrumen, Suche und Fenster rechts. */
 export function VillageView(props: Props) {
   const { houses, artifacts, ownerUsername } = props;
-  const [houseId, setHouseId] = useState<string | null>(null);
-  const [artifactId, setArtifactId] = useState<string | null>(null);
+  const router = useRouter();
 
   const reducedMotion = useMedia("(prefers-reduced-motion: reduce)");
   // Mobile bzw. Touch-Geräte: reduzierte Details (weniger Pixel, kein Antialiasing, weniger Bäume).
@@ -66,102 +72,109 @@ export function VillageView(props: Props) {
     () => null,
   );
 
-  const selectHouse = useCallback((id: string | null) => {
-    setHouseId(id);
-    setArtifactId(null);
-  }, []);
+  const [now] = useState(() => Date.now());
+  const model = useMemo(() => buildVillageModel(houses, artifacts, now), [houses, artifacts, now]);
+  const [store] = useState(() => createSceneStore());
+  const actions = useMemo(() => makeActions(store, model), [store, model]);
+  const windowOpen = useSideWindowOpen(store);
 
-  const selectArtifact = useCallback(
-    (id: string | null) => {
-      setArtifactId(id);
-      if (id) {
-        const a = artifacts.find((x) => x.id === id);
-        if (a) setHouseId(a.house_id);
-      }
-    },
-    [artifacts],
-  );
+  // Gespeicherte Einstellungen laden, danach jede Änderung speichern.
+  useEffect(() => {
+    store.set(loadSettings());
+    return store.subscribe(() => {
+      const s = store.get();
+      saveSettings({ view: s.view, time: s.time, filter: s.filter });
+    });
+  }, [store]);
 
-  // Escape: eine Ebene zurück.
+  // Esc schliesst zuerst offene Popups und Fenster, sonst geht es eine Ebene zurück (auch ohne Fokus im Canvas).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (artifactId) setArtifactId(null);
-      else if (houseId) setHouseId(null);
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (e.key === "Escape" && store.get().panel) {
+        store.set({ panel: null });
+        e.stopPropagation();
+        return;
+      }
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
+        // Enter auf Knöpfen und Links nicht abfangen
+        if (e.key === "Enter" && target && /^(BUTTON|A)$/.test(target.tagName)) return;
+        if (actions.onKey(e.key)) e.preventDefault();
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [artifactId, houseId]);
-
-  const house = houses.find((h) => h.id === houseId) ?? null;
-  const artifact = artifacts.find((a) => a.id === artifactId) ?? null;
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [store, actions]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
-      <div
-        className="relative min-h-[55vh] flex-1 overflow-hidden rounded-xl border border-zinc-300 md:min-h-[70vh]"
-        role="img"
-        aria-label="3D-Ansicht des Dorfs. Alle Inhalte sind auch in der Listenansicht und im Seitenbereich erreichbar."
-      >
-        {webgl === false ? (
-          <p className="p-6">
-            Dein Browser unterstützt keine 3D-Grafik. Nutze die{" "}
-            <Link className="underline" href={`/dorf/${ownerUsername}/liste`}>
-              Listenansicht
-            </Link>
-            .
-          </p>
-        ) : webgl ? (
+    <div
+      className="hubdome-ui fixed inset-0 overflow-hidden bg-[#cfe4f4] text-[#1c1b19]"
+      role="application"
+      aria-label={`3D-Ansicht des Dorfs ${props.villageName}. Alle Inhalte sind auch in der Listenansicht erreichbar.`}
+    >
+      {webgl === false ? (
+        <p className="p-6">
+          Dein Browser unterstützt keine 3D-Grafik. Nutze die{" "}
+          <Link className="underline" href={`/dorf/${ownerUsername}/liste`}>
+            Listenansicht
+          </Link>
+          .
+        </p>
+      ) : webgl ? (
+        <div className="absolute inset-0" tabIndex={-1}>
           <VillageScene
             villageId={props.villageId}
             ownerName={props.ownerName}
             avatarSeed={props.avatarSeed}
-            houseStyle={props.houseStyle}
             zentraleStyle={props.zentraleStyle}
             customModelUrl={props.customModelUrl ?? null}
-            houses={houses}
-            artifacts={artifacts}
-            selectedHouseId={houseId}
-            selectedArtifactId={artifactId}
-            onSelectHouse={selectHouse}
-            onSelectArtifact={selectArtifact}
+            model={model}
+            store={store}
+            actions={actions}
+            isOwner={props.isOwner}
+            onConstruction={(houseId) => router.push(`/dorf/${ownerUsername}/liste#h-${houseId}`)}
             lowDetail={lowDetail}
             reducedMotion={reducedMotion}
           />
-        ) : null}
-        {houseId && (
-          <button
-            type="button"
-            onClick={() => selectHouse(null)}
-            className="absolute top-3 left-3 rounded-lg bg-white/90 px-3 py-1 text-sm font-medium shadow"
-          >
-            ← Zurück
-          </button>
-        )}
-      </div>
-
-      <aside aria-label="Details" className="w-full shrink-0 md:w-96">
-        <div className="mb-3 flex gap-3 text-sm">
-          <Link
-            href={`/dorf/${ownerUsername}/liste`}
-            className="rounded-lg border border-zinc-300 px-3 py-1 font-medium"
-          >
-            Zur Listenansicht
-          </Link>
         </div>
-        <VillagePanel
-          villageName={props.villageName}
-          ownerUsername={ownerUsername}
-          isOwner={props.isOwner}
-          houses={houses}
+      ) : null}
+
+      <div className="pointer-events-none absolute inset-0">
+        <Breadcrumb model={model} store={store} actions={actions} />
+        <SearchBox model={model} actions={actions} />
+        <SideWindow
+          model={model}
+          store={store}
+          actions={actions}
           artifacts={artifacts}
-          house={house}
-          artifact={artifact}
           previews={props.previews}
-          onSelectHouse={selectHouse}
-          onSelectArtifact={selectArtifact}
+          isOwner={props.isOwner}
+          ownerUsername={ownerUsername}
         />
-      </aside>
+        <BottomBar store={store} actions={actions} windowOpen={windowOpen} />
+        {model.houses.length <= 1 && (
+          <p className="pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 shadow">
+            {props.isOwner ? (
+              <>
+                Lege dein erstes Modulhaus an – in der{" "}
+                <Link href={`/dorf/${ownerUsername}/liste`} className="underline">
+                  Listenansicht
+                </Link>
+                .
+              </>
+            ) : (
+              "Hier gibt es noch keine Häuser."
+            )}
+          </p>
+        )}
+        <Link
+          href={`/dorf/${ownerUsername}/liste`}
+          className="pointer-events-auto absolute bottom-3 left-3 rounded-lg bg-[#fffdf8]/90 px-3 py-1.5 text-[12.5px] font-medium text-[#2f5d4a] shadow-[0_1px_3px_rgba(0,0,0,.15)] hover:bg-[#fffdf8]"
+        >
+          Zur Listenansicht
+        </Link>
+      </div>
     </div>
   );
 }

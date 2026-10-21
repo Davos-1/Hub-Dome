@@ -1,32 +1,43 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import type { WebGLRenderer } from "three";
-import { artifactSlots, computeLayout } from "@/lib/layout";
-import type { HouseStyle, ZentraleStyle } from "@/lib/styles";
-import type { Artifact, House } from "@/lib/types";
-import { Artifact3D } from "./artifact-3d";
-import { House3D, Zentrale3D } from "./buildings";
-import { CameraRig, housePose, overviewPose } from "./camera-rig";
+import * as THREE from "three";
+import { resolveTime } from "@/lib/daytime";
 import { computeEnvironment } from "@/lib/environment";
-import { Ground, Nature, Paths, SkyBackground } from "./decor";
+import type { ZentraleStyle } from "@/lib/styles";
+import type { VillageModel } from "@/lib/village-model";
+import { Boards } from "./boards";
+import { House3D, modelOfHouse, ZENTRALE_LIFT, Zentrale3D } from "./buildings";
+import { CameraRig } from "./camera-rig";
+import { Daylight } from "./daylight";
+import { Ground, Lamps, makeHeightFn, Nature, Paths, PlazaDeco, Plazas } from "./decor";
+import { buildVillageGardens, type VillageGardens } from "./garden-geometry";
+import { loadLabelFont } from "./label-atlas";
+import { Labels } from "./labels";
 import { Life } from "./life";
+import { buildMapGeometry } from "./map-geometry";
+import { KIND_COLORS } from "./colors";
+import { zentraleTopFactor } from "./models";
+import type { SceneActions } from "./scene-actions";
+import { ChimneySmoke, HighlightRing, ObjectCard } from "./scene-extras";
+import { useScene, type SceneStore } from "./scene-store";
+import { buildVillageAtlas, type VillageAtlas } from "./village-atlas";
+import { ARTIFACT_KINDS } from "@/lib/types";
 
 export type SceneProps = {
   villageId: string;
   ownerName: string;
   avatarSeed: string;
-  houseStyle: HouseStyle;
   zentraleStyle: ZentraleStyle;
   customModelUrl: string | null;
-  houses: House[];
-  artifacts: Artifact[];
-  selectedHouseId: string | null;
-  selectedArtifactId: string | null;
-  onSelectHouse: (id: string | null) => void;
-  onSelectArtifact: (id: string) => void;
+  model: VillageModel;
+  store: SceneStore;
+  actions: SceneActions;
+  isOwner: boolean;
+  /** Klick auf das Baustellenschild eines leeren Hauses (nur Besitzer). */
+  onConstruction: (houseId: string) => void;
   lowDetail: boolean;
   reducedMotion: boolean;
 };
@@ -38,16 +49,6 @@ declare global {
   }
 }
 
-/** Schreibt die Statistik der letzten Frame nach `window.__hubDome` (für Performance-Tests). */
-function publishStats(gl: WebGLRenderer, houses: number, artifacts: number) {
-  window.__hubDome = {
-    calls: gl.info.render.calls,
-    triangles: gl.info.render.triangles,
-    houses,
-    artifacts,
-  };
-}
-
 function PerfProbe({ houses, artifacts }: { houses: number; artifacts: number }) {
   const gl = useThree((s) => s.gl);
   useEffect(() => {
@@ -56,7 +57,12 @@ function PerfProbe({ houses, artifacts }: { houses: number; artifacts: number })
     // eslint-disable-next-line react-hooks/immutability
     gl.render = (scene, camera) => {
       original(scene, camera);
-      publishStats(gl, houses, artifacts);
+      window.__hubDome = {
+        calls: gl.info.render.calls,
+        triangles: gl.info.render.triangles,
+        houses,
+        artifacts,
+      };
     };
     return () => {
       gl.render = original;
@@ -65,63 +71,199 @@ function PerfProbe({ houses, artifacts }: { houses: number; artifacts: number })
   return null;
 }
 
+/** Atlas aller Beschriftungen (nach dem Laden der Schrift). */
+function useAtlas(model: VillageModel, ownerName: string): VillageAtlas | null {
+  const [atlas, setAtlas] = useState<VillageAtlas | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let built: VillageAtlas | null = null;
+    loadLabelFont().then(() => {
+      if (cancelled) return;
+      built = buildVillageAtlas(model, ownerName);
+      setAtlas(built);
+    });
+    return () => {
+      cancelled = true;
+      built?.dispose();
+    };
+  }, [model, ownerName]);
+  return atlas;
+}
+
+/** Filter «Kategorie»: Objekte der Kategorie leuchten, andere werden grau (ohne Neuaufbau). */
+function ObjectMeshes({ gardens, store }: { gardens: VillageGardens; store: SceneStore }) {
+  const filter = useScene(store, (s) => s.filter);
+  return (
+    <>
+      {ARTIFACT_KINDS.map((kind) => {
+        const geo = gardens.objects[kind];
+        if (!geo) return null;
+        const match = filter !== "" && kind === filter;
+        return (
+          <mesh key={kind} geometry={geo} castShadow receiveShadow>
+            <meshStandardMaterial
+              vertexColors
+              roughness={0.65}
+              color={filter === "" || match ? "#ffffff" : "#9a9a9a"}
+              emissive={match ? KIND_COLORS[kind] : "#000000"}
+              emissiveIntensity={match ? 0.45 : 0}
+            />
+          </mesh>
+        );
+      })}
+    </>
+  );
+}
+
+/** Heckenteile des ganzen Dorfs als ein InstancedMesh. */
+function Hedges({ gardens }: { gardens: VillageGardens }) {
+  const mesh = useMemo(() => {
+    if (gardens.hedges.length === 0) return null;
+    const im = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.95 }),
+      gardens.hedges.length,
+    );
+    const c = new THREE.Color();
+    gardens.hedges.forEach((h, i) => {
+      im.setMatrixAt(i, h.matrix);
+      im.setColorAt(i, c.set(h.color));
+    });
+    im.castShadow = true;
+    im.receiveShadow = true;
+    return im;
+  }, [gardens]);
+  useEffect(
+    () => () => {
+      mesh?.geometry.dispose();
+      (mesh?.material as THREE.Material | undefined)?.dispose();
+      mesh?.dispose();
+    },
+    [mesh],
+  );
+  return mesh ? <primitive object={mesh} /> : null;
+}
+
+function MapLayer({ model, atlas }: { model: VillageModel; atlas: VillageAtlas | null }) {
+  const geometry = useMemo(() => buildMapGeometry(model), [model]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
+  const labels = useMemo(() => {
+    if (!atlas) return [];
+    const out: {
+      key: string;
+      x: number;
+      z: number;
+      hh: number;
+      entry: VillageAtlas["mapZentrale"];
+    }[] = [];
+    for (const h of model.houses) {
+      const l = model.layout.houses[h.id];
+      if (!l) continue;
+      if (h.kind === "zentrale")
+        out.push({ key: h.id, x: 0, z: 0, hh: 2.2, entry: atlas.mapZentrale });
+      else out.push({ key: h.id, x: l.x, z: l.z, hh: 2.4, entry: atlas.mapHouse[h.id] });
+    }
+    for (const q of model.layout.quarters) {
+      out.push({ key: `q-${q.id}`, x: q.x, z: q.z, hh: 2.0, entry: atlas.mapQuarter[q.id] });
+    }
+    return out;
+  }, [model, atlas]);
+  return (
+    <group>
+      {geometry && (
+        <mesh geometry={geometry} receiveShadow>
+          <meshStandardMaterial vertexColors roughness={0.9} />
+        </mesh>
+      )}
+      {labels.map((l) => (
+        <sprite
+          key={l.key}
+          position={[l.x, 0.4, l.z]}
+          scale={[l.hh * l.entry.aspect, l.hh, 1]}
+          renderOrder={10}
+        >
+          <spriteMaterial map={l.entry.tex} transparent depthTest={false} toneMapped={false} />
+        </sprite>
+      ))}
+    </group>
+  );
+}
+
 export default function VillageScene(props: SceneProps) {
   const {
     villageId,
     ownerName,
     avatarSeed,
-    houseStyle,
     zentraleStyle,
     customModelUrl,
-    houses,
-    artifacts,
-    selectedHouseId,
-    selectedArtifactId,
-    onSelectHouse,
-    onSelectArtifact,
+    model,
+    store,
+    actions,
+    isOwner,
+    onConstruction,
     lowDetail,
     reducedMotion,
   } = props;
+  const { layout } = model;
 
-  const byHouse = useMemo(() => {
-    const map: Record<string, Artifact[]> = {};
-    for (const a of artifacts) (map[a.house_id] ??= []).push(a);
-    return map;
-  }, [artifacts]);
-
-  const layout = useMemo(
-    () =>
-      computeLayout(
-        houses,
-        Object.fromEntries(houses.map((h) => [h.id, byHouse[h.id]?.length ?? 0])),
-      ),
-    [houses, byHouse],
-  );
+  const time = useScene(store, (s) => s.time);
+  const view = useScene(store, (s) => s.view);
+  const map = view === "karte";
+  const [hour] = useState(() => new Date().getHours());
+  const timeKey = resolveTime(time, hour);
 
   const env = useMemo(
     () => computeEnvironment(layout.extent, villageId),
     [layout.extent, villageId],
   );
+  const height = useMemo(() => makeHeightFn(layout.extent, env), [layout.extent, env]);
+  const gardens = useMemo(() => buildVillageGardens(model), [model]);
+  useEffect(
+    () => () => {
+      gardens.lawns?.dispose();
+      gardens.body?.dispose();
+      gardens.glow?.dispose();
+      Object.values(gardens.objects).forEach((g) => g.dispose());
+    },
+    [gardens],
+  );
+  const atlas = useAtlas(model, ownerName);
+  const glow = timeKey === "abend" ? 2.6 : timeKey === "mittag" ? 0.85 : 0.7;
 
-  const pose = useMemo(() => {
-    const sel = selectedHouseId ? layout.houses[selectedHouseId] : null;
-    return sel ? housePose(sel) : overviewPose(layout.extent);
-  }, [selectedHouseId, layout]);
+  // Oberkante pro Haus für Beschriftung und Trefferfläche
+  const tops = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const h of model.houses) {
+      const l = layout.houses[h.id];
+      if (!l) continue;
+      out[h.id] =
+        h.kind === "zentrale"
+          ? zentraleTopFactor(zentraleStyle) * l.footprint + ZENTRALE_LIFT
+          : modelOfHouse(h, l).top;
+    }
+    return out;
+  }, [model, layout, zentraleStyle]);
 
-  const start = useMemo(() => overviewPose(layout.extent), [layout.extent]);
+  const [pointerCursor, setPointerCursor] = useState(false);
+  useEffect(() => {
+    document.body.style.cursor = pointerCursor ? "pointer" : "";
+    return () => {
+      document.body.style.cursor = "";
+    };
+  }, [pointerCursor]);
+
+  const overview = useMemo(
+    () => [0, layout.extent * 1.0 + 11, layout.extent * 1.38 + 16] as [number, number, number],
+    [layout.extent],
+  );
 
   return (
     <Canvas
       frameloop="demand"
-      shadows={lowDetail ? false : "soft"}
+      shadows={lowDetail ? false : "percentage"}
       dpr={lowDetail ? [1, 1.25] : [1, 2]}
       gl={{ antialias: !lowDetail, powerPreference: "high-performance" }}
-      camera={{
-        position: start.position.toArray(),
-        fov: 45,
-        near: 0.1,
-        far: 500,
-      }}
+      camera={{ position: overview, fov: 45, near: 0.1, far: 900 }}
       onCreated={({ gl, invalidate }) => {
         // Bei Kontextverlust (z.B. Grafiktreiber-Reset) Wiederherstellung erlauben und neu zeichnen.
         gl.domElement.addEventListener("webglcontextlost", (e) => e.preventDefault());
@@ -131,85 +273,130 @@ export default function VillageScene(props: SceneProps) {
         /* Klick ins Leere ändert nichts (verhindert versehentliches Verlassen) */
       }}
     >
-      <SkyBackground />
-      <fog attach="fog" args={["#d9ebf8", layout.extent * 1.6, layout.extent * 4.5]} />
-      <hemisphereLight args={["#fff7ea", "#7fa56a", 1.0]} />
-      <directionalLight
-        position={[layout.extent * 0.7, layout.extent * 1.2, layout.extent * 0.9]}
-        intensity={2.1}
-        color="#fff3dc"
-        castShadow={!lowDetail}
-        shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.04}
-        shadow-camera-near={1}
-        shadow-camera-far={layout.extent * 4}
-        shadow-camera-left={-(layout.extent + 14)}
-        shadow-camera-right={layout.extent + 14}
-        shadow-camera-top={layout.extent + 14}
-        shadow-camera-bottom={-(layout.extent + 14)}
+      <Daylight time={timeKey} extent={layout.extent} map={map} lowDetail={lowDetail} />
+
+      {/* Boden, Plätze, Wege und Rasen sind in beiden Ansichten sichtbar */}
+      <Ground extent={layout.extent} height={height} />
+      <Plazas layout={layout} />
+      <Paths layout={layout} />
+      {gardens.lawns && (
+        <mesh geometry={gardens.lawns} receiveShadow>
+          <meshStandardMaterial color="#ffffff" vertexColors roughness={1} />
+        </mesh>
+      )}
+
+      <Life
+        layout={layout}
+        env={env}
+        lowDetail={lowDetail}
+        reducedMotion={reducedMotion}
+        mapOnly={map}
       />
 
-      <Ground extent={layout.extent} plaza={layout.plazaRadius} />
-      <Paths layout={layout} />
-      <Life layout={layout} env={env} lowDetail={lowDetail} reducedMotion={reducedMotion} />
-      <Nature layout={layout} env={env} seed={villageId} density={lowDetail ? 0.35 : 1} />
-
-      {houses.map((house) => {
-        const l = layout.houses[house.id];
-        if (!l) return null;
-        const items = byHouse[house.id] ?? [];
-        const slots = artifactSlots(items.length, l.footprint);
-        const objects = items.map((a, i) => (
-          <Artifact3D
-            key={a.id}
-            artifact={a}
-            position={[slots[i].x, slots[i].y, slots[i].z]}
-            selected={a.id === selectedArtifactId}
-            onSelect={onSelectArtifact}
+      <group visible={!map}>
+        <PlazaDeco layout={layout} />
+        <Lamps layout={layout} glow={glow} evening={timeKey === "abend"} lowDetail={lowDetail} />
+        <Nature
+          layout={layout}
+          env={env}
+          height={height}
+          seed={villageId}
+          density={lowDetail ? 0.35 : 1}
+          forest={!lowDetail}
+        />
+        {gardens.body && (
+          <mesh geometry={gardens.body} castShadow receiveShadow>
+            <meshStandardMaterial vertexColors roughness={0.85} />
+          </mesh>
+        )}
+        {gardens.glow && (
+          <mesh geometry={gardens.glow}>
+            <meshStandardMaterial color="#ffe9b8" emissive="#ffb84d" emissiveIntensity={glow} />
+          </mesh>
+        )}
+        <Hedges gardens={gardens} />
+        <ObjectMeshes gardens={gardens} store={store} />
+        {atlas && (
+          <Boards
+            model={model}
+            atlas={atlas}
+            gardens={gardens}
+            isOwner={isOwner}
+            onConstruction={onConstruction}
+            onNotice={(row) => {
+              const o = model.notice[row];
+              if (o) actions.goToObject(o.houseId, o.id);
+            }}
+            onHoverPointer={setPointerCursor}
           />
-        ));
-        return (
-          <group key={house.id} position={[l.x, 0, l.z]} rotation={[0, l.angle, 0]}>
-            {house.kind === "zentrale" ? (
-              <Zentrale3D
-                style={zentraleStyle}
-                modelUrl={customModelUrl}
-                name={ownerName}
-                avatarSeed={avatarSeed}
-                footprint={l.footprint}
-                onSelect={() => onSelectHouse(house.id)}
-              >
-                {objects}
-              </Zentrale3D>
-            ) : (
-              <House3D
-                id={house.id}
-                style={houseStyle}
-                title={house.title}
-                color={house.color}
-                tier={l.tier}
-                footprint={l.footprint}
-                artifactCount={items.length}
-                onSelect={() => onSelectHouse(house.id)}
-              >
-                {objects}
-              </House3D>
-            )}
-          </group>
-        );
-      })}
+        )}
+        {!lowDetail && !reducedMotion && <ChimneySmoke houses={model.houses} model={model} />}
+        {atlas && (
+          <Labels model={model} atlas={atlas} tops={tops} store={store} actions={actions} />
+        )}
+        <ObjectCard model={model} store={store} />
+        <HighlightRing model={model} store={store} />
+      </group>
+
+      {/* Häuser und Zentrale: auch in der Kartenansicht anklickbar (Trefferflächen); gezeichnet nur in 3D */}
+      <group visible={!map}>
+        {model.houses.map((h) => {
+          const l = layout.houses[h.id];
+          if (!l) return null;
+          return h.kind === "zentrale" ? (
+            <Zentrale3D
+              key={h.id}
+              info={h}
+              layout={l}
+              style={zentraleStyle}
+              modelUrl={customModelUrl}
+              avatarSeed={avatarSeed}
+              glow={glow}
+              actions={actions}
+            />
+          ) : (
+            <House3D key={h.id} info={h} layout={l} glow={glow} store={store} actions={actions} />
+          );
+        })}
+      </group>
+
+      {/* Nebenplätze: Klick öffnet das Quartier */}
+      {layout.quarters.map((q) => (
+        <mesh
+          key={q.id}
+          position={[q.x, 0.2, q.z]}
+          visible={false}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            document.body.style.cursor = "pointer";
+          }}
+          onPointerOut={() => (document.body.style.cursor = "")}
+          onClick={(e) => {
+            if (e.delta > 5) return;
+            e.stopPropagation();
+            actions.openQuarter(q.id);
+          }}
+        >
+          <cylinderGeometry args={[q.rp + 0.4, q.rp + 0.4, 0.4, 16]} />
+        </mesh>
+      ))}
+
+      {map && <MapLayer model={model} atlas={atlas} />}
 
       <OrbitControls
         makeDefault
         enableDamping={!reducedMotion}
+        enableRotate={!map}
         minDistance={5}
-        maxDistance={layout.extent * 2.4 + 20}
-        maxPolarAngle={Math.PI / 2.15}
-        minPolarAngle={0.15}
+        maxDistance={layout.extent * 2.4 + 30}
+        maxPolarAngle={map ? 0.001 : Math.PI / 2.15}
+        minPolarAngle={map ? 0 : 0.15}
       />
-      <CameraRig pose={pose} reducedMotion={reducedMotion} extent={layout.extent} />
-      <PerfProbe houses={houses.length} artifacts={artifacts.length} />
+      <CameraRig layout={layout} store={store} reducedMotion={reducedMotion} />
+      <PerfProbe
+        houses={model.houses.length}
+        artifacts={model.houses.reduce((n, h) => n + h.items.length, 0)}
+      />
     </Canvas>
   );
 }

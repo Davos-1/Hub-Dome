@@ -3,41 +3,56 @@
 import { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { FACHBEREICHE, type FachbereichId } from "@/lib/fachbereiche";
 import { TIER_FOOTPRINT, ZENTRALE_FOOTPRINT, type Tier } from "@/lib/layout";
-import type { HouseStyle, ZentraleStyle } from "@/lib/styles";
-import { ModelMesh } from "./buildings";
-import { SkyBackground } from "./decor";
+import type { ZentraleStyle } from "@/lib/styles";
+import { Daylight } from "./daylight";
 import {
   constructionModel,
   houseModel,
-  roofColorFor,
   zentraleModel,
   zentraleTopFactor,
+  type Model,
 } from "./models";
 
-type Props = {
-  mode: "haeuser" | "zentrale";
-  houseStyle: HouseStyle;
-  zentraleStyle: ZentraleStyle;
-  wall?: string;
-};
+type Props =
+  { mode: "zentrale"; zentraleStyle: ZentraleStyle } | { mode: "haus"; fach: FachbereichId };
 
 const TIERS: Tier[] = [1, 2, 3];
 
-/** Kleine Live-Vorschau der gewählten Stile (Baustelle und drei Grössenstufen bzw. die Zentrale). */
-export default function StylePreview({ mode, houseStyle, zentraleStyle, wall = "#8fb3ff" }: Props) {
-  const houses = useMemo(
-    () => [
-      { x: -10.5, model: constructionModel(houseStyle, TIER_FOOTPRINT[1]) },
+function ModelView({ model }: { model: Model }) {
+  return (
+    <group>
+      <mesh geometry={model.body}>
+        <meshStandardMaterial vertexColors roughness={0.78} />
+      </mesh>
+      <mesh geometry={model.glow}>
+        <meshStandardMaterial color="#ffe9b8" emissive="#ffb84d" emissiveIntensity={0.85} />
+      </mesh>
+    </group>
+  );
+}
+
+/**
+ * Kleine Vorschau: die Zentrale in einem Stil oder der Haustyp eines Fachbereichs
+ * (Baustelle und drei Grössenstufen, von links nach rechts).
+ */
+export default function StylePreview(props: Props) {
+  const house = props.mode === "haus";
+  const fach = props.mode === "haus" ? props.fach : "weitere";
+  const zentraleStyle = props.mode === "zentrale" ? props.zentraleStyle : "rathaus";
+
+  const houses = useMemo(() => {
+    const s = FACHBEREICHE[fach].style;
+    return [
+      { x: -10.5, model: constructionModel(TIER_FOOTPRINT[1]) },
       ...TIERS.map((t, i) => ({
         x: -3.5 + i * 7 + (t === 3 ? 1.5 : 0),
-        model: houseModel(houseStyle, TIER_FOOTPRINT[t], t, wall, roofColorFor(`preview${t}`)),
+        model: houseModel(s.type, TIER_FOOTPRINT[t], t, s.wall, s.roof, s.accent),
       })),
-    ],
-    [houseStyle, wall],
-  );
+    ];
+  }, [fach]);
   const zentrale = useMemo(() => zentraleModel(zentraleStyle, ZENTRALE_FOOTPRINT), [zentraleStyle]);
-  const house = mode === "haeuser";
   // Kamera so wählen, dass auch hohe Zentralen (Hochhaus, Leuchtturm) komplett sichtbar sind.
   const height = zentraleTopFactor(zentraleStyle) * ZENTRALE_FOOTPRINT;
   const camZ = Math.max(16, height * 1.9);
@@ -48,9 +63,7 @@ export default function StylePreview({ mode, houseStyle, zentraleStyle, wall = "
       dpr={[1, 1.5]}
       camera={{ position: house ? [3, 8, 27] : [0, height * 0.55, camZ], fov: 40 }}
     >
-      <SkyBackground />
-      <hemisphereLight args={["#fff7ea", "#7fa56a", 1.0]} />
-      <directionalLight position={[12, 20, 14]} intensity={2} color="#fff3dc" />
+      <Daylight time="mittag" extent={30} map lowDetail />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
         <circleGeometry args={[house ? 30 : 16, 48]} />
         <meshStandardMaterial color="#86bf6c" />
@@ -58,11 +71,11 @@ export default function StylePreview({ mode, houseStyle, zentraleStyle, wall = "
       {house ? (
         houses.map((h, i) => (
           <group key={i} position={[h.x, 0, 0]}>
-            <ModelMesh model={h.model} />
+            <ModelView model={h.model} />
           </group>
         ))
       ) : (
-        <ModelMesh model={zentrale} />
+        <ModelView model={zentrale} />
       )}
       <OrbitControls
         enablePan={false}

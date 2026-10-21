@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createTestUser, deleteTestUser, loginAs, seedVillage, type E2EUser } from "./helpers";
 
-// Abnahme Phase 4: Dorf mit 10 Häusern und 60 Objekten, alles aus der Liste auch in 3D erreichbar.
+// Abnahme 3D-Dorf (Design-Handoff): Vollbild, Quartiere, Suche, Navigation, Filter, Tageszeit, Karte.
 
 let big: E2EUser;
 let empty: E2EUser;
@@ -14,10 +14,18 @@ test.afterAll(async () => {
   await Promise.all([deleteTestUser(big.id), deleteTestUser(empty.id)]);
 });
 
-test("grosses Dorf: Szene rendert, Aufwand bleibt klein, Navigation über das Panel", async ({
+const breadcrumb = (page: Page) => page.getByRole("navigation", { name: "Ebene im Dorf" });
+
+async function search(page: Page, text: string) {
+  const box = page.getByRole("searchbox", { name: "Haus oder Objekt suchen" });
+  await box.fill(text);
+  await page.getByRole("option").first().click();
+}
+
+test("grosses Dorf: Szene rendert, Aufwand bleibt klein, Navigation Dorf › Quartier › Haus", async ({
   browser,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(150_000);
   const ctx = await browser.newContext();
   await loginAs(ctx, big);
   const page = await ctx.newPage();
@@ -29,39 +37,69 @@ test("grosses Dorf: Szene rendert, Aufwand bleibt klein, Navigation über das Pa
   await page.waitForFunction(() => window.__hubDome?.artifacts === 60, undefined, {
     timeout: 30_000,
   });
-
+  await page.waitForTimeout(1500); // Beschriftungen (Schrift, Atlas) aufbauen
   await page.screenshot({ path: "test-results/dorf3d-uebersicht.png" });
 
   // Render-Aufwand: wenige Draw Calls und Dreiecke → flüssig auf Mittelklasse-Laptops
   const stats = await page.evaluate(() => window.__hubDome!);
   console.log("Render-Statistik 10 Häuser / 60 Objekte:", JSON.stringify(stats));
   expect(stats.houses).toBe(11);
-  expect(stats.calls).toBeLessThan(900);
-  expect(stats.triangles).toBeLessThan(400_000);
+  expect(stats.calls).toBeLessThan(250);
+  expect(stats.triangles).toBeLessThan(600_000);
 
-  // Alle Häuser sind im Panel erreichbar; jedes zeigt seine 6 Objekte
-  const panel = page.getByLabel("Details");
-  for (const n of [1, 10]) {
-    await panel.getByRole("button", { name: new RegExp(`^Haus ${n}\\b`) }).click();
-    await expect(panel.getByRole("button", { name: /^.{0,3}Objekt \d+\.\d+/ })).toHaveCount(6);
-    await page.getByRole("button", { name: "← Zurück zur Übersicht" }).click();
-  }
-
-  // Objekt-Detail mit «Öffnen»-Link (neuer Tab, noopener)
-  await panel.getByRole("button", { name: /^Haus 2\b/ }).click();
-  await panel.getByRole("button", { name: /Objekt 2\.1/ }).click();
-  const open = panel.getByRole("link", { name: "Öffnen" });
+  // Suche → Haus öffnen: Brotkrumen, Fenster mit den 6 Objekten
+  await search(page, "Haus 10");
+  await expect(breadcrumb(page).getByText("Haus 10")).toBeVisible();
+  const side = page.getByRole("complementary", { name: "Haus 10" });
+  await expect(side.getByRole("button", { name: /Objekt 10\.\d/ })).toHaveCount(6);
   await page.waitForTimeout(1500); // Kamerafahrt abwarten
   await page.screenshot({ path: "test-results/dorf3d-haus.png" });
+
+  // Objekt-Detail mit «Öffnen»-Link (neuer Tab, noopener)
+  await side.getByRole("button", { name: /Objekt 10\.1/ }).click();
+  const open = side.getByRole("link", { name: "Öffnen" });
   await expect(open).toHaveAttribute("target", "_blank");
   await expect(open).toHaveAttribute("rel", /noopener/);
-  await page.keyboard.press("Escape"); // zurück zum Haus
-  await expect(panel.getByRole("button", { name: /Objekt 2\.1/ })).toBeVisible();
-  await page.keyboard.press("Escape"); // zurück zur Übersicht
-  await expect(panel.getByText("10 Häuser · 60 Objekte")).toBeVisible();
+
+  // Esc: Objekt → Haus → Quartier → Dorf
+  await page.keyboard.press("Escape");
+  await expect(side.getByRole("button", { name: /Objekt 10\.1/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(breadcrumb(page).getByText("Haus 10")).toHaveCount(0);
+  await expect(page.getByRole("complementary")).toBeVisible(); // Quartier
+  await page.keyboard.press("Escape");
+  await expect(breadcrumb(page).getByText("Haus 10")).toHaveCount(0);
+  await expect(page.getByRole("complementary")).toHaveCount(0);
+
+  // Tastatur: Pfeil wählt ein Quartier, Enter öffnet es
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Quartier", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // Filter nach Kategorie bleibt nach dem Neuladen erhalten
+  await page.getByRole("button", { name: "Filter" }).click();
+  await page.getByRole("button", { name: "Quiz", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Quiz", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Mittag" }).click();
+  await page.getByRole("button", { name: "Abend", exact: true }).click();
+  await page.getByRole("button", { name: "Karte", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Karte", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: "test-results/dorf3d-karte.png" });
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Abend" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Quiz", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Karte", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   // 2D-Fallback ist immer sichtbar und führt zur Liste
-  await page.getByRole("link", { name: "Zur Listenansicht" }).click();
+  await page.getByRole("link", { name: "Zur Listenansicht", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/dorf/${big.username}/liste`), { timeout: 30_000 });
   expect(errors).toEqual([]);
 });
@@ -74,11 +112,8 @@ test("reduzierte Bewegung: Kamera springt, kein Fehler", async ({ browser }) => 
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`/dorf/${big.username}`);
   await expect(page.locator("canvas")).toBeVisible({ timeout: 30_000 });
-  await page
-    .getByLabel("Details")
-    .getByRole("button", { name: /^Haus 3\b/ })
-    .click();
-  await expect(page.getByRole("button", { name: "← Zurück zur Übersicht" })).toBeVisible();
+  await search(page, "Haus 3");
+  await expect(breadcrumb(page).getByText("Haus 3")).toBeVisible();
   expect(errors).toEqual([]);
 });
 

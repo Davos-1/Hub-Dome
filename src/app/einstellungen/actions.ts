@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { generateToken, hashToken } from "@/lib/tokens";
 import type { ActionState } from "@/lib/types";
-import { houseStyleSchema, zentraleStyleSchema } from "@/lib/styles";
+import { zentraleStyleSchema } from "@/lib/styles";
 import { inviteSchema } from "@/lib/validation";
 
 const INVITE_DAYS = 7;
@@ -79,11 +79,10 @@ export async function updateDisplayName(_: ActionState, formData: FormData): Pro
   return { ok: true };
 }
 
-/** Stile des Dorfs speichern (gelten für alle Häuser bzw. die Zentrale). */
+/** Stil der Zentrale speichern (Haustypen ergeben sich aus dem Fachbereich). */
 export async function updateVillageStyle(_: ActionState, formData: FormData): Promise<ActionState> {
-  const house = houseStyleSchema.safeParse(formData.get("houseStyle"));
   const zentrale = zentraleStyleSchema.safeParse(formData.get("zentraleStyle"));
-  if (!house.success || !zentrale.success) return { error: "Ungültige Stilauswahl." };
+  if (!zentrale.success) return { error: "Ungültige Stilauswahl." };
   const { supabase, user } = await requireUser();
 
   const { data: village } = await supabase
@@ -98,7 +97,7 @@ export async function updateVillageStyle(_: ActionState, formData: FormData): Pr
 
   const { error } = await supabase
     .from("villages")
-    .update({ house_style: house.data, zentrale_style: zentrale.data })
+    .update({ zentrale_style: zentrale.data })
     .eq("id", village.id)
     .eq("owner_id", user.id);
   if (error) return { error: "Die Stile konnten nicht gespeichert werden." };

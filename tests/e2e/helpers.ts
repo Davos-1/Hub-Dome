@@ -69,9 +69,23 @@ export async function seedVillage(userId: string, houseCount: number, perHouse: 
     .select("id")
     .eq("owner_id", userId)
     .single();
+  // Modulcodes aus verschiedenen Fachbereichen: das Dorf bekommt mehrere Quartiere
+  const codes = [
+    "TA.BA_BAUSTATIK1",
+    "TA.BA_NABA",
+    "TA.BA_GA",
+    "TA.BA_DC_STUD1",
+    "TA.BA_VWL",
+    "TA.BA_MATH1A",
+    "TA.BA_SP1",
+    "TA.BA_DATA1_MM",
+    "TA.BA_BS",
+    "TA.BA_OEK",
+  ];
   const rows = Array.from({ length: houseCount }, (_, i) => ({
     village_id: village!.id,
-    kind: "thema",
+    kind: "modul",
+    module_code: codes[i % codes.length],
     title: `Haus ${i + 1}`,
     position_index: i + 1,
   }));
