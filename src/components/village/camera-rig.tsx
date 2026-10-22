@@ -8,7 +8,17 @@ import type { VillageLayout } from "@/lib/layout";
 import { useScene, type SceneStore } from "./scene-store";
 
 const DURATION = 0.9;
-const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+/** Zusatzdauer bei einer halben Umrundung (Drehung um 180°). */
+const EXTRA_PER_HALF_TURN = 0.6;
+/** Fast senkrechter Blick (Karte): kein Schwenk um das Ziel, sonst entsteht eine Spirale. */
+const TOP_DOWN_PHI = 0.2;
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/** Kürzester Drehweg von a nach b (−π…π). */
+const angleDelta = (a: number, b: number) => {
+  const d = (b - a) % (2 * Math.PI);
+  return d > Math.PI ? d - 2 * Math.PI : d < -Math.PI ? d + 2 * Math.PI : d;
+};
 
 type Controls = {
   target: THREE.Vector3;
@@ -19,7 +29,7 @@ type Controls = {
 
 /**
  * Fährt die Kamera sanft zur Pose der aktuellen Ebene (Dorf › Quartier › Haus, 3D oder Karte). Übergang
- * 0.9 s, ease-out; bei `prefers-reduced-motion` sofort. Es wird nur gerendert, solange die Fahrt läuft.
+ * im Bogen um das Ziel, 0.9–1.5 s je nach Drehwinkel, ease-in-out; bei `prefers-reduced-motion` sofort. Es wird nur gerendert, solange die Fahrt läuft.
  */
 export function CameraRig({
   layout,
@@ -47,9 +57,14 @@ export function CameraRig({
 
   const anim = useRef<{
     t: number;
-    from: THREE.Vector3;
+    duration: number;
     fromTarget: THREE.Vector3;
-    to: Pose;
+    toTarget: THREE.Vector3;
+    /** Versatz Kamera − Ziel in Kugelkoordinaten, am Anfang und am Ende. */
+    fromOff: THREE.Spherical;
+    toOff: THREE.Spherical;
+    turn: number;
+    lift: number;
   } | null>(null);
   const first = useRef(true);
 
@@ -65,11 +80,23 @@ export function CameraRig({
       invalidate();
       return;
     }
+    // Kamera im Bogen um das Ziel führen (Kugelkoordinaten) statt geradeaus: der Blick bleibt
+    // während der ganzen Fahrt auf dem Ziel, am Ende dreht sie nicht mehr ruckartig nach.
+    const fromTarget = controls.target.clone();
+    const fromOff = new THREE.Spherical().setFromVector3(camera.position.clone().sub(fromTarget));
+    const toOff = new THREE.Spherical().setFromVector3(to.clone().sub(target));
+    const topDown = fromOff.phi < TOP_DOWN_PHI || toOff.phi < TOP_DOWN_PHI;
+    const turn = topDown ? 0 : angleDelta(fromOff.theta, toOff.theta);
+    const share = Math.abs(turn) / Math.PI;
     anim.current = {
       t: 0,
-      from: camera.position.clone(),
-      fromTarget: controls.target.clone(),
-      to: pose,
+      duration: DURATION + EXTRA_PER_HALF_TURN * share,
+      fromTarget,
+      toTarget: target,
+      fromOff,
+      toOff,
+      turn,
+      lift: share * 0.25 * Math.max(fromOff.radius, toOff.radius),
     };
     invalidate();
   }, [pose, controls, camera, reducedMotion, invalidate]);
@@ -94,10 +121,21 @@ export function CameraRig({
   useFrame((_, delta) => {
     const a = anim.current;
     if (!a || !controls) return;
-    a.t = Math.min(1, a.t + delta / DURATION);
+    a.t = Math.min(1, a.t + delta / a.duration);
     const k = ease(a.t);
-    camera.position.lerpVectors(a.from, new THREE.Vector3(...a.to.position), k);
-    controls.target.lerpVectors(a.fromTarget, new THREE.Vector3(...a.to.target), k);
+    controls.target.lerpVectors(a.fromTarget, a.toTarget, k);
+    const theta =
+      a.turn === 0
+        ? THREE.MathUtils.lerp(a.fromOff.theta, a.toOff.theta, k)
+        : a.fromOff.theta + a.turn * k;
+    const off = new THREE.Spherical(
+      THREE.MathUtils.lerp(a.fromOff.radius, a.toOff.radius, k),
+      THREE.MathUtils.lerp(a.fromOff.phi, a.toOff.phi, k),
+      theta,
+    );
+    // In der Mitte des Bogens etwas höher, damit er nicht durch Dächer und Bäume führt.
+    const lift = new THREE.Vector3(0, Math.sin(Math.PI * k) * a.lift, 0);
+    camera.position.setFromSpherical(off).add(controls.target).add(lift);
     controls.update();
     if (a.t >= 1) anim.current = null;
     else invalidate();
