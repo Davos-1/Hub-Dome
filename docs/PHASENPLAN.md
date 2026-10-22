@@ -6,6 +6,7 @@ Dieses Dokument fasst `PLAN.md`, `PLAN-ERWEITERUNG.md` und `PLAN-ERWEITERUNG-2.m
 
 Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** (Tiere, Modelle, Effekte, neue Stile). Erlaubt sind Fehlerbehebungen, Performance und Barrierefreiheit. Vorrang hat, was den Alltagsnutzen bringt: Freunde verbinden, Objekte aus Claude platzieren, Objekte öffnen. Funktionale Kennzeichnungen, die eine Phase verlangt (z.B. das Übernahme-Band in 5b), gelten nicht als Gestaltung.
 
+
 ## Reihenfolge
 
 | Phase | Inhalt | Quelle | Stand |
