@@ -7,13 +7,15 @@ Schritte, die Gian in den Dashboards erledigt. Reihenfolge einhalten; `<SITE>` i
 1. **Migrationen:** Alle Dateien aus `supabase/migrations` sind eingespielt bis `20261022000500`. Neu: `20261022000600_account_deletion.sql` im SQL-Editor ausführen.
 2. **Projekt für den Pilot:** Das bestehende Projekt wird weiterverwendet. Hinweis: Die RLS- und E2E-Tests legen darin kurzlebige Testkonten (`@example.test`) an und löschen sie wieder. Für einen sauberen Betrieb später ein zweites Projekt nur für Tests anlegen.
 3. **Authentication → URL Configuration:**
-   - Site URL: `<SITE>`
-   - Redirect URLs: `<SITE>/auth/callback`, `http://localhost:3000/auth/callback`
+   - Site URL: `<SITE>` (mit `https://`, ohne `/` am Ende; sonst Fehler «requested path is invalid»)
+   - Redirect URLs: `<SITE>/**`, `http://localhost:3000/**`
 4. **Authentication → Emails → SMTP Settings** (Gmail):
    - Zuerst im Google-Konto 2-Schritt-Verifizierung aktivieren, dann unter https://myaccount.google.com/apppasswords ein App-Passwort «Hub Dome» erzeugen.
    - Host `smtp.gmail.com`, Port `465`, Benutzer = Gmail-Adresse, Passwort = App-Passwort, Absender = dieselbe Gmail-Adresse, Name «Hub Dome».
    - Danach unter **Rate Limits** das Limit für E-Mails z.B. auf 100 pro Stunde setzen (Gmail erlaubt ca. 500 pro Tag).
-   - Optional: Vorlage «Magic Link» auf Deutsch übersetzen.
+5. **Authentication → Emails → Templates:** In den Vorlagen **«Magic Link»** und **«Confirm signup»** den Link ersetzen durch
+   `<a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">Bei Hub Dome anmelden</a>`
+   Damit funktioniert der Link auch in einem anderen Browser bzw. Gerät als dem, wo er angefordert wurde. Texte dabei gleich auf Deutsch übersetzen.
 
 ## 2. Google-Login
 

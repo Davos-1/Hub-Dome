@@ -12,8 +12,9 @@ export function LoginForm({ next }: { next?: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const callback = () => {
+    // `next` immer setzen: die Mail-Vorlage hängt `&token_hash=…` an diese Adresse an.
     const url = new URL("/auth/callback", window.location.origin);
-    if (next) url.searchParams.set("next", next);
+    url.searchParams.set("next", next ?? "/start");
     return url.toString();
   };
 

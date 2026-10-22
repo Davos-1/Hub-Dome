@@ -220,3 +220,8 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Konto löschen:** Migration `20261022000600_account_deletion.sql` (`account_deletions`, `request_account_deletion` widerruft sofort alle Connector-Tokens, `cancel_account_deletion`). Antrag → Abmeldung → Hinweis auf der Login-Seite. Anmelden über `/auth/callback` bricht ab. Täglicher Vercel-Cron `/api/cron/konto-loeschen` (geschützt mit `CRON_SECRET`) löscht den Auth-User; alles andere folgt per Cascade. Übernahmen bei anderen bleiben als «Original entfernt». Eine noch offene Sitzung auf einem anderen Gerät bricht die Löschung nicht ab (nur eine neue Anmeldung).
 - **Datenschutzseite** `/datenschutz` (öffentlich, verlinkt von Login und Einstellungen), inkl. Nutzungszahlen und Topdorf.
 - **Anleitung** für Supabase, Gmail-SMTP, Google-OAuth und Vercel: `docs/DEPLOYMENT.md`.
+
+## 2026-10-22 – Login-Link geräteübergreifend
+- **Problem (Pilot-Test Gian):** Magic Link aus dem privaten Fenster angefordert, im normalen Fenster geöffnet → zurück auf der Login-Seite. PKCE-Code braucht den Prüfwert im selben Browser. Vorher: «requested path is invalid» wegen Site URL ohne `https://`.
+- **Lösung:** `/auth/callback` akzeptiert zusätzlich `token_hash` + `type` (`verifyOtp`). Mail-Vorlagen «Magic Link» und «Confirm signup» verlinken `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email`; das Login-Formular setzt deshalb immer `next` (Standard `/start`). Google bleibt bei PKCE. Redirect URLs mit `/**`.
+- **Build-Lehre:** Unter Cache Components darf eine Seite `params` nicht ausserhalb von `Suspense` lesen; reine Umleitungen als Route-Handler (`/dorf/<name>/liste`).
