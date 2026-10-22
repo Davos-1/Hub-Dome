@@ -46,7 +46,7 @@ export function LoginForm({ next }: { next?: string }) {
 
   if (status === "sent") {
     return (
-      <p role="status" className="rounded-lg bg-green-100 p-4 text-green-900">
+      <p role="status" className="rounded-xl bg-[#e6efe9] p-4 text-[#1f4132]">
         Wir haben dir einen Anmelde-Link an <strong>{email}</strong> gesendet. Öffne ihn im selben
         Browser.
       </p>
@@ -56,7 +56,7 @@ export function LoginForm({ next }: { next?: string }) {
   return (
     <div className="flex flex-col gap-4">
       <form onSubmit={sendLink} className="flex flex-col gap-3">
-        <label htmlFor="email" className="text-sm font-medium">
+        <label htmlFor="email" className="hd-label">
           E-Mail-Adresse
         </label>
         <input
@@ -66,27 +66,19 @@ export function LoginForm({ next }: { next?: string }) {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-black"
+          className="hd-input"
         />
-        <button
-          type="submit"
-          disabled={status === "sending"}
-          className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-60"
-        >
+        <button type="submit" disabled={status === "sending"} className="hd-btn hd-btn-primary">
           {status === "sending" ? "Sende…" : "Anmelde-Link senden"}
         </button>
       </form>
       {googleEnabled && (
-        <button
-          type="button"
-          onClick={google}
-          className="rounded-lg border border-zinc-300 px-4 py-2 font-medium"
-        >
+        <button type="button" onClick={google} className="hd-btn hd-btn-ghost">
           Mit Google anmelden
         </button>
       )}
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="hd-error">
           {error}
         </p>
       )}

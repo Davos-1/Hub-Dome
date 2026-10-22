@@ -5,13 +5,67 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+export type DialogIcon = "start" | "reise" | "einstellungen" | "haus" | "objekt" | "bearbeiten";
+
+/** Kleine Symbole für den Schildkopf (cremefarbene Linien, passend zum Holzschild). */
+function Icon({ name }: { name: DialogIcon }) {
+  const common = {
+    width: 26,
+    height: 26,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+  switch (name) {
+    case "reise":
+      return (
+        <svg {...common}>
+          <path d="M12 3v18M12 6h7l2 2.5-2 2.5h-7M12 13H5l-2 2.5L5 18h7" />
+        </svg>
+      );
+    case "einstellungen":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
+        </svg>
+      );
+    case "haus":
+    case "start":
+      return (
+        <svg {...common}>
+          <path d="M3 11 12 4l9 7M5.5 9.5V20h13V9.5M10 20v-5h4v5" />
+        </svg>
+      );
+    case "objekt":
+      return (
+        <svg {...common}>
+          <path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5" />
+        </svg>
+      );
+    case "bearbeiten":
+      return (
+        <svg {...common}>
+          <path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19zM14 7l3 3" />
+        </svg>
+      );
+  }
+}
+
 /**
- * Grosser Dialog über der Welt: unscharfer Hintergrund (auf Touch-Geräten nur abgedunkelt), Fokusfalle,
- * Esc und Klick daneben schliessen, Fokus kehrt zum Auslöser zurück. Auf kleinen Bildschirmen ein Vollbild-Blatt.
+ * Grosser Dialog über der Welt im Stil der Holzschilder: Kopf aus Brettern mit Symbol, Pergament-Körper.
+ * Hintergrund unscharf (auf Touch-Geräten nur abgedunkelt), Fokusfalle, Esc und Klick daneben schliessen,
+ * Fokus kehrt zum Auslöser zurück. Auf kleinen Bildschirmen ein Vollbild-Blatt.
  */
 export function DialogShell({
   title,
   subtitle,
+  kicker = "Hub Dome",
+  icon = "start",
   onClose,
   children,
   size = "md",
@@ -20,6 +74,9 @@ export function DialogShell({
 }: {
   title: string;
   subtitle?: string;
+  /** Kleine Zeile über dem Titel (z.B. «Hub Dome · Einstellungen»). */
+  kicker?: string;
+  icon?: DialogIcon;
   onClose: () => void;
   children: ReactNode;
   size?: "md" | "lg";
@@ -83,23 +140,27 @@ export function DialogShell({
         aria-labelledby={titleId}
         tabIndex={-1}
         data-hd-dialog
-        className={`hd-pop-in relative flex max-h-full w-full flex-col overflow-hidden bg-[#fffdf8] text-[#1c1b19] shadow-[0_24px_80px_rgba(28,27,25,.35)] outline-none max-sm:h-full sm:rounded-2xl ${
+        className={`hd-pop-in hd-frame relative flex max-h-full w-full flex-col overflow-hidden bg-[var(--hd-paper)] text-[var(--hd-ink)] shadow-[0_24px_80px_rgba(28,27,25,.4)] outline-none max-sm:h-full max-sm:border-0 sm:rounded-[20px] ${
           size === "lg" ? "sm:max-w-3xl" : "sm:max-w-xl"
         }`}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-[#ebe6dc] px-6 pt-5 pb-4">
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-xl font-semibold">
+        <div className="hd-plank flex items-center gap-3.5 px-5 py-4">
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#5e3c22]/55 text-[#fbf3e4]">
+            <Icon name={icon} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="hd-kicker">{kicker}</div>
+            <h2 id={titleId} className="truncate text-[21px] leading-tight font-bold">
               {title}
             </h2>
-            {subtitle && <p className="mt-0.5 text-[13px] text-[#6d6a63]">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 text-[13px] text-[#f0d9b5]">{subtitle}</p>}
           </div>
           {!hideClose && (
             <button
               type="button"
               onClick={onClose}
               aria-label="Schliessen"
-              className="h-9 w-9 flex-none cursor-pointer rounded-lg bg-[#efeae0] text-[16px] text-[#3a3732] hover:bg-[#e6dfd0]"
+              className="h-9 w-9 flex-none cursor-pointer rounded-full bg-[#fbf3e4] text-[15px] font-bold text-[#5e3c22] shadow-[0_2px_0_#3e2814] hover:bg-white"
             >
               ✕
             </button>
@@ -111,9 +172,7 @@ export function DialogShell({
   );
 }
 
-/** Einheitliche Knöpfe und Felder für die Dialoge (gleiche Tokens wie die 3D-Oberfläche). */
-export const dlgPrimary =
-  "cursor-pointer rounded-lg bg-[#2f5d4a] px-4 py-2.5 text-[14px] font-semibold text-[#fffdf8] hover:bg-[#274d3e] disabled:opacity-60";
-export const dlgSecondary =
-  "cursor-pointer rounded-lg border border-[#d9d4c9] bg-[#fffdf8] px-4 py-2.5 text-[14px] font-medium text-[#1c1b19] hover:bg-[#efeae0] disabled:opacity-60";
+/** Knöpfe und Links der Dialoge (Klassen aus globals.css). */
+export const dlgPrimary = "hd-btn hd-btn-primary";
+export const dlgSecondary = "hd-btn hd-btn-ghost";
 export const dlgLink = "text-[13px] font-medium text-[#2f5d4a] underline underline-offset-2";

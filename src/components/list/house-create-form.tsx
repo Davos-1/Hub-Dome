@@ -22,7 +22,7 @@ export function HouseCreateForm({
       onSuccess={onSuccess}
     >
       <fieldset className="flex gap-4">
-        <legend className="mb-1 text-sm font-medium">Art</legend>
+        <legend className="hd-label mb-1">Art</legend>
         <label className="flex items-center gap-1">
           <input
             type="radio"
@@ -46,7 +46,7 @@ export function HouseCreateForm({
       </fieldset>
       {kind === "modul" ? (
         <>
-          <label htmlFor="moduleCode" className="text-sm font-medium">
+          <label htmlFor="moduleCode" className="hd-label">
             Modul
           </label>
           <select id="moduleCode" name="moduleCode" required className={inputClass} defaultValue="">
@@ -62,13 +62,13 @@ export function HouseCreateForm({
         </>
       ) : (
         <>
-          <label htmlFor="title" className="text-sm font-medium">
+          <label htmlFor="title" className="hd-label">
             Titel
           </label>
           <input id="title" name="title" required maxLength={80} className={inputClass} />
         </>
       )}
-      <label htmlFor="semester" className="text-sm font-medium">
+      <label htmlFor="semester" className="hd-label">
         Semester (optional)
       </label>
       <input
@@ -80,7 +80,7 @@ export function HouseCreateForm({
         inputMode="numeric"
         className={inputClass}
       />
-      <label htmlFor="color" className="text-sm font-medium">
+      <label htmlFor="color" className="hd-label">
         Farbe
       </label>
       <input id="color" name="color" type="color" defaultValue="#8fb3ff" className="h-10 w-20" />

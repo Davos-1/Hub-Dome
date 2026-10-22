@@ -27,6 +27,6 @@ test("Eingabefelder bleiben im Dunkelmodus lesbar", async ({ page }) => {
     };
   });
   expect(style.bg).toBe("rgb(255, 255, 255)");
-  expect(style.color).toBe("rgb(23, 23, 23)");
+  expect(style.color).toBe("rgb(28, 27, 25)");
   expect(style.body).toBe("rgb(255, 255, 255)");
 });

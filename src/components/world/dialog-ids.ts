@@ -4,7 +4,8 @@ export const DIALOG_IDS = [
   "reise",
   "einstellungen",
   "objekt",
+  "objektedit",
   "haus",
-  "einladung",
+  "hausedit",
 ] as const;
 export type DialogId = (typeof DIALOG_IDS)[number];

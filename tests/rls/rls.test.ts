@@ -84,18 +84,6 @@ afterAll(async () => {
   for (const id of userIds) await admin.auth.admin.deleteUser(id);
 });
 
-async function invite(maxUses = 1, expiresInMs = 7 * 864e5) {
-  const token = randomBytes(32).toString("base64url");
-  const { error } = await a.client.from("invites").insert({
-    village_id: a.villageId,
-    token_hash: sha256(token),
-    expires_at: new Date(Date.now() + expiresInMs).toISOString(),
-    max_uses: maxUses,
-  });
-  expect(error).toBeNull();
-  return token;
-}
-
 describe("Onboarding", () => {
   it("legt Dorf und genau eine Zentrale an", async () => {
     const { data } = await a.client.from("houses").select("kind").eq("village_id", a.villageId);
@@ -150,10 +138,8 @@ describe("Fremder User ohne Freigabe", () => {
       .insert({ house_id: houseA, owner_id: a.id, url: "https://claude.ai/c/2", title: "Hack" });
     expect(asOwner.error).not.toBeNull();
   });
-  it("kann Einladungen und MCP-Tokens anderer nicht sehen", async () => {
-    await invite();
+  it("kann MCP-Tokens anderer nicht sehen", async () => {
     await a.client.from("mcp_tokens").insert({ user_id: a.id, token_hash: sha256(run) });
-    expect((await c.client.from("invites").select("id")).data).toEqual([]);
     expect((await c.client.from("mcp_tokens").select("id")).data).toEqual([]);
   });
   it("anon sieht nichts", async () => {
@@ -165,29 +151,70 @@ describe("Fremder User ohne Freigabe", () => {
   });
 });
 
-describe("Einladung und Freigabe", () => {
-  let token: string;
-  it("B ohne Freigabe sieht nichts", async () => {
+describe("Freundschaft und Freigabe", () => {
+  const request = (from: TestUser, to: TestUser) =>
+    from.client.rpc("send_friend_request", { p_username: to.username });
+  const pendingFor = async (u: TestUser) =>
+    (await u.client.from("friendships").select("id, requester_id, status").eq("addressee_id", u.id))
+      .data ?? [];
+
+  it("B ohne Freundschaft sieht nichts", async () => {
     expect((await b.client.from("artifacts").select("id").eq("owner_id", a.id)).data).toEqual([]);
   });
-  it("B kann sich nicht selbst in village_access eintragen", async () => {
-    const { error } = await b.client
+  it("B kann sich nicht selbst in village_access oder friendships eintragen", async () => {
+    const access = await b.client
       .from("village_access")
       .insert({ village_id: a.villageId, viewer_id: b.id });
-    expect(error).not.toBeNull();
+    expect(access.error).not.toBeNull();
+    const fr = await b.client
+      .from("friendships")
+      .insert({ requester_id: b.id, addressee_id: a.id, status: "accepted" });
+    expect(fr.error).not.toBeNull();
   });
-  it("Besitzer kann sich nicht selbst einladen", async () => {
-    token = await invite();
-    const { error } = await a.client.rpc("accept_invite", { p_token: token });
-    expect(error?.message).toContain("selbst einladen");
+  it("Anfrage an sich selbst oder an unbekannte Namen wird abgelehnt", async () => {
+    expect((await request(a, a)).error?.message).toContain("selbst");
+    const unknown = await a.client.rpc("send_friend_request", { p_username: "gibt_es_nicht_xyz" });
+    expect(unknown.error?.message).toContain("gibt es nicht");
   });
-  it("ungültiges Token wird abgelehnt", async () => {
-    const { error } = await b.client.rpc("accept_invite", { p_token: "falsch" });
-    expect(error?.message).toContain("ungültig");
+  it("offene Anfrage gibt keinen Zugriff, nur die beiden Beteiligten sehen sie", async () => {
+    expect((await request(a, b)).error).toBeNull();
+    expect((await request(a, b)).error?.message).toContain("bereits angefragt");
+    expect((await b.client.from("artifacts").select("id").eq("owner_id", a.id)).data).toEqual([]);
+    expect(await pendingFor(b)).toHaveLength(1);
+    expect((await c.client.from("friendships").select("id")).data).toEqual([]);
   });
-  it("B nimmt Einladung an und sieht geteilte, aber keine privaten Artifacts", async () => {
-    const { error } = await b.client.rpc("accept_invite", { p_token: token });
-    expect(error).toBeNull();
+  it("nur die angefragte Person kann antworten, andere und der Absender nicht", async () => {
+    const [f] = await pendingFor(b);
+    expect(
+      (await a.client.rpc("respond_friend_request", { p_id: f.id, p_accept: true })).error,
+    ).not.toBeNull();
+    expect(
+      (await c.client.rpc("respond_friend_request", { p_id: f.id, p_accept: true })).error,
+    ).not.toBeNull();
+    expect((await b.client.from("artifacts").select("id").eq("owner_id", a.id)).data).toEqual([]);
+  });
+  it("Ablehnen löscht die Anfrage ohne Zugriff, danach kann erneut angefragt werden", async () => {
+    const [f] = await pendingFor(b);
+    expect(
+      (await b.client.rpc("respond_friend_request", { p_id: f.id, p_accept: false })).error,
+    ).toBeNull();
+    expect(await pendingFor(b)).toEqual([]);
+    expect((await b.client.from("artifacts").select("id").eq("owner_id", a.id)).data).toEqual([]);
+    expect((await request(a, b)).error).toBeNull();
+  });
+  it("Absender kann seine Anfrage zurückziehen", async () => {
+    const [f] = await pendingFor(b);
+    expect((await b.client.rpc("cancel_friend_request", { p_id: f.id })).error).not.toBeNull();
+    expect((await a.client.rpc("cancel_friend_request", { p_id: f.id })).error).toBeNull();
+    expect(await pendingFor(b)).toEqual([]);
+  });
+  it("B nimmt an: beide sehen geteilte, aber keine privaten Objekte der anderen Person", async () => {
+    expect((await request(a, b)).error).toBeNull();
+    const [f] = await pendingFor(b);
+    expect(
+      (await b.client.rpc("respond_friend_request", { p_id: f.id, p_accept: true })).error,
+    ).toBeNull();
+
     const { data } = await b.client.from("artifacts").select("id").eq("owner_id", a.id);
     const ids = data!.map((r) => r.id);
     expect(ids).toContain(sharedArtifact);
@@ -198,15 +225,14 @@ describe("Einladung und Freigabe", () => {
     expect(
       (await b.client.from("houses").select("id").eq("village_id", a.villageId)).data!.length,
     ).toBeGreaterThan(0);
+    // gegenseitig: A sieht das Dorf von B
+    expect((await a.client.from("villages").select("id").eq("id", b.villageId)).data).toHaveLength(
+      1,
+    );
   });
-  it("Einladung mit max_uses=1 ist danach aufgebraucht", async () => {
-    const { error } = await c.client.rpc("accept_invite", { p_token: token });
-    expect(error?.message).toContain("aufgebraucht");
-  });
-  it("abgelaufene Einladung wird abgelehnt", async () => {
-    const expired = await invite(1, -1000);
-    const { error } = await c.client.rpc("accept_invite", { p_token: expired });
-    expect(error?.message).toContain("abgelaufen");
+  it("Bereits Befreundete können nicht erneut anfragen; C bleibt ohne Zugriff", async () => {
+    expect((await request(b, a)).error?.message).toContain("bereits befreundet");
+    expect((await c.client.from("artifacts").select("id").eq("owner_id", a.id)).data).toEqual([]);
   });
   it("Viewer B kann fremde Daten nicht ändern oder löschen", async () => {
     const upd = await b.client
@@ -224,17 +250,27 @@ describe("Einladung und Freigabe", () => {
       .insert({ house_id: houseA, owner_id: b.id, url: "https://claude.ai/b/1", title: "X" });
     expect(ins.error).not.toBeNull();
   });
-  it("Besitzer entzieht den Zugriff, B sieht danach nichts mehr", async () => {
-    const del = await a.client.from("village_access").delete().eq("viewer_id", b.id).select();
-    expect(del.data).toHaveLength(1);
+  it("Zugriff lässt sich nicht einseitig löschen, nur über remove_friend (beide Richtungen)", async () => {
+    const del = await b.client.from("village_access").delete().eq("viewer_id", b.id).select();
+    expect(del.data ?? []).toEqual([]);
+    expect((await b.client.from("artifacts").select("id").eq("owner_id", a.id)).data).not.toEqual(
+      [],
+    );
+
+    expect((await b.client.rpc("remove_friend", { p_other: a.id })).error).toBeNull();
     expect((await b.client.from("artifacts").select("id").eq("owner_id", a.id)).data).toEqual([]);
     expect((await b.client.from("villages").select("id").eq("id", a.villageId)).data).toEqual([]);
+    expect((await a.client.from("villages").select("id").eq("id", b.villageId)).data).toEqual([]);
+    expect((await a.client.from("friendships").select("id")).data).toEqual([]);
   });
-  it("Viewer kann das Dorf selbst verlassen", async () => {
-    const t = await invite();
-    expect((await b.client.rpc("accept_invite", { p_token: t })).error).toBeNull();
-    const del = await b.client.from("village_access").delete().eq("viewer_id", b.id).select();
-    expect(del.data).toHaveLength(1);
+  it("gegenseitige Anfragen bestätigen sich sofort", async () => {
+    expect((await request(a, b)).error).toBeNull();
+    // B fragt zurück, ohne die Anfrage von A gesehen zu haben: Freundschaft entsteht
+    expect((await request(b, a)).error).toBeNull();
+    expect((await b.client.from("villages").select("id").eq("id", a.villageId)).data).toHaveLength(
+      1,
+    );
+    expect((await b.client.rpc("remove_friend", { p_other: a.id })).error).toBeNull();
   });
 });
 
@@ -312,15 +348,15 @@ describe("Daten-Validierung und Profile", () => {
   });
 });
 
-describe("Stile und eigene Modelle", () => {
+describe("Zentrale-Stil und gesperrter Modell-Speicher", () => {
   const blob = () =>
     new Blob([new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0])], { type: "model/gltf-binary" });
   const bucket = (u: TestUser) => u.client.storage.from("village-models");
 
-  it("Besitzer darf Stile ändern, ungültige Werte werden abgelehnt, andere nicht", async () => {
+  it("Besitzer darf den Stil ändern, ungültige Werte werden abgelehnt, andere nicht", async () => {
     const ok = await a.client
       .from("villages")
-      .update({ house_style: "blockhuette", zentrale_style: "schule" })
+      .update({ zentrale_style: "schule" })
       .eq("id", a.villageId)
       .select();
     expect(ok.error).toBeNull();
@@ -328,60 +364,33 @@ describe("Stile und eigene Modelle", () => {
 
     const bad = await a.client
       .from("villages")
-      .update({ house_style: "palast" })
+      .update({ zentrale_style: "palast" })
       .eq("id", a.villageId);
     expect(bad.error).not.toBeNull();
 
     const other = await c.client
       .from("villages")
-      .update({ house_style: "tinyhaus" })
+      .update({ zentrale_style: "villa" })
       .eq("id", a.villageId)
       .select();
     expect(other.data).toEqual([]);
   });
 
-  it("nur der Besitzer lädt hoch; fremde und falsch benannte Dateien werden abgelehnt", async () => {
+  it("niemand kann Modelle hochladen, auch nicht der Besitzer", async () => {
     const path = `${a.villageId}/zentrale.glb`;
     expect(
       (await bucket(a).upload(path, blob(), { upsert: true, contentType: "model/gltf-binary" }))
         .error,
-    ).toBeNull();
-    expect(
-      (
-        await bucket(a).upload(`${a.villageId}/boese.glb`, blob(), {
-          contentType: "model/gltf-binary",
-        })
-      ).error,
     ).not.toBeNull();
     expect(
       (await bucket(c).upload(path, blob(), { upsert: true, contentType: "model/gltf-binary" }))
         .error,
     ).not.toBeNull();
-    expect(
-      (await bucket(c).upload(`${a.villageId}/zentrale.glb`, blob(), { upsert: true })).error,
-    ).not.toBeNull();
   });
 
-  it("ohne Freigabe gibt es keine signierte URL und keinen Download", async () => {
+  it("es gibt keine signierte URL und keinen Download", async () => {
     const path = `${a.villageId}/zentrale.glb`;
-    const signed = await bucket(c).createSignedUrl(path, 60);
-    expect(signed.data?.signedUrl).toBeUndefined();
-    expect((await bucket(c).download(path)).error).not.toBeNull();
-    expect((await bucket(a).createSignedUrl(path, 60)).data?.signedUrl).toBeTruthy();
-  });
-
-  it("Freigegebene dürfen laden, nach dem Entzug nicht mehr; Fremde dürfen nicht löschen", async () => {
-    const path = `${a.villageId}/zentrale.glb`;
-    const token = await invite();
-    expect((await c.client.rpc("accept_invite", { p_token: token })).error).toBeNull();
-    expect((await bucket(c).download(path)).error).toBeNull();
-    expect((await bucket(c).createSignedUrl(path, 60)).data?.signedUrl).toBeTruthy();
-    expect((await bucket(c).remove([path])).data ?? []).toEqual([]);
-
-    await a.client.from("village_access").delete().eq("viewer_id", c.id);
-    expect((await bucket(c).download(path)).error).not.toBeNull();
-
-    // Aufräumen
-    expect((await bucket(a).remove([path])).error).toBeNull();
+    expect((await bucket(a).createSignedUrl(path, 60)).data?.signedUrl).toBeUndefined();
+    expect((await bucket(a).download(path)).error).not.toBeNull();
   });
 });

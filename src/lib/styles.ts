@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Stile der Zentrale; `custom` = eigenes hochgeladenes Modell (GLB). */
+/** Stile der Zentrale. */
 export const ZENTRALE_STYLES = [
   "rathaus",
   "schule",
@@ -8,7 +8,6 @@ export const ZENTRALE_STYLES = [
   "villa",
   "marskuppel",
   "leuchtturm",
-  "custom",
 ] as const;
 export type ZentraleStyle = (typeof ZENTRALE_STYLES)[number];
 
@@ -34,19 +33,6 @@ export const ZENTRALE_STYLE_INFO: Record<ZentraleStyle, { label: string; descrip
     label: "Leuchtturm",
     description: "Gestreifter Turm mit drehbarem Licht und Wärterhaus auf Felsen.",
   },
-  custom: {
-    label: "Eigenes Modell",
-    description: "Ein mit Claude erstelltes 3D-Objekt (GLB-Datei).",
-  },
 };
 
 export const zentraleStyleSchema = z.enum(ZENTRALE_STYLES);
-
-/** Grenzen für eigene Modelle (siehe docs/PLAN-4B-GESTALTUNG.md). */
-export const MODEL_LIMITS = {
-  maxBytes: 5 * 1024 * 1024,
-  maxTriangles: 60_000,
-  maxTextures: 4,
-  /** Das Modell wird beim Laden so skaliert, dass es in diese Würfelkante (Meter) passt. */
-  fitSize: 9,
-} as const;

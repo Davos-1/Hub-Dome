@@ -10,7 +10,7 @@ export function OnboardingForm({ suggestedName }: { suggestedName: string }) {
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <label htmlFor="displayName" className="text-sm font-medium">
+      <label htmlFor="displayName" className="hd-label">
         Anzeigename
       </label>
       <input
@@ -19,9 +19,9 @@ export function OnboardingForm({ suggestedName }: { suggestedName: string }) {
         defaultValue={suggestedName}
         required
         maxLength={60}
-        className="rounded-lg border border-zinc-300 px-3 py-2 text-black"
+        className="hd-input"
       />
-      <label htmlFor="username" className="text-sm font-medium">
+      <label htmlFor="username" className="hd-label">
         Benutzername
       </label>
       <input
@@ -32,20 +32,16 @@ export function OnboardingForm({ suggestedName }: { suggestedName: string }) {
         maxLength={24}
         pattern="[a-z0-9_\-]{3,24}"
         autoCapitalize="none"
-        className="rounded-lg border border-zinc-300 px-3 py-2 text-black"
+        className="hd-input"
       />
-      <p className="text-xs text-zinc-500">
+      <p className="hd-note">
         3–24 Zeichen: Kleinbuchstaben, Zahlen, _ und -. Er bildet die Adresse deines Dorfs.
       </p>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className="hd-btn hd-btn-primary">
         {pending ? "Speichere…" : "Dorf gründen"}
       </button>
       {state.error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="hd-error">
           {state.error}
         </p>
       )}

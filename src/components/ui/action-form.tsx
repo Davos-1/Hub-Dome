@@ -28,7 +28,7 @@ export function ActionForm({
   pendingLabel = "Speichere…",
   confirm,
   className = "flex flex-col gap-3",
-  buttonClassName = "rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-60",
+  buttonClassName = "hd-btn hd-btn-primary self-start",
   successText,
   onSuccess,
 }: Props) {
@@ -52,12 +52,12 @@ export function ActionForm({
         {pending ? pendingLabel : submitLabel}
       </button>
       {state.error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="hd-error">
           {state.error}
         </p>
       )}
       {state.ok && successText && (
-        <p role="status" className="text-sm text-green-700">
+        <p role="status" className="hd-ok">
           {successText}
         </p>
       )}
@@ -65,8 +65,6 @@ export function ActionForm({
   );
 }
 
-export const inputClass = "rounded-lg border border-zinc-300 px-3 py-2 text-black w-full";
-export const dangerButton =
-  "rounded-lg border border-red-300 px-3 py-1 text-sm text-red-700 disabled:opacity-60";
-export const subtleButton =
-  "rounded-lg border border-zinc-300 px-3 py-1 text-sm disabled:opacity-60";
+export const inputClass = "hd-input";
+export const dangerButton = "hd-btn hd-btn-danger hd-btn-sm";
+export const subtleButton = "hd-btn hd-btn-ghost hd-btn-sm";

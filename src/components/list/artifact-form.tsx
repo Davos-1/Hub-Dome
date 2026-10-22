@@ -31,7 +31,7 @@ export function ArtifactForm({
       onSuccess={onSuccess}
     >
       {artifact && <input type="hidden" name="id" value={artifact.id} />}
-      <label htmlFor={`url-${id}`} className="text-sm font-medium">
+      <label htmlFor={`url-${id}`} className="hd-label">
         Link
       </label>
       <input
@@ -43,7 +43,7 @@ export function ArtifactForm({
         defaultValue={artifact?.url}
         className={inputClass}
       />
-      <label htmlFor={`type-${id}`} className="text-sm font-medium">
+      <label htmlFor={`type-${id}`} className="hd-label">
         Objekttyp
       </label>
       <select
@@ -59,7 +59,7 @@ export function ArtifactForm({
           </option>
         ))}
       </select>
-      <label htmlFor={`title-${id}`} className="text-sm font-medium">
+      <label htmlFor={`title-${id}`} className="hd-label">
         Titel
       </label>
       <input
@@ -70,7 +70,7 @@ export function ArtifactForm({
         defaultValue={artifact?.title}
         className={inputClass}
       />
-      <label htmlFor={`desc-${id}`} className="text-sm font-medium">
+      <label htmlFor={`desc-${id}`} className="hd-label">
         Beschreibung (optional)
       </label>
       <textarea
@@ -83,7 +83,7 @@ export function ArtifactForm({
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={`house-${id}`} className="text-sm font-medium">
+          <label htmlFor={`house-${id}`} className="hd-label">
             Haus
           </label>
           <select
@@ -101,7 +101,7 @@ export function ArtifactForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={`kind-${id}`} className="text-sm font-medium">
+          <label htmlFor={`kind-${id}`} className="hd-label">
             Typ
           </label>
           <select
@@ -118,7 +118,7 @@ export function ArtifactForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={`tags-${id}`} className="text-sm font-medium">
+          <label htmlFor={`tags-${id}`} className="hd-label">
             Tags (kommagetrennt, max. 5)
           </label>
           <input
@@ -129,7 +129,7 @@ export function ArtifactForm({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={`vis-${id}`} className="text-sm font-medium">
+          <label htmlFor={`vis-${id}`} className="hd-label">
             Sichtbarkeit
           </label>
           <select
@@ -138,14 +138,12 @@ export function ArtifactForm({
             defaultValue={artifact?.visibility ?? "shared"}
             className={inputClass}
           >
-            <option value="shared">Für Freigegebene sichtbar</option>
+            <option value="shared">Für Freunde sichtbar</option>
             <option value="private">Nur für mich</option>
           </select>
         </div>
       </div>
-      <p className="text-xs text-zinc-500">
-        Teile keine Lösungen zu bewerteten Leistungsnachweisen.
-      </p>
+      <p className="hd-note">Teile keine Lösungen zu bewerteten Leistungsnachweisen.</p>
     </ActionForm>
   );
 }

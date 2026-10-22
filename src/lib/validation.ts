@@ -110,7 +110,3 @@ export const artifactSchema = z
     message: "Der Link passt nicht zum gewählten Objekttyp.",
     path: ["url"],
   });
-
-export const inviteSchema = z.object({
-  maxUses: z.coerce.number().int().min(1).max(100),
-});

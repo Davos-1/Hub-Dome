@@ -1,4 +1,6 @@
-# Campusdorf – Bauplan für Claude Code
+# Hub Dome – Bauplan für Claude Code
+
+> **Stand 2026-10-22:** Reihenfolge und Fortschritt stehen in `docs/PHASENPLAN.md`, Entscheidungen in `docs/ENTSCHEIDUNGEN.md`. Weicht dieser Plan vom Entscheidungslog ab, gilt das Log. Der frühere Arbeitstitel war «Campusdorf».
 
 > **Für Claude Code:** Dieses Dokument ist die verbindliche Spezifikation. Arbeite die Phasen **der Reihe nach** ab. Nach jeder Phase: Abnahmekriterien prüfen, Ergebnis kurz zusammenfassen, auf Freigabe warten. Bei Unklarheiten oder wenn eine Annahme hier nicht stimmt (z.B. Paketname veraltet): **nachfragen statt raten**. Prüfe aktuelle Paketversionen und APIs selbst nach, bevor du sie einsetzt.
 
@@ -6,17 +8,17 @@
 
 ## 1. Vision in einem Satz
 
-Jede Person aus dem Studiengang hat ein eigenes **3D-Dorf**: In der Mitte steht die **Zentrale**, darum herum ein **Haus pro Modul bzw. Thema**. In den Häusern liegen die **Claude-Artifacts** der Person als anklickbare Objekte. Wer Zugriff erhält, sieht das Dorf in seiner Liste «Meine Dörfer».
+Jede Person aus dem Studiengang hat ein eigenes **3D-Dorf**: In der Mitte steht die **Zentrale**, darum herum ein **Haus pro Modul bzw. Thema**. In den Häusern liegen die **Claude-Artifacts** der Person als anklickbare Objekte. Freunde (Freundschaft gilt gegenseitig) sehen das Dorf im Reise-Dialog, früher «Meine Dörfer».
 
 ## 2. Rahmenbedingungen
 
 | Punkt            | Festlegung                                                                                                                    |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Zielgruppe       | Zuerst nur ein Studiengang (HSLU Digital Construction), ca. 20–80 Personen                                                    |
-| Inhalte          | Nur Claude-Artifact-Links (`https://claude.ai/...`)                                                                           |
+| Inhalte          | Kern: Claude-Artifact-Links (`https://claude.ai/...`); ab Phase 3b weitere Objekttypen, siehe PLAN-ERWEITERUNG.md                                                                           |
 | Login            | Unabhängig von der HSLU-Mail: Mail-Link (Magic Link) + Google                                                                 |
-| Sichtbarkeit     | Privat. Nur wer vom Besitzer freigegeben wurde, sieht das Dorf                                                                |
-| Darstellung      | 3D ist zentral, dazu eine 2D-Listenansicht als Fallback (Mobile, Barrierefreiheit)                                            |
+| Sichtbarkeit     | Privat. Nur Freunde sehen das Dorf (gegenseitig, nach angenommener Anfrage). Ausnahme ab 6b: einzelne Objekte mit Topdorf-Opt-in                                                                |
+| Darstellung      | 3D ist zentral, dazu eine Listenansicht als Dialog (Mobile, Barrierefreiheit)                                            |
 | Kosten           | Gratis-Stufen: Vercel Hobby + Supabase Free                                                                                   |
 | Sprache UI       | Deutsch (Schweizer Schreibweise, **kein ß**)                                                                                  |
 | Claude-Anbindung | Eigener **Remote-MCP-Connector** + **Skill**. Gratis-Accounts dürfen genau einen eigenen Connector nutzen, Pro beliebig viele |
@@ -35,7 +37,7 @@ Jede Person aus dem Studiengang hat ein eigenes **3D-Dorf**: In der Mitte steht 
 ## 4. Repo-Struktur (Ziel)
 
 ```
-campusdorf/
+Hub-Dome/  (Repo-Root)
 ├─ CLAUDE.md                  # Kurzregeln für Claude Code (siehe Abschnitt 13)
 ├─ PLAN.md                    # dieses Dokument
 ├─ .env.example
@@ -46,14 +48,15 @@ campusdorf/
 ├─ src/
 │  ├─ app/
 │  │  ├─ (auth)/login/
-│  │  ├─ doerfer/             # «Meine Dörfer» (Startseite nach Login)
-│  │  ├─ dorf/[username]/     # 3D-Dorf einer Person
-│  │  ├─ dorf/[username]/liste/  # 2D-Fallback
-│  │  ├─ einladung/[token]/   # Einladung annehmen
-│  │  ├─ einstellungen/       # Profil, Freigaben, Connector-Token
+│  │  ├─ doerfer/             # leitet auf den Reise-Dialog um
+│  │  ├─ dorf/[username]/     # Welt-Shell: 3D-Dorf + Dialoge (?d=…), Liste als Dialog ?d=liste
+│  │  ├─ freunde/             # Server Actions für Freundschaften
+│  │  ├─ freund/[token]/      # Freundschaftslink (Phase 4d)
+│  │  ├─ einstellungen/       # leitet auf den Einstellungen-Dialog um
 │  │  └─ api/mcp/[token]/route.ts   # MCP-Endpunkt
 │  ├─ components/
 │  │  ├─ village/             # 3D: Scene, House, Zentrale, ArtifactObject, Camera
+│  │  ├─ world/               # Dialoge der Welt-Shell
 │  │  └─ ui/
 │  ├─ lib/
 │  │  ├─ supabase/            # Server- und Browser-Client
@@ -63,11 +66,15 @@ campusdorf/
 │  └─ mcp/
 │     └─ tools.ts             # MCP-Tool-Definitionen
 ├─ skill/
-│  └─ campusdorf-platzieren/SKILL.md   # Skill zum Installieren für Nutzer
+│  └─ hub-dome-platzieren/SKILL.md     # Skill zum Installieren für Nutzer
 └─ tests/
 ```
 
+Seit Planstart ergänzt: `docs/` (Phasenplan, Entscheidungslog, Design-Handoff), `src/app/onboarding/`, `src/app/start/`. Geplant: `src/app/o/[id]/` (5b), `src/app/topdorf/` (6b).
+
 ## 5. Datenmodell (Supabase / Postgres)
+
+> **Ausgangsstand.** Massgeblich sind die Migrationen in `supabase/migrations/`, unter anderem offizielle Modulkürzel wie `TA.BA_BAUSTATIK1`, `item_type` ab 3b, `houses.semester`, Zentrale-Stile und Freundschaften.
 
 ### Tabellen
 
@@ -128,7 +135,7 @@ create table artifacts (
   unique (owner_id, url)
 );
 
--- Wer darf welches Dorf sehen
+-- Wer darf welches Dorf sehen (wird nur von den Freundschafts-Funktionen gepflegt)
 create table village_access (
   village_id uuid references villages on delete cascade,
   viewer_id uuid references profiles on delete cascade,
@@ -136,16 +143,18 @@ create table village_access (
   primary key (village_id, viewer_id)
 );
 
--- Einladungslinks
-create table invites (
+-- Freundschaften (ersetzen die früheren Einladungslinks, Migration 20261022000100)
+create table friendships (
   id uuid primary key default gen_random_uuid(),
-  village_id uuid not null references villages on delete cascade,
-  token_hash text unique not null,
-  expires_at timestamptz not null,
-  max_uses int not null default 1,
-  uses int not null default 0,
-  created_at timestamptz not null default now()
+  requester_id uuid not null references profiles on delete cascade,
+  addressee_id uuid not null references profiles on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  check (requester_id <> addressee_id)
 );
+-- Pro Paar höchstens eine Zeile (eindeutiger Index auf least/greatest der beiden IDs).
+-- Freundschaftslinks (Phase 4d) erhalten eine eigene Tabelle mit Token-Hash, Ablauf und Nutzungen.
 
 -- Persönliche Connector-Tokens (nur Hash speichern!)
 create table mcp_tokens (
@@ -166,8 +175,9 @@ Regeln:
 - **profiles**: Lesen für alle eingeloggten User (für die Suche nach Benutzernamen). Schreiben nur das eigene Profil.
 - **villages / houses**: Lesen, wenn Besitzer **oder** Eintrag in `village_access`. Schreiben nur der Besitzer.
 - **artifacts**: Lesen, wenn Besitzer **oder** (Zugriff aufs Dorf **und** `visibility = 'shared'`). Schreiben nur der Besitzer.
-- **village_access**: Lesen für Besitzer und den betroffenen Viewer. Einfügen nur über die Server-Funktion `accept_invite`. Löschen durch Besitzer (Zugriff entziehen) und Viewer (Dorf verlassen).
-- **invites / mcp_tokens**: Nur der Besitzer.
+- **village_access**: Lesen für Besitzer und den betroffenen Viewer. Einfügen und Löschen nur über die Freundschafts-Funktionen, jeweils für beide Richtungen.
+- **friendships**: Lesen nur die beiden Beteiligten. Schreiben nur über die Funktionen.
+- **mcp_tokens** und Freundschaftslinks: nur der Besitzer.
 
 Hilfsfunktion:
 
@@ -179,7 +189,7 @@ language sql stable security definer set search_path = public as $$
 $$;
 ```
 
-Server-Funktion `accept_invite(token text)` (security definer): hasht das Token, prüft Ablauf und `uses < max_uses`, fügt `village_access` ein und erhöht `uses`. Der Besitzer kann sich nicht selbst einladen.
+Server-Funktionen (security definer): `send_friend_request(p_username)`, `respond_friend_request(p_id, p_accept)`, `cancel_friend_request(p_id)`, `remove_friend(p_other)`. Beim Annehmen setzt `grant_mutual_access` den Zugriff in beide Richtungen, `remove_friend` entfernt ihn in beide Richtungen. Phase 4d ergänzt `accept_friend_link(p_token)` (hasht das Token, prüft Ablauf und Nutzungen). Niemand kann sich selbst befreunden.
 
 Trigger `on auth.users insert`: Profil-Platzhalter anlegen. Dorf und Zentrale werden im Onboarding erstellt, sobald der Benutzername gesetzt ist.
 
@@ -187,12 +197,12 @@ Trigger `on auth.users insert`: Profil-Platzhalter anlegen. Dorf und Zentrale we
 
 1. **Registrieren/Login** per Magic Link oder Google. Beim ersten Login wählt man Benutzername und Anzeigename. Danach werden Dorf und Zentrale automatisch angelegt.
 2. **Häuser verwalten**: Haus aus dem Modulkatalog hinzufügen oder ein eigenes Themenhaus anlegen. Umbenennen, Farbe ändern, löschen (mit Bestätigung, Artifacts werden mitgelöscht oder vorher verschoben).
-3. **Artifact hinzufügen (Web)**: Link einfügen, dann Titel, Beschreibung, Typ, Tags, Haus und Sichtbarkeit wählen. Die Validierung erlaubt nur `claude.ai`-Links.
+3. **Artifact hinzufügen (Web)**: Link einfügen, dann Titel, Beschreibung, Typ, Tags, Haus und Sichtbarkeit wählen. Die Validierung erlaubt für Artifacts nur `claude.ai`-Links (weitere Objekttypen: PLAN-ERWEITERUNG.md).
 4. **Artifact bearbeiten, verschieben, löschen.**
-5. **Freigabe**: Einladungslink erzeugen (Gültigkeit 7 Tage, 1 oder mehrere Nutzungen). Liste «Wer sieht mein Dorf», mit Möglichkeit zum Entziehen.
-6. **Meine Dörfer**: Karten mit dem eigenen Dorf zuoberst, darunter die freigegebenen Dörfer. Pro Karte: Name, Anzahl Häuser und Artifacts, letzte Aktivität.
+5. **Freunde**: Anfrage per Benutzername senden, annehmen oder ablehnen, Freund entfernen (wirkt beidseitig). Ab Phase 4d zusätzlich ein Freundschaftslink (7 Tage, 1–100 Nutzungen, widerrufbar), auch für Personen ohne Konto.
+6. **Reise-Dialog** (früher Seite «Meine Dörfer»): Karten mit dem eigenen Dorf zuoberst, darunter die Dörfer der Freunde. Pro Karte: Name, Anzahl Häuser und Artifacts, letzte Aktivität.
 7. **3D-Dorf ansehen** (siehe Abschnitt 7).
-8. **2D-Liste** desselben Dorfs: Häuser als Abschnitte, Artifacts als Karten.
+8. **Listenansicht** desselben Dorfs als Dialog (`?d=liste`, Phase 4d): Häuser als Abschnitte, Objekte als Karten.
 9. **Connector-Token**: In den Einstellungen Token erzeugen. Es wird **einmal** angezeigt, zusammen mit der fertigen Connector-URL und einer Schritt-für-Schritt-Anleitung. Token sind widerrufbar.
 
 ## 7. 3D-Dorf – Gestaltung und Verhalten
@@ -204,8 +214,8 @@ Trigger `on auth.users insert`: Profil-Platzhalter anlegen. Dorf und Zentrale we
 - **Artifact-Objekte**: schwebende Kristalle oder Bücher vor bzw. im Haus, Farbe nach `kind`. Hover zeigt den Titel, Klick öffnet ein Detail-Panel mit Beschreibung und Button «Öffnen» (neuer Tab).
 - **Navigation**: OrbitControls mit Grenzen. Klick auf ein Haus lässt die Kamera hinfliegen und öffnet eine Seitenleiste mit allen Artifacts des Hauses. Ein «Zurück»-Button zeigt wieder die Übersicht.
 - **Leere Zustände**: Ein Haus ohne Artifacts zeigt eine Baustelle. Ein Dorf ohne Häuser zeigt einen Hinweis «Lege dein erstes Modulhaus an».
-- **Performance**: Instancing für wiederholte Objekte, `frameloop="demand"`, Ziel 60 fps auf einem Mittelklasse-Laptop. Auf Mobile automatisch reduzierte Details. Ein Link zur 2D-Ansicht ist immer sichtbar.
-- **Barrierefreiheit**: Alle Inhalte sind über die 2D-Liste erreichbar. `prefers-reduced-motion` wird respektiert (keine Kamerafahrten).
+- **Performance**: Instancing für wiederholte Objekte, `frameloop="demand"`, Ziel 60 fps auf einem Mittelklasse-Laptop. Auf Mobile automatisch reduzierte Details. Die Listenansicht (Dialog) ist immer erreichbar.
+- **Barrierefreiheit**: Alle Inhalte sind über die Listenansicht (Dialog) erreichbar. `prefers-reduced-motion` wird respektiert (keine Kamerafahrten).
 
 ## 8. Claude-Anbindung
 
@@ -229,20 +239,20 @@ Jede Rückgabe enthält einen Link zum Dorf (`/dorf/<username>`), damit Claude i
 
 ### 8.2 Skill für Nutzer
 
-Datei `skill/campusdorf-platzieren/SKILL.md` im Repo. Nutzer laden sie in claude.ai als eigenen Skill hoch. Inhalt (Vorlage, von Claude Code feinschleifen):
+Datei `skill/hub-dome-platzieren/SKILL.md` im Repo. Nutzer laden sie in claude.ai als eigenen Skill hoch. Inhalt (Vorlage, von Claude Code feinschleifen):
 
 ```markdown
 ---
-name: campusdorf-platzieren
-description: Nach dem Veröffentlichen eines Artifacts fragen, ob es ins Campusdorf soll, und es über den Campusdorf-Connector im gewählten Haus platzieren.
+name: hub-dome-platzieren
+description: Nach dem Veröffentlichen eines Artifacts fragen, ob es in Hub Dome soll, und es über den Hub-Dome-Connector im gewählten Haus platzieren.
 ---
 
-# Artifact ins Campusdorf stellen
+# Artifact in Hub Dome stellen
 
-Gilt nur, wenn die Campusdorf-Tools (dorf_haeuser_auflisten, artifact_platzieren) verfügbar sind.
+Gilt nur, wenn die Hub-Dome-Tools (dorf_haeuser_auflisten, artifact_platzieren) verfügbar sind.
 
 1. Nachdem du ein Artifact veröffentlicht hast und dessen Link kennst, rufe `dorf_haeuser_auflisten` auf.
-2. Frage einmal kurz: «Soll ich das ins Campusdorf stellen?» und schlage das passendste Haus vor (nach Modul oder Thema des Artifacts). Biete die anderen Häuser als Auswahl an.
+2. Frage einmal kurz: «Soll ich das in Hub Dome stellen?» und schlage das passendste Haus vor (nach Modul oder Thema des Artifacts). Biete die anderen Häuser als Auswahl an.
 3. Bei Zustimmung: `artifact_platzieren` mit Link, kurzem Titel, einer Beschreibung in einem Satz, passendem Typ und 1–3 Tags aufrufen.
 4. Bei Ablehnung: nichts tun und im selben Chat nicht erneut fragen.
 5. Wenn der User «nie fragen» sagt: in diesem Chat nicht mehr fragen.
@@ -250,7 +260,9 @@ Gilt nur, wenn die Campusdorf-Tools (dorf_haeuser_auflisten, artifact_platzieren
 7. Bestätige die Platzierung in einem Satz mit dem Link zum Dorf.
 ```
 
-### 8.3 Anleitung für Nutzer (Seite `/einstellungen/claude`)
+> **Nach Phase 0 anpassen:** Gehen für Freunde nur geteilte Artifacts auf, ergänzt der Skill vor Schritt 3 den Hinweis «Teile das Artifact in claude.ai, damit deine Freunde es öffnen können.»
+
+### 8.3 Anleitung für Nutzer (Tab «Claude» im Einstellungen-Dialog, `?d=einstellungen&t=claude`)
 
 1. Token erzeugen und Connector-URL kopieren.
 2. In claude.ai unter den Connector-Einstellungen einen eigenen Connector hinzufügen und die URL einfügen.
@@ -259,21 +271,33 @@ Gilt nur, wenn die Campusdorf-Tools (dorf_haeuser_auflisten, artifact_platzieren
 
 ## 9. Sicherheit und Datenschutz
 
-- RLS auf **allen** Tabellen. Mit RLS-Tests nachweisen, dass User B ohne Freigabe nichts von User A sieht.
-- Tokens (Einladung, MCP) nur gehasht speichern. Klartext wird genau einmal angezeigt.
-- Nur `claude.ai`-URLs speichern. Keine Artifact-Inhalte kopieren oder spiegeln, nur verlinken.
+- RLS auf **allen** Tabellen. Mit RLS-Tests nachweisen, dass User B ohne Freundschaft nichts von User A sieht.
+- Tokens (Freundschaftslink, MCP) nur gehasht speichern. Klartext wird genau einmal angezeigt.
+- Für Artifacts nur `claude.ai`-URLs speichern (weitere Objekttypen ab 3b mit eigener Prüfung). Keine Inhalte kopieren oder spiegeln, nur verlinken.
 - Kein Service-Role-Key im Browser. Server-Routen validieren alle Eingaben mit Zod.
 - Datenschutzhinweis (kurz, Schweizer nDSG): welche Daten, wofür, Löschung des Kontos inklusive aller Daten über die Einstellungen.
 - Hinweis in der UI: «Teile keine Lösungen zu bewerteten Leistungsnachweisen.»
 
 ## 10. Phasen mit Abnahmekriterien
 
-> **Aktuelle Reihenfolge und Stand: `docs/PHASENPLAN.md`.** Neu hinzugekommen: Phase 4c (Welt-Shell mit Dialogen), 5b (Übernehmen, `PLAN-ERWEITERUNG-2.md` Teil A) und 6b (Topdorf, Teil B). Die Phasen unten bleiben die Detailbeschreibung.
+> **Aktuelle Reihenfolge und Stand: `docs/PHASENPLAN.md`.** Neu hinzugekommen: Phase 4c (Welt-Shell mit Dialogen), 4d (Freundschaften, Listen-Dialog, Freundschaftslink), 5b (Übernehmen, `PLAN-ERWEITERUNG-2.md` Teil A) und 6b (Topdorf, Teil B). Die Phasen unten bleiben die Detailbeschreibung. In Phase 2–4 sind die Punkte zu Einladungslinks und zur 2D-Seite durch 4c und 4d ersetzt.
 
-### Phase 0 – Abklärungen (ohne Code)
+### Phase 0 – Abklärungen (ohne Code) – **Link-Test ist Sperre vor Phase 5**
 
-- [ ] Prüfen: Lässt sich ein geteilter Artifact-Link ohne claude.ai-Login öffnen? Lässt er sich per iframe einbetten? Ergebnis dokumentieren. **Annahme bis dahin: nur «Öffnen im neuen Tab».**
-- [ ] Aktuelle Versionen und APIs prüfen: Next.js, React Three Fiber, drei, Supabase SSR-Client, MCP-Paket.
+- [ ] **Link-Test (Gian, ca. 15 Minuten).** Ein Artifact in claude.ai veröffentlichen bzw. teilen und den Link prüfen:
+  1. im privaten Browserfenster ohne Login öffnen;
+  2. mit einem zweiten claude.ai-Konto (Gratis) öffnen;
+  3. mit dem zweiten Konto öffnen, solange das Artifact noch **nicht** geteilt ist;
+  4. per iframe einbetten (kleine HTML-Testseite auf localhost);
+  5. notieren, welche URL-Formen vorkommen (z.B. `claude.ai/artifact/…`, `claude.ai/code/artifact/…`). Alle müssen durch `artifactUrlSchema` gehen.
+
+  Ergebnis mit Datum in `docs/ENTSCHEIDUNGEN.md` festhalten.
+- **Folgen je Ergebnis:**
+  - Öffnet ohne Login: wie geplant, nichts zu tun.
+  - Öffnet nur mit Login: Hinweis im Objekt-Fenster «Zum Öffnen brauchst du ein claude.ai-Konto» (im Pilot bei allen erfüllt).
+  - Öffnet erst, wenn der Besitzer das Artifact geteilt hat: Skill (Phase 5) und Formular «Objekt hinzufügen» erinnern vor dem Platzieren daran, das Artifact in claude.ai zu teilen. Sonst ist ein geteiltes Objekt (`visibility = 'shared'`) für Freunde wertlos.
+  - iframe geht nicht: bleibt bei «Öffnen im neuen Tab» (heutiger Stand, kein Umbau nötig).
+- [x] Aktuelle Versionen und APIs prüfen (erledigt 2026-10-21, siehe `docs/ENTSCHEIDUNGEN.md` «Paketversionen»).
 - [ ] Gratis-Limits von Vercel Hobby und Supabase Free kurz dokumentieren (Supabase pausiert inaktive Projekte).
 
 ### Phase 1 – Grundgerüst
@@ -307,10 +331,11 @@ Gilt nur, wenn die Campusdorf-Tools (dorf_haeuser_auflisten, artifact_platzieren
 
 ### Phase 5 – MCP-Connector und Skill
 
-- [ ] Token-Verwaltung in den Einstellungen
-- [ ] MCP-Route mit den 4 Tools, Rate-Limit, Fehlermeldungen auf Deutsch
+- [ ] Vorbedingung: Link-Test aus Phase 0 abgeschlossen und Ergebnis umgesetzt (Hinweise in Skill und Formular), Phase 4d committet
+- [ ] Token-Verwaltung im Tab «Claude» des Einstellungen-Dialogs
+- [ ] MCP-Route mit den 4 Tools plus MCP-Anteil aus 3b (`objekt_typ`, Alias `objekt_platzieren`, siehe PLAN-ERWEITERUNG.md), Rate-Limit, Fehlermeldungen auf Deutsch
 - [ ] Tests: Token-Validierung, widerrufenes Token, Platzieren nur im eigenen Dorf, Duplikat-URL wird aktualisiert
-- [ ] Skill-Datei und Anleitungsseite
+- [ ] Skill-Datei `skill/hub-dome-platzieren/SKILL.md` und Anleitung im Tab «Claude»
 - **Abnahme:** Lokal mit dem MCP Inspector getestet. Nach dem Deployment in claude.ai als Connector hinzugefügt: Artifact erstellen, Claude fragt, das Artifact erscheint im Dorf.
 
 ### Phase 6 – Deployment und Pilot
@@ -323,19 +348,25 @@ Gilt nur, wenn die Campusdorf-Tools (dorf_haeuser_auflisten, artifact_platzieren
 ### Phase 7 – Ausbau (erst nach Pilot)
 
 - OAuth 2.1 statt Token in der URL
-- Freigabe pro Haus statt nur pro Dorf
+- Freigabe pro Haus statt nur pro Dorf (mit gegenseitigen Freundschaften wichtiger, weil Freunde sonst alle geteilten Objekte sehen)
+- Eigene Zentrale-Modelle wieder zulassen, nur mit Prüfung oder als kuratierte Auswahl (am 2026-10-22 wegen Missbrauchsrisiko entfernt)
 - Dorf-Themes, Figuren-Anpassung, Likes oder Kommentare
 - Studiengangs-Übersicht (alle freigegebenen Dörfer auf einer Karte)
 
 ## 11. Umgebungsvariablen (`.env.example`)
 
+Massgeblich ist `.env.example` im Repo (Stand 2026-10-22):
+
 ```
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=        # nur serverseitig
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 TOKEN_PEPPER=                     # zusätzlicher Geheimwert für Token-Hashes
+GITHUB_TOKEN=                     # optional, erhöht das GitHub-API-Limit für Vorschauen
 ```
+
+`TOKEN_PEPPER` gilt laut Entscheidungslog nur für MCP-Tokens. Tokens, die in der Datenbank gehasht werden (früher Einladung, ab 4d Freundschaftslink), kommen ohne Pepper aus, weil die Datenbank ihn nicht kennt.
 
 ## 12. Definition of Done (pro Phase)
 
@@ -344,23 +375,15 @@ TOKEN_PEPPER=                     # zusätzlicher Geheimwert für Token-Hashes
 - README aktualisiert
 - Kurze Zusammenfassung: was gebaut wurde, was offen ist, welche Annahmen getroffen wurden
 
-## 13. Inhalt für `CLAUDE.md` (in Phase 1 anlegen)
+## 13. `CLAUDE.md`
 
-```markdown
-# Campusdorf – Regeln für Claude Code
-
-- Spezifikation: PLAN.md. Phasen der Reihe nach, nach jeder Phase stoppen und zusammenfassen.
-- UI-Texte Deutsch, Schweizer Schreibweise (kein ß).
-- Jede neue Tabelle braucht RLS und Tests dazu.
-- Service-Role-Key nur serverseitig. Jede Server-Query mit Service Role filtert explizit nach owner_id.
-- Eingaben immer mit Zod validieren.
-- Vor dem Einsatz eines Pakets die aktuelle Doku prüfen, keine veralteten APIs raten.
-- Bei Unklarheit nachfragen statt annehmen.
-```
+Die gültige Fassung liegt im Repo-Root (`CLAUDE.md`). Sie ersetzt die ursprüngliche Vorlage aus diesem Abschnitt.
 
 ## 14. Offene Punkte für Gian
 
-1. **Modulkatalog**: Liste der Module (Code, Titel, Semester) für den Seed
-2. **Name** des Projekts und der Domain (Arbeitstitel «Campusdorf»)
-3. **Google-Login**: Google-Cloud-Projekt für OAuth anlegen (Anleitung folgt in Phase 2)
-4. **Pilotgruppe**: 3–5 Personen mit gemischten Abos (Gratis und Pro)
+1. **Modulkatalog**: erledigt (129 Module aus dem offiziellen Modulverzeichnis)
+2. **Name**: Hub Dome (erledigt). **Domain**: offen, spätestens in Phase 6
+3. **Google-Login**: eingerichtet; Freigabe der Google-App vor dem Pilot (Phase 6)
+4. **Pilotgruppe**: 3–5 Personen mit gemischten Abos (Gratis und Pro), offen
+5. **Link-Test Phase 0**: offen, Sperre vor Phase 5
+6. **Freundschaftslink**: Gilt das Erzeugen als Zustimmung des Absenders? Entscheid beim Start von Phase 4d

@@ -6,7 +6,6 @@ import type { HouseLayout } from "@/lib/layout";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { HouseInfo } from "@/lib/village-model";
 import { avatarColor } from "./colors";
-import { CustomModel, type ModelStatus } from "./custom-model";
 import {
   constructionModel,
   figureModel,
@@ -158,12 +157,11 @@ export function House3D({
   );
 }
 
-/** Die Zentrale auf ihrer Terrasse; eigenes GLB-Modell lädt im Hintergrund, bis dahin das Rathaus. */
+/** Die Zentrale auf ihrer Terrasse, in dem Stil, den der Besitzer gewählt hat. */
 export function Zentrale3D({
   info,
   layout: l,
   style,
-  modelUrl,
   avatarSeed,
   glow,
   actions,
@@ -172,8 +170,6 @@ export function Zentrale3D({
   info: HouseInfo;
   layout: HouseLayout;
   style: ZentraleStyle;
-  /** Signierte URL des hochgeladenen Modells (nur bei Stil `custom`). */
-  modelUrl?: string | null;
   avatarSeed: string;
   glow: number;
   actions: SceneActions;
@@ -183,9 +179,6 @@ export function Zentrale3D({
   const fp = l.footprint;
   const model = useMemo(() => zentraleModel(style, fp), [style, fp]);
   const top = zentraleTopFactor(style) * fp;
-  const [status, setStatus] = useState<ModelStatus>("loading");
-  const custom = style === "custom" && Boolean(modelUrl);
-  const showDefault = !custom || status !== "ready";
   const figure = useMemo(() => figureModel(avatarColor(avatarSeed)), [avatarSeed]);
   useEffect(() => () => figure.dispose(), [figure]);
 
@@ -207,8 +200,7 @@ export function Zentrale3D({
           actions.openHouse(info.id);
         }}
       >
-        {showDefault && <ModelMesh model={model} glow={glow} emphasis={hovered ? 0.14 : 0} owned />}
-        {custom && <CustomModel url={modelUrl!} onStatus={setStatus} />}
+        <ModelMesh model={model} glow={glow} emphasis={hovered ? 0.14 : 0} owned />
         <mesh position={[0, top / 2, 0]} visible={false}>
           <boxGeometry args={[fp * 2.8, top, fp * 2.8]} />
         </mesh>

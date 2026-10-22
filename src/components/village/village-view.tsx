@@ -1,21 +1,21 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { ShellData } from "@/lib/shell-data";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
-import { buildVillageModel } from "@/lib/village-model";
+import { buildVillageModel, type VillageModel } from "@/lib/village-model";
 import { useDialog } from "../world/use-dialog";
 import { WelcomeBanner } from "../world/welcome-banner";
 import { WorldDialogs } from "../world/world-dialogs";
 import { BottomBar } from "./hud/bottom-bar";
 import { Breadcrumb } from "./hud/breadcrumb";
+import { DisplayPopup } from "./hud/display-popup";
 import { SearchBox } from "./hud/search-box";
 import { SideWindow, useSideWindowOpen } from "./hud/side-window";
-import { makeActions } from "./scene-actions";
+import { makeActions, type SceneActions } from "./scene-actions";
 import { createSceneStore, loadSettings, saveSettings } from "./scene-store";
 
 const VillageScene = dynamic(() => import("./village-scene"), {
@@ -31,15 +31,11 @@ type Props = {
   avatarSeed: string;
   isOwner: boolean;
   zentraleStyle: ZentraleStyle;
-  /** Signierte URL des eigenen Zentrale-Modells (nur bei Stil custom). */
-  customModelUrl?: string | null;
   houses: House[];
   artifacts: Artifact[];
   previews: Record<string, ReactNode>;
-  /** Daten für die Dialoge (Start, Reise, Einstellungen, Hinzufügen). */
+  /** Daten für die Dialoge (Start, Reise und Freunde, Einstellungen, Hinzufügen). */
   shell: ShellData;
-  /** Einladungslink: zeigt den Annehmen-Dialog über der Welt. */
-  inviteToken?: string;
 };
 
 /** Media-Query als Hook (Server: false). */
@@ -65,7 +61,55 @@ function hasWebGL() {
 }
 
 const hint =
-  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 shadow";
+  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border-2 border-[#e6c870] bg-[#fff3cf] p-3 text-sm text-[#6b4e00] shadow";
+
+/** Ersatz ohne WebGL: alle Häuser nach Quartier als Liste; die Auswahl öffnet das Fenster rechts. */
+function FallbackList({ model, actions }: { model: VillageModel; actions: SceneActions }) {
+  const zentrale = model.houses.find((h) => h.kind === "zentrale");
+  return (
+    <div className="absolute inset-0 overflow-y-auto p-4 pt-20 pb-28">
+      <div className="mx-auto flex max-w-xl flex-col gap-4">
+        <p className="hd-card text-[14px]">
+          Dein Browser unterstützt keine 3D-Grafik. Hier ist das Dorf als Liste; wähle ein Haus, um
+          die Objekte zu sehen.
+        </p>
+        {zentrale && (
+          <button
+            type="button"
+            className="hd-btn hd-btn-ghost"
+            onClick={() => actions.openHouse(zentrale.id)}
+          >
+            Zentrale ({zentrale.items.length})
+          </button>
+        )}
+        {model.layout.quarters.map((q) => (
+          <section key={q.id} className="hd-card flex flex-col gap-2">
+            <h2 className="hd-label">{q.name}</h2>
+            <ul className="flex flex-col gap-1.5">
+              {q.houseIds.map((id) => {
+                const h = model.byId[id];
+                return (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      onClick={() => actions.openHouse(id)}
+                      className="hd-btn hd-btn-ghost w-full !justify-between"
+                    >
+                      <span className="truncate">{h.title}</span>
+                      <span className="hd-note">
+                        {h.items.length === 0 ? "Baustelle" : `${h.items.length} Objekte`}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Vollbild-3D: Dorf, schwebende Leiste unten, Brotkrumen, Suche, Fenster rechts und Dialoge der Welt-Shell. */
 export function VillageView(props: Props) {
@@ -84,14 +128,9 @@ export function VillageView(props: Props) {
     () => null,
   );
 
-  // Welcher Dialog ist offen? Start, Hinzufügen und Einladung gelten nur in den passenden Fällen.
-  const ownerOnly = dialog.id === "start" || dialog.id === "objekt" || dialog.id === "haus";
-  const active =
-    props.inviteToken !== undefined
-      ? ("einladung" as const)
-      : ownerOnly && !props.isOwner
-        ? null
-        : dialog.id;
+  // Welcher Dialog ist offen? Start und Bearbeiten-Dialoge gelten nur im eigenen Dorf.
+  const ownerOnly = ["start", "objekt", "objektedit", "haus", "hausedit"].includes(dialog.id ?? "");
+  const active = ownerOnly && !props.isOwner ? null : dialog.id;
 
   const [now] = useState(() => Date.now());
   const model = useMemo(() => buildVillageModel(houses, artifacts, now), [houses, artifacts, now]);
@@ -138,21 +177,18 @@ export function VillageView(props: Props) {
 
   const ownVillage = shell.villages.find((v) => v.mine);
   const empty = model.houses.length <= 1;
+  const friendRequests = shell.friends.filter((f) => f.status === "eingehend").length;
 
   return (
     <div
       className="hubdome-ui fixed inset-0 overflow-hidden bg-[#cfe4f4] text-[#1c1b19]"
       role="application"
-      aria-label={`3D-Ansicht des Dorfs ${props.villageName}. Alle Inhalte sind auch in der Listenansicht erreichbar.`}
+      aria-label={`3D-Ansicht des Dorfs ${props.villageName}. Alle Häuser und Objekte sind auch über die Suche und die Fenster erreichbar.`}
     >
       {webgl === false ? (
-        <p className="p-6">
-          Dein Browser unterstützt keine 3D-Grafik. Nutze die{" "}
-          <Link className="underline" href={`/dorf/${ownerUsername}/liste`}>
-            Listenansicht
-          </Link>
-          .
-        </p>
+        <div inert={active !== null} aria-hidden={active !== null || undefined}>
+          <FallbackList model={model} actions={actions} />
+        </div>
       ) : webgl ? (
         <div
           className="hd-fade-in absolute inset-0"
@@ -165,7 +201,6 @@ export function VillageView(props: Props) {
             ownerName={props.ownerName}
             avatarSeed={props.avatarSeed}
             zentraleStyle={props.zentraleStyle}
-            customModelUrl={props.customModelUrl ?? null}
             model={model}
             store={store}
             actions={actions}
@@ -191,27 +226,30 @@ export function VillageView(props: Props) {
           artifacts={artifacts}
           previews={props.previews}
           isOwner={props.isOwner}
-          ownerUsername={ownerUsername}
           onAddObject={(houseId) => dialog.open("objekt", { houseId })}
+          onEditHouse={(houseId) => dialog.open("hausedit", { houseId })}
+          onEditObject={(objectId) => dialog.open("objektedit", { objectId })}
         />
+        <DisplayPopup store={store} actions={actions} />
         <BottomBar
           store={store}
           actions={actions}
           windowOpen={windowOpen}
+          friendRequests={friendRequests}
           onTravel={() => dialog.open("reise")}
-          onSettings={() => dialog.open("einstellungen", { tab: "anzeige" })}
+          onSettings={() => dialog.open("einstellungen", { tab: "profil" })}
           onAddHouse={props.isOwner ? () => dialog.open("haus") : undefined}
         />
         {empty && props.isOwner && (
           <p className={hint}>
             Lege dein erstes Modulhaus an –{" "}
-            <button type="button" onClick={() => dialog.open("haus")} className="underline">
+            <button
+              type="button"
+              onClick={() => dialog.open("haus")}
+              className="font-semibold underline"
+            >
               Haus anlegen
-            </button>{" "}
-            oder in der{" "}
-            <Link href={`/dorf/${ownerUsername}/liste`} className="underline">
-              Listenansicht
-            </Link>
+            </button>
             .
           </p>
         )}
@@ -226,22 +264,15 @@ export function VillageView(props: Props) {
             }}
           />
         )}
-        <Link
-          href={`/dorf/${ownerUsername}/liste`}
-          className="pointer-events-auto absolute bottom-3 left-3 rounded-lg bg-[#fffdf8]/90 px-3 py-1.5 text-[12.5px] font-medium text-[#2f5d4a] shadow-[0_1px_3px_rgba(0,0,0,.15)] hover:bg-[#fffdf8]"
-        >
-          Zur Listenansicht
-        </Link>
       </div>
 
       <WorldDialogs
         active={active}
         dialog={dialog}
-        inviteToken={props.inviteToken}
         shell={shell}
         model={model}
-        store={store}
-        actions={actions}
+        houses={houses}
+        artifacts={artifacts}
         isOwner={props.isOwner}
         villageName={props.villageName}
         ownerUsername={ownerUsername}

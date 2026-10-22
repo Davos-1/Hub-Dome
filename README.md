@@ -1,6 +1,6 @@
 # Hub Dome
 
-Dein persönliches 3D-Dorf für Claude-Artifacts (HSLU Digital Construction). Spezifikation: [PLAN.md](PLAN.md). Entscheidungslog: [docs/ENTSCHEIDUNGEN.md](docs/ENTSCHEIDUNGEN.md).
+Dein persönliches 3D-Dorf für Claude-Artifacts (HSLU Digital Construction). Spezifikation: [PLAN.md](PLAN.md). Reihenfolge und Stand: [docs/PHASENPLAN.md](docs/PHASENPLAN.md). Entscheidungslog: [docs/ENTSCHEIDUNGEN.md](docs/ENTSCHEIDUNGEN.md).
 
 ## Setup
 

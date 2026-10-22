@@ -1,11 +1,13 @@
 # Hub Dome – Erweiterung 2: «Übernehmen» und «Topdorf»
 
-> **Für Claude Code:** Ergänzung zu `PLAN.md` und `PLAN-ERWEITERUNG.md`. Gilt **ab dem aktuellen Stand** (Phase 4 inkl. Design-Handoff abgeschlossen). Reihenfolge:
+> **Für Claude Code:** Ergänzung zu `PLAN.md` und `PLAN-ERWEITERUNG.md`. Erstellt beim Stand «Phase 4 inkl. Design-Handoff abgeschlossen», aktueller Stand siehe Hinweis unten. Reihenfolge:
 >
-> 1. **Phase 5** (MCP-Connector + Skill) wie geplant, mit den kleinen Zusätzen aus Abschnitt C
+> 1. **Phase 5** (MCP-Connector + Skill) wie geplant, mit den kleinen Zusätzen aus Teil C
 > 2. **Phase 5b** – Übernehmen + Nutzungsdaten (dieses Dokument, Teil A)
 > 3. **Phase 6** – Deployment und Pilot (unverändert)
 > 4. **Phase 6b** – Topdorf (dieses Dokument, Teil B), erst wenn mindestens ca. 10 aktive Nutzer da sind
+>
+> **Stand 2026-10-22:** Dorfzugriff entsteht nur noch über gegenseitige Freundschaften (siehe `docs/ENTSCHEIDUNGEN.md`). «Dorfzugriff» heisst in diesem Dokument: befreundet. Reihenfolge und Stand: `docs/PHASENPLAN.md` (vor Phase 5 kommen Phase 4d und der Link-Test aus Phase 0).
 >
 > Alle Änderungen sind **additiv**: neue Migrationsdateien, keine bestehenden ändern. Gian spielt sie im SQL-Editor ein. Vor dem Start jeder Phase `docs/ENTSCHEIDUNGEN.md` lesen und Entscheidungen dort nachtragen. Nach jeder Phase stoppen und zusammenfassen.
 
@@ -108,7 +110,7 @@ Die Policy `artifacts_select` wird **ersetzt** (drop + create in der neuen Migra
 ## A2 – Öffnen mit Zählung
 
 - Neue Route `src/app/o/[id]/route.ts` (GET): UUID mit Zod prüfen, eingeloggte Session verlangen (sonst `/login?next=…`), `record_item_event(id,'geoeffnet')` per RLS-Client, URL per RLS-Client lesen, **302** auf die Objekt-URL. Nicht sichtbar ergibt 404.
-- Alle «Öffnen»-Links (`hud/side-window.tsx`, `components/list/house-section.tsx` und künftige) zeigen auf `/o/<id>`, und zwar als normales `<a target="_blank" rel="noopener noreferrer">`, **nicht** als `next/link` (kein Prefetch, sonst entstehen Phantom-Zählungen).
+- Alle «Öffnen»-Links (`hud/side-window.tsx`, der Listen-Dialog aus Phase 4d und künftige) zeigen auf `/o/<id>`, und zwar als normales `<a target="_blank" rel="noopener noreferrer">`, **nicht** als `next/link` (kein Prefetch, sonst entstehen Phantom-Zählungen).
 - `proxy.ts`: `/o/*` ist **nicht** öffentlich.
 
 ## A3 – Übernehmen (Oberfläche)
@@ -127,7 +129,7 @@ Nicht sichtbar bei eigenen Objekten, bei `allow_copy = false` (dann grauer Hinwe
 
 **Darstellung von Übernahmen im eigenen Dorf:**
 - 2D und Panel: Badge «übernommen von @username» (Link zu deren Dorf, falls Zugriff) bzw. «Original entfernt», wenn `source_artifact_id` null ist.
-- 3D: dezente Markierung am Sockel (z.B. schmales Band in Akzentfarbe). Muss zusammengeführte Geometrie bleiben, keine zusätzlichen Draw Calls pro Objekt.
+- 3D: dezente Markierung am Sockel (z.B. schmales Band in Akzentfarbe). Funktionale Kennzeichnung, mit der Fokusregel vereinbar. Muss zusammengeführte Geometrie bleiben, keine zusätzlichen Draw Calls pro Objekt.
 - Aktion **«Eigene Version verknüpfen»**: Feld für neuen Link. Nach dem Speichern wird es per Trigger zum Original mit «basiert auf @username». Hinweistext: «Passe das Objekt in Claude an und füge hier den Link deiner Version ein.» Ergänzen mit dem Ergebnis der Abklärung oben.
 - Übernahmen sind immer privat (Constraint). Sichtbarkeitsauswahl im Formular bei Übernahmen ausblenden, mit Hinweis «Übernahmen sind nur für dich sichtbar».
 
@@ -135,11 +137,11 @@ Nicht sichtbar bei eigenen Objekten, bei `allow_copy = false` (dann grauer Hinwe
 - Schalter «Andere dürfen übernehmen» (Standard an)
 - Schalter «Im Topdorf zeigen» (Standard **aus**, Erklärung: «Für alle angemeldeten Hub-Dome-Nutzer sichtbar, mit deinem Namen»). Nur bei `visibility = 'shared'` aktivierbar.
 - Anzeige im Panel und in der Liste: «Von X Personen geöffnet · Y× übernommen» (via `item_stats`)
-- In `/einstellungen`: Sammelaktion «Alle meine geteilten Objekte fürs Topdorf freigeben / zurückziehen»
+- Im Einstellungen-Dialog (`?d=einstellungen`): Sammelaktion «Alle meine geteilten Objekte fürs Topdorf freigeben / zurückziehen»
 
 ## A4 – Entscheidungen (in `ENTSCHEIDUNGEN.md` übernehmen)
 
-- Entzieht der Besitzer den Dorfzugriff, macht ein Objekt privat oder schaltet `allow_copy` aus, **bleiben bestehende Übernahmen erhalten**. Sie enthalten nur Titel und Link, die die Person schon gesehen hat, ähnlich wie ein Lesezeichen. Ob der Link noch funktioniert, entscheidet claude.ai. → **Gian bestätigt oder ändert diese Regel vor der Umsetzung.**
+- Beendet der Besitzer die Freundschaft (früher: Dorfzugriff entziehen), macht ein Objekt privat oder schaltet `allow_copy` aus, **bleiben bestehende Übernahmen erhalten**. Sie enthalten nur Titel und Link, die die Person schon gesehen hat, ähnlich wie ein Lesezeichen. Ob der Link noch funktioniert, entscheidet claude.ai. → **Gian bestätigt oder ändert diese Regel vor der Umsetzung.**
 - Wird das Original gelöscht, bleibt die Übernahme mit dem Vermerk «Original entfernt».
 - Eigene Objekte und Übernahmen zählen nie für das Ranking des eigenen Objekts.
 
@@ -207,8 +209,8 @@ Funktion `topdorf_items(p_slots int default 5)` (security definer, stable), lief
   - Objekt-Karte zeigt **Rang** (1–5), Titel, «von @username», «X Personen»
   - Anschlagbrett am Dorfplatz: «Neu im Topdorf» (seit letzter Woche aufgestiegen)
   - Button «In mein Dorf» (Teil A) und «Öffnen» (über `/o/<id>`)
-- 2D-Fallback `/topdorf/liste`: Module als Abschnitte, Objekte nach Rang.
-- «Meine Dörfer»: Karte **Topdorf** ganz oben (über dem eigenen Dorf), mit Anzahl Objekte und Häuser.
+- Listenansicht: Listen-Dialog (`?d=liste`) im Topdorf-Modus statt eigener Seite, Module als Abschnitte, Objekte nach Rang.
+- Reise-Dialog: Karte **Topdorf** ganz oben (über dem eigenen Dorf), mit Anzahl Objekte und Häuser.
 - Leerer Zustand: «Noch zu wenig Daten. Objekte erscheinen hier, sobald mindestens 3 Personen sie genutzt haben.» plus Link zur Freigabe-Einstellung.
 
 ## B4 – Abnahme Phase 6b

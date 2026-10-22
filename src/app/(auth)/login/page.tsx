@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { AuthCard } from "@/components/ui/auth-card";
 import { safeNextPath } from "@/lib/validation";
 import { LoginForm } from "./login-form";
 
@@ -9,16 +10,17 @@ async function LoginContent({ searchParams }: Pick<PageProps<"/login">, "searchP
   const nextPath = typeof next === "string" ? safeNextPath(next, "") : "";
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-8">
-      <h1 className="text-3xl font-bold">Anmelden</h1>
-      <p>Du erhältst einen Link per E-Mail. Ein Passwort brauchst du nicht.</p>
+    <AuthCard title="Anmelden">
+      <p className="text-[14px]">
+        Du erhältst einen Link per E-Mail. Ein Passwort brauchst du nicht.
+      </p>
       {fehler && (
-        <p role="alert" className="rounded-lg bg-red-100 p-3 text-red-900">
+        <p role="alert" className="rounded-xl bg-[#fdeceb] p-3 text-[#7a1f16]">
           Die Anmeldung hat nicht geklappt. Bitte fordere einen neuen Link an.
         </p>
       )}
       <LoginForm next={nextPath || undefined} />
-    </main>
+    </AuthCard>
   );
 }
 

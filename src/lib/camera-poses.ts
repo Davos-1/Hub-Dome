@@ -43,7 +43,48 @@ export function quarterPose(layout: VillageLayout, id: FachbereichId, view: View
   return { position: [cx - ux * back, R * 1.05 + 8, cz - uz * back], target: [cx, 0, cz] };
 }
 
-/** Haus: vor dem Gartentor, 6.5 m nach aussen, Blick auf das Grundstück. */
+/** Höhe der Quartiertafeln samt Pfosten (Meter) und Sicherheitsabstand der Blickachse darüber. */
+const BOARD_TOP = 4.2;
+const BOARD_MARGIN = 1.3;
+
+/**
+ * Liegt die Blickachse (Kamera → Ziel) durch eine Quartiertafel? Die Tafel ist 5.2 m breit, quer zur
+ * Richtung Zentrale, mit 0.8 m Spielraum an den Seiten.
+ */
+function blockedByBoard(
+  layout: VillageLayout,
+  from: [number, number, number],
+  to: [number, number, number],
+) {
+  const steps = 60;
+  for (const q of layout.quarters) {
+    const ux = Math.cos(q.theta);
+    const uz = Math.sin(q.theta);
+    const cx = q.x + ux * 0.4;
+    const cz = q.z + uz * 0.4;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = from[0] + (to[0] - from[0]) * t;
+      const z = from[2] + (to[2] - from[2]) * t;
+      const y = from[1] + (to[1] - from[1]) * t;
+      const along = (x - cx) * ux + (z - cz) * uz; // Richtung Zentrale/weg
+      const side = -(x - cx) * uz + (z - cz) * ux;
+      if (
+        Math.abs(side) < 2.6 + 0.8 &&
+        Math.abs(along) < 0.4 + 0.8 &&
+        y < BOARD_TOP + BOARD_MARGIN
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Haus von vorne aus der Vogelperspektive: vor dem Gartentor, etwas weiter draussen und höher, und so hoch,
+ * dass die Blickachse sicher über die grosse Quartiertafel hinwegführt (kein Verdecken je nach Winkel).
+ */
 export function housePose(layout: VillageLayout, id: string, view: ViewMode): Pose {
   const h = layout.houses[id];
   if (!h) return view === "karte" ? mapPose(layout.extent) : overviewPose(layout.extent);
@@ -51,10 +92,16 @@ export function housePose(layout: VillageLayout, id: string, view: ViewMode): Po
   const dx = Math.sin(h.angle);
   const dz = Math.cos(h.angle);
   const gate = h.plot ? h.plot.front : h.footprint * 2;
-  return {
-    position: [h.x + dx * (gate + 6.5), 3.4 + h.footprint * 0.7, h.z + dz * (gate + 6.5)],
-    target: [h.x + dx * gate * 0.45, 1.1, h.z + dz * gate * 0.45],
-  };
+  const back = gate + 8;
+  const target: [number, number, number] = [h.x + dx * gate * 0.45, 1.1, h.z + dz * gate * 0.45];
+  const position: [number, number, number] = [
+    h.x + dx * back,
+    6.2 + h.footprint * 1.1,
+    h.z + dz * back,
+  ];
+  // Höher gehen, bis die Blickachse frei über jeder Tafel liegt (Obergrenze: 40 m)
+  while (position[1] < 40 && blockedByBoard(layout, position, target)) position[1] += 0.5;
+  return { position, target };
 }
 
 export function poseFor(layout: VillageLayout, nav: Nav, view: ViewMode): Pose {

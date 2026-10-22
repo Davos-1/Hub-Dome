@@ -107,6 +107,7 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
       shell={{
         me: { id: "u", username: "vorschau", displayName: "Vorschau" },
         villages: [],
+        friends: [],
         own: null,
       }}
     />

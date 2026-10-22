@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { AuthCard } from "@/components/ui/auth-card";
 import { OnboardingForm } from "./onboarding-form";
 
 export const metadata = { title: "Willkommen – Hub Dome" };
@@ -20,11 +21,12 @@ async function OnboardingContent() {
   if (profile?.onboarded) redirect("/start");
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-8">
-      <h1 className="text-3xl font-bold">Willkommen in Hub Dome</h1>
-      <p>Wähle deinen Namen. Danach wird dein Dorf mit der Zentrale angelegt.</p>
+    <AuthCard title="Willkommen in Hub Dome" kicker="Erste Schritte">
+      <p className="text-[14px]">
+        Wähle deinen Namen. Danach wird dein Dorf mit der Zentrale angelegt.
+      </p>
       <OnboardingForm suggestedName={profile?.display_name ?? ""} />
-    </main>
+    </AuthCard>
   );
 }
 

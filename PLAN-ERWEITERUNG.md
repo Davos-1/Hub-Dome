@@ -1,6 +1,6 @@
-# Campusdorf – Erweiterung «Weitere Objekttypen»
+# Hub Dome – Erweiterung «Weitere Objekttypen»
 
-> **Für Claude Code:** Ergänzung zu `PLAN.md`. Die laufende Phase **nicht unterbrechen**. Phase 3b erst starten, wenn Phase 3 abgenommen ist, und **vor** Phase 4. Die Phasen 8 und 9 kommen erst nach dem Pilot (Phase 6). Alle Änderungen sind **additiv**: bestehende Daten, Tabellen, Routen und MCP-Tools bleiben gültig.
+> **Für Claude Code:** Ergänzung zu `PLAN.md`. **Stand 2026-10-22: Phase 3b ist abgeschlossen, der MCP-Anteil kommt mit Phase 5.** Die laufende Phase **nicht unterbrechen**. Phase 3b erst starten, wenn Phase 3 abgenommen ist, und **vor** Phase 4. Die Phasen 8 und 9 kommen erst nach dem Pilot (Phase 6). Alle Änderungen sind **additiv**: bestehende Daten, Tabellen, Routen und MCP-Tools bleiben gültig.
 
 ## Grundsätze
 
@@ -53,13 +53,13 @@ alter table artifacts add constraint artifacts_url_by_type check (
    - Private oder nicht gefundene Repos zeigen den Hinweis «Vorschau nicht verfügbar». Der Link bleibt gültig.
 3. **Gist-Vorschau**: Dateinamen und die ersten Zeilen mit Syntax-Hervorhebung, gleiches Caching.
 4. **Externe Links**: Domain sichtbar anzeigen, `rel="noopener noreferrer"`, neuer Tab.
-5. **2D-Liste**: Icon pro Objekttyp und ein Filter nach Typ.
+5. **2D-Liste**: Icon pro Objekttyp und ein Filter nach Typ (heute: Listen-Dialog, Phase 4d).
 
 ### MCP-Connector (rückwärtskompatibel)
 
 - `artifact_platzieren` erhält den optionalen Parameter `objekt_typ`. Ohne Angabe wird der Typ automatisch aus der URL erkannt.
 - Neues Tool `objekt_platzieren` als Alias mit neutraler Beschreibung: «Platziert einen Link (Claude-Artifact, GitHub-Repo, Gist, Cloud-Ordner, Website) in einem Haus des Dorfs.»
-- Skill-Vorlage ergänzen: Die Frage «Soll ich das ins Campusdorf stellen?» gilt auch, wenn im Chat ein GitHub-Repo oder Gist entstanden ist und dessen URL bekannt ist.
+- Skill-Vorlage ergänzen: Die Frage «Soll ich das in Hub Dome stellen?» gilt auch, wenn im Chat ein GitHub-Repo oder Gist entstanden ist und dessen URL bekannt ist.
 
 ### Abnahme Phase 3b
 - [ ] Bestehende Artifacts funktionieren unverändert, ihr Typ ist `claude_artifact`

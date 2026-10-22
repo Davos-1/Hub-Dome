@@ -60,12 +60,6 @@ export type Village = {
   name: string;
   theme: string;
   zentrale_style: ZentraleStyle;
-  zentrale_model_meta: {
-    bytes: number;
-    triangles: number;
-    textures?: number;
-    uploaded_at: string;
-  } | null;
 };
 export type ModuleOption = { code: string; title: string };
 

@@ -1,22 +1,29 @@
-import { expect, test } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
+import { expect, test, type Page } from "@playwright/test";
 import { createTestUser, deleteTestUser, loginAs, type E2EUser } from "./helpers";
 
-// Abnahme Phase 3: A legt Dorf an, lädt B ein, B sieht A's Artifacts (ausser private),
-// A entzieht den Zugriff, B sieht nichts mehr.
+// Abnahme Freundschaften: A legt Haus und Objekte an, B fragt an, A nimmt an, B besucht das Dorf,
+// private Objekte bleiben unsichtbar, A beendet die Freundschaft. Alles über Dialoge der 3D-Welt.
+
+const admin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } },
+);
 
 let a: E2EUser;
 let b: E2EUser;
-
 test.beforeAll(async () => {
   [a, b] = await Promise.all([createTestUser("a"), createTestUser("b")]);
 });
-
 test.afterAll(async () => {
   await Promise.all([deleteTestUser(a.id), deleteTestUser(b.id)]);
 });
 
-test("Dorf teilen, ansehen und Zugriff entziehen", async ({ browser }) => {
-  test.setTimeout(240_000);
+const search = (page: Page) => page.getByRole("searchbox", { name: "Haus oder Objekt suchen" });
+
+test("Freunde anfragen, annehmen, Dorf besuchen und Freundschaft beenden", async ({ browser }) => {
+  test.setTimeout(300_000);
   const ctxA = await browser.newContext();
   const ctxB = await browser.newContext();
   await loginAs(ctxA, a);
@@ -24,73 +31,89 @@ test("Dorf teilen, ansehen und Zugriff entziehen", async ({ browser }) => {
   const pa = await ctxA.newPage();
   const pb = await ctxB.newPage();
   pa.on("dialog", (d) => d.accept());
+  pb.on("dialog", (d) => d.accept());
 
   // A: Themenhaus anlegen
-  await pa.goto(`/dorf/${a.username}/liste`);
-  await pa.getByLabel("Themenhaus").check();
-  await pa.locator("#title").fill("Python");
-  await pa.getByRole("button", { name: "Haus anlegen" }).click();
-  const house = pa.getByRole("region", { name: "Python", exact: true });
-  await expect(house).toBeVisible({ timeout: 20_000 });
+  await pa.goto(`/dorf/${a.username}?d=haus`);
+  const houseDialog = pa.getByRole("dialog", { name: "Haus anlegen" });
+  await expect(houseDialog).toBeVisible({ timeout: 30_000 });
+  await houseDialog.getByLabel("Themenhaus").check();
+  await houseDialog.getByLabel("Titel").fill("Python");
+  await houseDialog.getByRole("button", { name: "Haus anlegen" }).click();
+  await expect(pa.getByRole("dialog")).toHaveCount(0, { timeout: 30_000 });
+  const { data: house } = await admin
+    .from("houses")
+    .select("id")
+    .eq("title", "Python")
+    .eq("kind", "thema")
+    .single();
 
-  // A: ein geteiltes und ein privates Artifact
+  // A: ein geteiltes und ein privates Objekt
   async function addArtifact(title: string, url: string, visibility: "shared" | "private") {
-    const add = house.locator("details").filter({ hasText: "Objekt hinzufügen" }).first();
-    // Das Formular bleibt nach dem Speichern offen: nur öffnen, wenn geschlossen.
-    if (!(await add.evaluate((d) => (d as HTMLDetailsElement).open))) {
-      await add.locator("summary").click();
-    }
-    await add.getByLabel("Link", { exact: true }).fill(url);
-    await add.getByLabel("Titel").fill(title);
-    await add.getByLabel("Sichtbarkeit").selectOption(visibility);
-    await add.getByRole("button", { name: "Objekt speichern" }).click();
-    await expect(house.getByRole("link", { name: title })).toBeVisible();
+    await pa.goto(`/dorf/${a.username}?d=objekt&h=${house!.id}`);
+    const d = pa.getByRole("dialog", { name: "Objekt hinzufügen" });
+    await expect(d).toBeVisible({ timeout: 30_000 });
+    await d.getByLabel("Link", { exact: true }).fill(url);
+    await d.getByLabel("Titel").fill(title);
+    await d.getByLabel("Sichtbarkeit").selectOption(visibility);
+    await d.getByRole("button", { name: "Objekt speichern" }).click();
+    await expect(pa.getByRole("dialog")).toHaveCount(0, { timeout: 30_000 });
   }
   await addArtifact("Geteilter Rechner", "https://claude.ai/public/artifacts/e2e-shared", "shared");
   await addArtifact("Geheime Notiz", "https://claude.ai/public/artifacts/e2e-private", "private");
 
-  // A: fremde Links werden abgelehnt (Browser-Validierung umgehen → Server prüft)
-  // (abgedeckt durch Unit- und RLS-Tests)
+  // B: ohne Freundschaft kein Zugriff (das Dorf gibt es für B nicht)
+  const denied = await pb.goto(`/dorf/${a.username}`);
+  expect(denied?.status()).toBe(404);
 
-  // A: Einladungslink erstellen
-  await pa.goto(`/dorf/${a.username}?d=einstellungen&t=teilen`);
-  await pa.getByRole("button", { name: "Einladungslink erstellen" }).click();
-  const inviteUrl = await pa.getByLabel("Link", { exact: true }).inputValue();
-  expect(inviteUrl).toContain("/einladung/");
+  // B: Freundschaftsanfrage an A (aus der eigenen Welt)
+  await pb.goto(`/dorf/${b.username}?d=reise&t=freunde`);
+  const travelB = pb.getByRole("dialog", { name: "Reise und Freunde" });
+  await expect(travelB).toBeVisible({ timeout: 30_000 });
+  await travelB.getByPlaceholder("@benutzername").fill(`@${a.username}`);
+  await travelB.getByRole("button", { name: "Anfrage senden" }).click();
+  await expect(travelB.getByText("Anfrage gesendet.")).toBeVisible({ timeout: 20_000 });
+  await expect(travelB.getByText("wartet auf Antwort")).toBeVisible({ timeout: 20_000 });
 
-  // B: ohne Freigabe nichts sichtbar
-  await pb.goto(`/dorf/${a.username}/liste`);
-  await expect(pb.getByText("Geteilter Rechner")).toHaveCount(0);
+  // A: sieht die Anfrage (Hinweis in der Leiste) und nimmt an
+  await pa.goto(`/dorf/${a.username}?d=reise&t=freunde`);
+  const travelA = pa.getByRole("dialog", { name: "Reise und Freunde" });
+  await expect(travelA.getByText(/Anfragen an dich \(1\)/)).toBeVisible({ timeout: 30_000 });
+  await travelA.getByRole("button", { name: "Annehmen" }).click();
+  await expect(travelA.getByText(/Deine Freunde \(1\)/)).toBeVisible({ timeout: 30_000 });
 
-  // B: Einladung annehmen
-  await pb.goto(new URL(inviteUrl).pathname);
-  await pb.getByRole("button", { name: "Einladung annehmen" }).click();
-  await expect(pb).toHaveURL(new RegExp(`/dorf/${a.username}$`), { timeout: 30_000 });
-  await pb.goto(`/dorf/${a.username}/liste`);
-  await expect(pb.getByRole("link", { name: "Geteilter Rechner" })).toBeVisible();
-  await expect(pb.getByText("Geheime Notiz")).toHaveCount(0);
-  await expect(pb.getByRole("button", { name: "Objekt speichern" })).toHaveCount(0);
-
-  // B: Dorf im Dialog «Dörfer besuchen», Reise dorthin mit Willkommens-Banner und ohne Bearbeiten-Knöpfe
+  // B: besucht das Dorf von A über den Dialog, mit Willkommens-Banner und ohne Bearbeiten-Knöpfe
   await pb.goto("/doerfer");
-  const travel = pb.getByRole("dialog", { name: "Dörfer besuchen" });
+  const travel = pb.getByRole("dialog", { name: "Reise und Freunde" });
   await expect(travel.getByText("Dorf von Tester A")).toBeVisible({ timeout: 30_000 });
   await travel.getByRole("button", { name: "Besuchen" }).click();
   await expect(pb).toHaveURL(new RegExp(`/dorf/${a.username}$`), { timeout: 30_000 });
-  await expect(pb.getByText("Dorf von Tester A", { exact: false }).first()).toBeVisible();
-  await expect(pb.getByRole("status").getByText("nur zum Ansehen")).toBeVisible();
+  await expect(pb.getByRole("status").getByText("nur zum Ansehen")).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(pb.getByRole("button", { name: "+ Haus" })).toHaveCount(0);
 
-  // A: Zugriff entziehen
-  await pa.goto(`/dorf/${a.username}?d=einstellungen&t=teilen`);
-  await pa.getByRole("button", { name: "Zugriff entziehen" }).click();
-  await expect(pa.getByText("Noch niemand.")).toBeVisible({ timeout: 20_000 });
+  // B: sieht das geteilte, aber nicht das private Objekt
+  await search(pb).fill("Geteilter Rechner");
+  await expect(pb.getByRole("option")).toHaveCount(1);
+  await pb.getByRole("option").first().click();
+  const side = pb.getByRole("complementary", { name: "Python" });
+  await expect(side).toBeVisible();
+  await expect(side.getByRole("button", { name: "Objekt hinzufügen" })).toHaveCount(0);
+  await expect(side.getByRole("button", { name: "Haus bearbeiten" })).toHaveCount(0);
+  await search(pb).fill("Geheime Notiz");
+  await expect(pb.getByText("Keine Treffer")).toBeVisible();
 
-  // B: sieht nichts mehr
-  await pb.goto(`/dorf/${a.username}/liste`);
-  await expect(pb.getByText("Geteilter Rechner")).toHaveCount(0);
+  // A: beendet die Freundschaft
+  await pa.goto(`/dorf/${a.username}?d=reise&t=freunde`);
+  await pa.getByRole("dialog").getByRole("button", { name: "Entfernen" }).click();
+  await expect(pa.getByText("Noch keine Freunde.")).toBeVisible({ timeout: 30_000 });
+
+  // B: sieht das Dorf nicht mehr
+  const gone = await pb.goto(`/dorf/${a.username}`);
+  expect(gone?.status()).toBe(404);
   await pb.goto("/doerfer");
-  await expect(pb.getByRole("dialog", { name: "Dörfer besuchen" })).toBeVisible({
+  await expect(pb.getByRole("dialog", { name: "Reise und Freunde" })).toBeVisible({
     timeout: 30_000,
   });
   await expect(pb.getByRole("dialog").getByText("Dorf von Tester A")).toHaveCount(0);

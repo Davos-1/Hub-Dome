@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
 import type { TimeSetting } from "@/lib/daytime";
 import { FACHBEREICHE } from "@/lib/fachbereiche";
@@ -20,17 +19,12 @@ export const FILTER_KINDS: ArtifactKind[] = [
   "tool",
   "visualisierung",
 ];
-export const KEY_HINTS: [string, string][] = [
-  ["Klick", "Quartier oder Haus öffnen"],
-  ["← →", "Quartier oder Haus wählen"],
-  ["Enter", "Auswahl öffnen"],
-  ["Esc", "eine Ebene zurück"],
-];
 
-const seg = (on: boolean) => (on ? "bg-[#1c1b19] text-[#fffdf8]" : "bg-transparent text-[#3a3732]");
-const linkClass =
-  "text-[13px] font-medium text-[#2f5d4a] underline underline-offset-2 hover:text-[#1c3f32]";
+const seg = (on: boolean) => (on ? "bg-[#5e3c22] text-[#fbf3e4]" : "bg-transparent text-[#4a3a26]");
+const newBadge =
+  "flex-none rounded-full bg-[#fde68a] px-2 py-0.5 text-[11px] font-semibold text-[#78350f]";
 
+/** Auswahl aus wenigen Möglichkeiten als Brett-Schalter. */
 export function Segments<T extends string>({
   label,
   value,
@@ -44,9 +38,9 @@ export function Segments<T extends string>({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="text-[13px] font-semibold text-[#1c1b19]">{label}</div>
+      <div className="hd-label">{label}</div>
       <div
-        className="flex flex-wrap gap-0.5 rounded-[9px] bg-[#efeae0] p-[3px]"
+        className="flex flex-wrap gap-0.5 rounded-[10px] bg-[#efe6d0] p-[3px]"
         role="group"
         aria-label={label}
       >
@@ -56,7 +50,7 @@ export function Segments<T extends string>({
             type="button"
             aria-pressed={value === v}
             onClick={() => onPick(v)}
-            className={`flex-1 cursor-pointer rounded-[7px] px-1.5 py-[7px] text-[12.5px] font-medium ${seg(value === v)}`}
+            className={`flex-1 cursor-pointer rounded-[7px] px-1.5 py-[7px] text-[12.5px] font-semibold ${seg(value === v)}`}
           >
             {text}
           </button>
@@ -80,18 +74,18 @@ function Shell({
   return (
     <aside
       aria-label={title}
-      className="pointer-events-auto absolute top-3 right-3 bottom-3 z-20 flex w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl bg-[#fffdf8]/98 shadow-[0_12px_40px_rgba(28,27,25,.25)]"
+      className="pointer-events-auto absolute top-3 right-3 bottom-3 z-20 flex w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea] shadow-[0_12px_40px_rgba(28,27,25,.28)]"
     >
-      <div className="flex items-center justify-between gap-3 border-b border-[#ebe6dc] px-[18px] pt-4 pb-3">
+      <div className="hd-plank flex items-center justify-between gap-3 px-[18px] py-3.5">
         <div className="min-w-0">
-          <h2 className="truncate text-[17px] font-semibold text-[#1c1b19]">{title}</h2>
-          {subtitle && <div className="text-[12px] text-[#7a766d]">{subtitle}</div>}
+          {subtitle && <div className="hd-kicker">{subtitle}</div>}
+          <h2 className="truncate text-[18px] leading-tight font-bold">{title}</h2>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Schliessen"
-          className="h-8 w-8 flex-none cursor-pointer rounded-lg bg-[#efeae0] text-[16px] text-[#3a3732]"
+          className="h-8 w-8 flex-none cursor-pointer rounded-full bg-[#fbf3e4] text-[13px] font-bold text-[#5e3c22] shadow-[0_2px_0_#3e2814] hover:bg-white"
         >
           ✕
         </button>
@@ -107,12 +101,16 @@ function ObjectDetail({
   artifact,
   house,
   preview,
+  isOwner,
   onBack,
+  onEdit,
 }: {
   artifact: Artifact;
   house: HouseInfo;
   preview: ReactNode;
+  isOwner: boolean;
   onBack: () => void;
+  onEdit: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -123,25 +121,28 @@ function ObjectDetail({
       >
         ← Zurück zu {house.kind === "zentrale" ? "Zentrale" : house.title}
       </button>
-      <h3 className="text-xl font-semibold text-[#1c1b19]">{artifact.title}</h3>
-      <p className="text-[13px] text-[#6d6a63]">
+      <h3 className="text-xl font-bold text-[#1c1b19]">{artifact.title}</h3>
+      <p className="hd-note">
         <span aria-hidden>{ITEM_TYPE_ICONS[artifact.item_type]}</span>{" "}
         {ITEM_TYPE_LABELS[artifact.item_type]} · {ARTIFACT_KIND_LABELS[artifact.kind]}
         {artifact.item_type !== "claude_artifact" && ` · ${hostOf(artifact.url)}`}
       </p>
       {artifact.description && <p className="text-[14px]">{artifact.description}</p>}
-      {artifact.tags.length > 0 && (
-        <p className="text-xs text-[#6d6a63]">#{artifact.tags.join(" #")}</p>
-      )}
+      {artifact.tags.length > 0 && <p className="hd-note">#{artifact.tags.join(" #")}</p>}
       {artifact.visibility === "private" && <p className="text-xs text-amber-700">Privat</p>}
       <a
         href={artifact.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="rounded-lg bg-[#2f5d4a] px-4 py-2 text-center font-medium text-[#fffdf8]"
+        className="hd-btn hd-btn-primary"
       >
         Öffnen
       </a>
+      {isOwner && (
+        <button type="button" onClick={onEdit} className="hd-btn hd-btn-ghost">
+          Objekt bearbeiten
+        </button>
+      )}
       {preview}
     </div>
   );
@@ -151,37 +152,36 @@ function HouseDetail({
   house,
   artifacts,
   isOwner,
-  ownerUsername,
   actions,
   onAdd,
+  onEdit,
 }: {
   house: HouseInfo;
   artifacts: Artifact[];
   isOwner: boolean;
-  ownerUsername: string;
   actions: SceneActions;
   onAdd: (houseId: string) => void;
+  onEdit: (houseId: string) => void;
 }) {
-  const listHref = `/dorf/${ownerUsername}/liste#h-${house.id}`;
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[13px] text-[#6d6a63]">
+      <p className="hd-note">
         {house.kind === "zentrale" ? "Zentrale" : FACHBEREICHE[house.fach].name}
         {house.semester ? ` · ${house.semester}. Semester` : ""} · {artifacts.length}{" "}
         {artifacts.length === 1 ? "Objekt" : "Objekte"}
-        {house.newCount > 0 && (
-          <span className="ml-2 rounded-full bg-[#fde68a] px-2 py-0.5 text-[11px] font-semibold text-[#78350f]">
-            {house.newCount} neu
-          </span>
-        )}
+        {house.newCount > 0 && <span className={`${newBadge} ml-2`}>{house.newCount} neu</span>}
       </p>
       {artifacts.length === 0 ? (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="rounded-xl bg-[#fff3cf] p-3 text-sm text-[#6b4e00]">
           Baustelle: hier gibt es noch keine Objekte.
           {isOwner && (
             <>
               {" "}
-              <button type="button" onClick={() => onAdd(house.id)} className="underline">
+              <button
+                type="button"
+                onClick={() => onAdd(house.id)}
+                className="font-semibold underline"
+              >
                 Erstes Objekt hinzufügen
               </button>
               .
@@ -197,7 +197,7 @@ function HouseDetail({
                 <button
                   type="button"
                   onClick={() => actions.goToObject(house.id, a.id)}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-[#e2ddd2] px-3 py-2 text-left hover:bg-[#efeae0] focus-visible:outline-2 focus-visible:outline-[#2f5d4a]"
+                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-[#e4d9c0] bg-[#fffdf8] px-3 py-2 text-left hover:bg-[#f7efdc] focus-visible:outline-2 focus-visible:outline-[#2f5d4a]"
                 >
                   <span
                     aria-hidden
@@ -205,18 +205,14 @@ function HouseDetail({
                     style={{ background: KIND_COLORS[a.kind] }}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-medium text-[#1c1b19]">
+                    <span className="block truncate text-[14px] font-semibold text-[#1c1b19]">
                       <span aria-hidden>{ITEM_TYPE_ICONS[a.item_type]}</span> {a.title}
                     </span>
-                    <span className="block text-xs text-[#6d6a63]">
+                    <span className="hd-note block">
                       {ITEM_TYPE_LABELS[a.item_type]} · {ARTIFACT_KIND_LABELS[a.kind]}
                     </span>
                   </span>
-                  {isNew && (
-                    <span className="flex-none rounded-full bg-[#fde68a] px-2 py-0.5 text-[11px] font-semibold text-[#78350f]">
-                      neu
-                    </span>
-                  )}
+                  {isNew && <span className={newBadge}>neu</span>}
                 </button>
               </li>
             );
@@ -224,19 +220,25 @@ function HouseDetail({
         </ul>
       )}
       {isOwner && (
-        <div className="flex flex-col items-start gap-2">
+        <div className="flex flex-wrap gap-2">
           {artifacts.length > 0 && (
             <button
               type="button"
               onClick={() => onAdd(house.id)}
-              className="cursor-pointer rounded-lg bg-[#2f5d4a] px-3.5 py-2 text-[13px] font-semibold text-[#fffdf8]"
+              className="hd-btn hd-btn-primary hd-btn-sm"
             >
               Objekt hinzufügen
             </button>
           )}
-          <Link href={listHref} className={linkClass}>
-            In der Listenansicht bearbeiten
-          </Link>
+          {house.kind !== "zentrale" && (
+            <button
+              type="button"
+              onClick={() => onEdit(house.id)}
+              className="hd-btn hd-btn-ghost hd-btn-sm"
+            >
+              Haus bearbeiten
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -263,17 +265,17 @@ function QuarterDetail({
             <button
               type="button"
               onClick={() => actions.openHouse(id)}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-[#e2ddd2] px-3 py-2 text-left hover:bg-[#efeae0]"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-[#e4d9c0] bg-[#fffdf8] px-3 py-2 text-left hover:bg-[#f7efdc]"
             >
               <span
                 aria-hidden
                 className="h-3 w-3 flex-none rounded-full"
                 style={{ background: h.color }}
               />
-              <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[#1c1b19]">
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#1c1b19]">
                 {h.title}
               </span>
-              <span className="flex-none text-xs text-[#6d6a63]">
+              <span className="hd-note flex-none">
                 {h.items.length === 0 ? "Baustelle" : `${h.items.length} Obj.`}
               </span>
             </button>
@@ -285,7 +287,7 @@ function QuarterDetail({
 }
 
 /**
- * Fenster rechts: Details des gewählten Quartiers, Hauses oder Objekts (Einstellungen sind Dialoge).
+ * Fenster rechts: Details des gewählten Quartiers, Hauses oder Objekts.
  * Gibt zurück, ob ein Fenster offen ist (Leiste unten rückt dann nach links).
  */
 export function useSideWindowOpen(store: SceneStore): boolean {
@@ -299,8 +301,9 @@ export function SideWindow({
   artifacts,
   previews,
   isOwner,
-  ownerUsername,
   onAddObject,
+  onEditHouse,
+  onEditObject,
 }: {
   model: VillageModel;
   store: SceneStore;
@@ -308,9 +311,10 @@ export function SideWindow({
   artifacts: Artifact[];
   previews: Record<string, ReactNode>;
   isOwner: boolean;
-  ownerUsername: string;
   /** Dialog «Objekt hinzufügen» für dieses Haus öffnen. */
   onAddObject: (houseId: string) => void;
+  onEditHouse: (houseId: string) => void;
+  onEditObject: (artifactId: string) => void;
 }) {
   const nav = useScene(store, (s) => s.nav);
   const pinned = useScene(store, (s) => s.pinnedObjId);
@@ -340,16 +344,18 @@ export function SideWindow({
             artifact={artifact}
             house={house}
             preview={previews[artifact.id]}
+            isOwner={isOwner}
             onBack={() => actions.goToObject(house.id, null)}
+            onEdit={() => onEditObject(artifact.id)}
           />
         ) : (
           <HouseDetail
             house={house}
             artifacts={mine}
             isOwner={isOwner}
-            ownerUsername={ownerUsername}
             actions={actions}
             onAdd={onAddObject}
+            onEdit={onEditHouse}
           />
         )}
       </Shell>

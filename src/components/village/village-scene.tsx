@@ -31,7 +31,6 @@ export type SceneProps = {
   ownerName: string;
   avatarSeed: string;
   zentraleStyle: ZentraleStyle;
-  customModelUrl: string | null;
   model: VillageModel;
   store: SceneStore;
   actions: SceneActions;
@@ -198,7 +197,6 @@ export default function VillageScene(props: SceneProps) {
     ownerName,
     avatarSeed,
     zentraleStyle,
-    customModelUrl,
     model,
     store,
     actions,
@@ -352,7 +350,6 @@ export default function VillageScene(props: SceneProps) {
               info={h}
               layout={l}
               style={zentraleStyle}
-              modelUrl={customModelUrl}
               avatarSeed={avatarSeed}
               glow={glow}
               actions={actions}

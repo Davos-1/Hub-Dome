@@ -1,25 +1,22 @@
 "use client";
 
 import type { ShellData } from "@/lib/shell-data";
+import type { Artifact, House } from "@/lib/types";
 import type { VillageModel } from "@/lib/village-model";
-import type { SceneActions } from "../village/scene-actions";
-import type { SceneStore } from "../village/scene-store";
-import { AddHouseDialog, AddObjectDialog } from "./add-dialogs";
-import { InviteDialog } from "./invite-dialog";
+import { AddHouseDialog, AddObjectDialog, EditHouseDialog, EditObjectDialog } from "./add-dialogs";
 import { SettingsDialog, type SettingsTab } from "./settings-dialog";
 import { StartDialog } from "./start-dialog";
-import { TravelDialog } from "./travel-dialog";
+import { TravelDialog, type TravelTab } from "./travel-dialog";
 import type { DialogApi, DialogId } from "./use-dialog";
 
-/** Zeigt den Dialog, der laut URL (oder Einladungslink) offen ist. */
+/** Zeigt den Dialog, der laut URL offen ist. */
 export function WorldDialogs({
   active,
   dialog,
-  inviteToken,
   shell,
   model,
-  store,
-  actions,
+  houses,
+  artifacts,
   isOwner,
   villageName,
   ownerUsername,
@@ -28,11 +25,10 @@ export function WorldDialogs({
 }: {
   active: DialogId | null;
   dialog: DialogApi;
-  inviteToken?: string;
   shell: ShellData;
   model: VillageModel;
-  store: SceneStore;
-  actions: SceneActions;
+  houses: House[];
+  artifacts: Artifact[];
   isOwner: boolean;
   villageName: string;
   ownerUsername: string;
@@ -40,7 +36,7 @@ export function WorldDialogs({
   /** «Mein Dorf betreten»: Start-Dialog schliessen, Kamera fliegt ein. */
   onEnter: () => void;
 }) {
-  const houses = model.houses.map((h) => ({
+  const houseOptions = model.houses.map((h) => ({
     id: h.id,
     title: h.kind === "zentrale" ? "Zentrale" : h.title,
   }));
@@ -60,6 +56,7 @@ export function WorldDialogs({
           lowDetail={lowDetail}
           onEnter={onEnter}
           onTravel={() => dialog.open("reise")}
+          onFriends={() => dialog.open("reise", { tab: "freunde" })}
           onSettings={() => dialog.open("einstellungen", { tab: "profil" })}
           onAddHouse={() => dialog.open("haus")}
         />
@@ -69,6 +66,8 @@ export function WorldDialogs({
         <TravelDialog
           shell={shell}
           currentUsername={ownerUsername}
+          tab={dialog.tab}
+          onTab={(t: TravelTab) => dialog.setTab(t)}
           lowDetail={lowDetail}
           onClose={dialog.close}
         />
@@ -77,8 +76,6 @@ export function WorldDialogs({
       return (
         <SettingsDialog
           shell={shell}
-          store={store}
-          actions={actions}
           tab={dialog.tab}
           onTab={(t: SettingsTab) => dialog.setTab(t)}
           lowDetail={lowDetail}
@@ -88,9 +85,17 @@ export function WorldDialogs({
     case "objekt":
       return (
         <AddObjectDialog
-          houses={houses}
+          houses={houseOptions}
           houseId={dialog.houseId}
-          ownerUsername={ownerUsername}
+          lowDetail={lowDetail}
+          onClose={dialog.close}
+        />
+      );
+    case "objektedit":
+      return (
+        <EditObjectDialog
+          artifact={artifacts.find((a) => a.id === dialog.objectId)}
+          houses={houseOptions}
           lowDetail={lowDetail}
           onClose={dialog.close}
         />
@@ -103,8 +108,17 @@ export function WorldDialogs({
           onClose={dialog.close}
         />
       );
-    case "einladung":
-      return inviteToken ? <InviteDialog token={inviteToken} lowDetail={lowDetail} /> : null;
+    case "hausedit": {
+      const house = houses.find((h) => h.id === dialog.houseId && h.kind !== "zentrale");
+      return (
+        <EditHouseDialog
+          house={house}
+          objectCount={artifacts.filter((a) => a.house_id === house?.id).length}
+          lowDetail={lowDetail}
+          onClose={dialog.close}
+        />
+      );
+    }
     default:
       return null;
   }

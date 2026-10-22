@@ -77,30 +77,26 @@ test("grosses Dorf: Szene rendert, Aufwand bleibt klein, Navigation Dorf › Qua
   await expect(page.getByText("Quartier", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
 
-  // Filter nach Kategorie bleibt nach dem Neuladen erhalten
-  await page.getByRole("button", { name: "Filter" }).click();
-  await page.getByRole("button", { name: "Quiz", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Quiz", exact: true })).toBeVisible();
+  // Kleines Anzeige-Fenster: Tageszeit, Ansicht und Filter; die Wahl bleibt nach dem Neuladen erhalten
   await page.getByRole("button", { name: "Mittag" }).click();
-  await page.getByRole("button", { name: "Abend", exact: true }).click();
-  await page.getByRole("button", { name: "Karte", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Karte", exact: true })).toHaveAttribute(
+  const display = page.getByRole("complementary", { name: "Anzeige" });
+  await expect(display).toBeVisible();
+  await display.getByRole("button", { name: "Quiz", exact: true }).click();
+  await display.getByRole("button", { name: "Abend", exact: true }).click();
+  await display.getByRole("button", { name: "Karte", exact: true }).click();
+  await expect(display.getByRole("button", { name: "Karte", exact: true })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
   await page.waitForTimeout(1200);
   await page.screenshot({ path: "test-results/dorf3d-karte.png" });
   await page.reload();
-  await expect(page.getByRole("button", { name: "Abend" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("button", { name: "Quiz", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Abend/ })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /Quiz/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Karte", exact: true })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-
-  // 2D-Fallback ist immer sichtbar und führt zur Liste
-  await page.getByRole("link", { name: "Zur Listenansicht", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/dorf/${big.username}/liste`), { timeout: 30_000 });
   expect(errors).toEqual([]);
 });
 

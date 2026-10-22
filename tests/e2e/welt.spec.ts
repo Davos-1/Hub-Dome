@@ -35,20 +35,35 @@ test("Start-Dialog über der Welt, Reise, Einstellungen und Haus anlegen", async
   );
 
   // Reise-Dialog, Esc schliesst
-  await start.getByRole("button", { name: /Dörfer besuchen/ }).click();
-  const travel = page.getByRole("dialog", { name: "Dörfer besuchen" });
+  await start.getByRole("button", { name: /Reise und Freunde/ }).click();
+  const travel = page.getByRole("dialog", { name: "Reise und Freunde" });
   await expect(travel.getByText(/^Dein Dorf ·/)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // Einstellungen als Dialog mit Tabs
+  // Einstellungen als Dialog mit Tabs; kein Upload eigener Modelle
   await page.getByRole("button", { name: "Einstellungen" }).click();
   const settings = page.getByRole("dialog", { name: "Einstellungen" });
   await settings.getByRole("tab", { name: "Profil" }).click();
   await expect(settings.getByLabel("Anzeigename")).toBeVisible();
-  await settings.getByRole("tab", { name: "Teilen" }).click();
-  await expect(settings.getByRole("button", { name: "Einladungslink erstellen" })).toBeVisible();
+  await settings.getByRole("tab", { name: "Dorf" }).click();
+  await expect(settings.getByText("Stil der Zentrale")).toBeVisible();
+  await expect(settings.getByText(/hochladen/i)).toHaveCount(0);
+  await expect(settings.getByRole("tab", { name: "Anzeige" })).toHaveCount(0);
   await page.keyboard.press("Escape");
+
+  // Anzeige: eigenes kleines Fenster mit Tageszeit, Ansicht und Filter
+  await page.getByRole("button", { name: "Mittag" }).click();
+  const display = page.getByRole("complementary", { name: "Anzeige" });
+  await expect(display.getByText("Tageszeit")).toBeVisible();
+  await expect(display.getByText("Ansicht", { exact: true })).toBeVisible();
+  await expect(display.getByText("Nach Kategorie filtern")).toBeVisible();
+  await display
+    .getByRole("button", { name: "Schliessen" })
+    .or(display.getByLabel("Anzeige schliessen"))
+    .first()
+    .click();
+  await expect(display).toHaveCount(0);
 
   // Haus anlegen im Dialog, danach findet die Suche das Haus
   await page.getByRole("button", { name: "+ Haus" }).click();
@@ -59,7 +74,30 @@ test("Start-Dialog über der Welt, Reise, Einstellungen und Haus anlegen", async
   await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 20_000 });
   const box = page.getByRole("searchbox", { name: "Haus oder Objekt suchen" });
   await box.fill("Welt-Test");
-  await expect(page.getByRole("option").first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("option").first().click();
+
+  // Haus bearbeiten (Titel ändern), danach löschen
+  const side = page.getByRole("complementary", { name: "Welt-Test" });
+  await side.getByRole("button", { name: "Haus bearbeiten" }).click();
+  const edit = page.getByRole("dialog", { name: "Haus bearbeiten" });
+  await edit.getByLabel("Titel").fill("Welt-Test 2");
+  await edit.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.getByRole("complementary", { name: "Welt-Test 2" })).toBeVisible({
+    timeout: 20_000,
+  });
+  page.on("dialog", (d) => d.accept());
+  await page
+    .getByRole("complementary", { name: "Welt-Test 2" })
+    .getByRole("button", { name: "Haus bearbeiten" })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Haus bearbeiten" })
+    .getByRole("button", { name: "Haus löschen" })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 20_000 });
+  await box.fill("Welt-Test");
+  await expect(page.getByText("Keine Treffer")).toBeVisible({ timeout: 20_000 });
   expect(errors).toEqual([]);
 });
 
@@ -70,7 +108,7 @@ test("alte Adressen leiten in die Dialoge um", async ({ browser }) => {
   const page = await ctx.newPage();
   await page.goto("/doerfer");
   await expect(page).toHaveURL(/\?d=reise/, { timeout: 30_000 });
-  await expect(page.getByRole("dialog", { name: "Dörfer besuchen" })).toBeVisible({
+  await expect(page.getByRole("dialog", { name: "Reise und Freunde" })).toBeVisible({
     timeout: 30_000,
   });
   await expect(page.locator("canvas")).toBeVisible({ timeout: 30_000 });

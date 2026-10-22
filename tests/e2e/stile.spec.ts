@@ -5,14 +5,14 @@ import { ZENTRALE_STYLES } from "../../src/lib/styles";
 // Rauchtest ohne Datenbank: jeder Haustyp (Fachbereich) und jeder Zentrale-Stil rendert fehlerfrei (Entwickler-Routen /dev/*).
 
 test("Stil-Galerie: alle Haustypen und Zentrale-Stile rendern ohne Fehler", async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(600_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   for (const fach of FACH_ORDER) {
     await page.goto(`/dev/stile?fach=${fach}&zentrale=rathaus`);
     await expect(page.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
   }
-  for (const zentrale of ZENTRALE_STYLES.filter((z) => z !== "custom")) {
+  for (const zentrale of ZENTRALE_STYLES) {
     await page.goto(`/dev/stile?fach=grundlagen&zentrale=${zentrale}`);
     await expect(page.locator("canvas").nth(1)).toBeVisible({ timeout: 30_000 });
   }

@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { requireProfile } from "@/lib/auth";
 import { needsRefresh } from "@/lib/item-types";
 import { refreshArtifactMeta } from "@/lib/previews.server";
+import { ZENTRALE_STYLES } from "@/lib/styles";
 import type { Artifact, House, Village } from "@/lib/types";
 
 /**
@@ -21,7 +22,7 @@ export async function loadVillage(username: string) {
 
   const { data: village } = await supabase
     .from("villages")
-    .select("id, owner_id, name, theme, zentrale_style, zentrale_model_meta")
+    .select("id, owner_id, name, theme, zentrale_style")
     .eq("owner_id", owner.id)
     .maybeSingle<Village>();
   if (!village) notFound();
@@ -60,15 +61,10 @@ export async function loadVillage(username: string) {
     if (stale.length) after(() => Promise.all(stale.map((a) => refreshArtifactMeta(a.id, me.id))));
   }
 
-  // Eigenes Zentrale-Modell: kurzlebige signierte URL, nur wenn der Stil es verwendet. RLS auf dem
-  // Storage-Objekt entscheidet, ob der Aufrufer es sehen darf.
-  let customModelUrl: string | null = null;
-  if (village.zentrale_style === "custom" && village.zentrale_model_meta) {
-    const { data } = await supabase.storage
-      .from("village-models")
-      .createSignedUrl(`${village.id}/zentrale.glb`, 600);
-    customModelUrl = data?.signedUrl ?? null;
+  // Unbekannte Stile aus älteren Daten (z.B. das frühere «custom») zeigen das Rathaus
+  if (!(ZENTRALE_STYLES as readonly string[]).includes(village.zentrale_style)) {
+    village.zentrale_style = "rathaus";
   }
 
-  return { supabase, me, owner, village, houses, artifacts, isOwner, customModelUrl };
+  return { supabase, me, owner, village, houses, artifacts, isOwner };
 }

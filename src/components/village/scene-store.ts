@@ -18,8 +18,8 @@ export type SceneState = {
   highlight: { kind: "obj" | "house"; id: string; t0: number } | null;
   kbdQuarter: FachbereichId | null;
   kbdHouse: string | null;
-  /** Popups der Leiste unten (Tageszeit, Filter); Einstellungen und Co. sind Dialoge der Welt-Shell. */
-  panel: null | "filter" | "time";
+  /** Kleines Anzeige-Fenster (Tageszeit, Ansicht, Filter); Einstellungen und Co. sind Dialoge der Welt-Shell. */
+  panel: null | "anzeige";
   /** Einstiegsbild: die Kamera steht weit weg, bis der Start-Dialog geschlossen wird. */
   intro: boolean;
 };

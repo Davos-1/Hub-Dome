@@ -92,7 +92,7 @@ export function chimneyTop(type: FachType, fp: number): [number, number, number]
   return null;
 }
 
-/** Modell der Zentrale (Stil `custom` wird separat als hochgeladenes Modell geladen; hier Ersatz = Rathaus). */
+/** Modell der Zentrale im gewählten Stil (unbekannte Werte aus älteren Daten zeigen das Rathaus). */
 export function zentraleModel(style: ZentraleStyle, fp: number): Model {
   switch (style) {
     case "schule":
@@ -119,7 +119,6 @@ export function zentraleTopFactor(style: ZentraleStyle): number {
     villa: 3.6,
     marskuppel: 3.4,
     leuchtturm: 6.4,
-    custom: 5,
   };
   return top[style];
 }
