@@ -10,7 +10,7 @@ Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** 
 
 | Phase | Inhalt | Quelle | Stand |
 |---|---|---|---|
-| 0 | Abklärungen: **Link-Test** (Artifact ohne Login, mit zweitem Konto, per iframe), Gratis-Limits | PLAN.md Phase 0 | **offen; der Link-Test ist Sperre vor Phase 5** (Gian, parallel zu 4d möglich) |
+| 0 | Abklärungen: **Link-Test** (Artifact ohne Login, mit zweitem Konto, per iframe), Gratis-Limits | PLAN.md Phase 0 | **erledigt 2026-10-22** (Link geht ohne Login auf, nur wenn geteilt; iframe nicht möglich; Gratis-Limits dokumentieren bleibt offen)|
 | 1–3 | Grundgerüst, DB/Auth, 2D-Funktionen, Freigabe | PLAN.md | fertig (Einladungslinks durch Freundschaften ersetzt, siehe 4d) |
 | 3b | Objekttypen, GitHub-/Gist-Vorschau | PLAN-ERWEITERUNG.md | fertig (MCP-Anteil kommt mit Phase 5) |
 | 4, 4b | 3D-Dorf, Gestaltung | PLAN.md, docs/PLAN-4B-GESTALTUNG.md | fertig (eigene GLB-Modelle am 2026-10-22 entfernt) |

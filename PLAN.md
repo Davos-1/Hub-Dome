@@ -284,7 +284,7 @@ Gilt nur, wenn die Hub-Dome-Tools (dorf_haeuser_auflisten, artifact_platzieren) 
 
 ### Phase 0 – Abklärungen (ohne Code) – **Link-Test ist Sperre vor Phase 5**
 
-- [ ] **Link-Test (Gian, ca. 15 Minuten).** Ein Artifact in claude.ai veröffentlichen bzw. teilen und den Link prüfen:
+- [x] **Link-Test (Gian, teilweise erledigt 2026-10-22, Ergebnis in `docs/ENTSCHEIDUNGEN.md`).** Ein Artifact in claude.ai veröffentlichen bzw. teilen und den Link prüfen:
   1. im privaten Browserfenster ohne Login öffnen;
   2. mit einem zweiten claude.ai-Konto (Gratis) öffnen;
   3. mit dem zweiten Konto öffnen, solange das Artifact noch **nicht** geteilt ist;

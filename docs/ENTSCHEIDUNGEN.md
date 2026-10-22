@@ -181,3 +181,11 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Listen-Dialog** `?d=liste` (Knopf und Taste L) mit Suche und Typ-Filter; `/dorf/<name>/liste` leitet um.
 - **Tests:** RLS 34/34; E2E `freundeslink.spec` und `freigabe.spec` grün. Bei vielen aufeinanderfolgenden Tests wird der Dev-Server langsam (Einzelläufe sind schnell); Timeouts der Aktions-Tests grosszügig gesetzt.
 - **Lehre:** Mit `Suspense` ausgelieferte Seiten, die `notFound()` aufrufen, antworten mit Status 200; E2E-Tests prüfen den Text «This page could not be found.» statt den Status.
+
+## 2026-10-22 – Link-Test Phase 0: Ergebnis
+- **Getestet (Gian):** Ein geteilter Artifact-Link (`https://claude.ai/artifact/<id>`) lässt sich im privaten Fenster **ohne Login** öffnen und nutzen. Voraussetzung: Beim Teilen in claude.ai ist «Jeder mit dem Link» gewählt. Ein **nicht geteiltes** Artifact kann ein Externer nicht öffnen.
+- **Geprüft (Claude, 2026-10-22, `curl -I`):** Der Link antwortet anonym mit 200. Die Antwort setzt `Content-Security-Policy: frame-ancestors 'self' chrome-extension://…`, **Einbetten per iframe in Hub Dome ist damit nicht möglich**. Es bleibt bei «Öffnen im neuen Tab» (`target="_blank" rel="noopener noreferrer"`); kein Umbau nötig.
+- **URL-Form:** `claude.ai/artifact/<id>` geht durch `artifactUrlSchema` (Test ergänzt). Weitere Formen (z.B. `claude.ai/public/artifacts/…`, `claude.ai/code/artifact/…`) sind ebenfalls claude.ai-Links und erlaubt.
+- **Nicht getestet:** Öffnen mit einem **zweiten eingeloggten Gratis-Konto** (Schritt 2). Da der Link auch ohne Login geht, ist das für Freunde unkritisch; gilt als erledigt.
+- **Folgen:** (1) Das Formular «Objekt hinzufügen» weist darauf hin, in claude.ai «Jeder mit dem Link» zu wählen. (2) Der Skill (Phase 5) erinnert vor dem Platzieren daran: «Teile das Artifact in claude.ai mit ‹Jeder mit dem Link›, damit deine Freunde es öffnen können.» (3) Ein Pro-Konto ist für das Öffnen nicht nötig; entscheidend ist die Freigabe des Besitzers.
+- **Damit ist die Sperre vor Phase 5 aufgehoben.**

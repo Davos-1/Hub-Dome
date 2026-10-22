@@ -8,6 +8,11 @@ import {
 } from "./validation";
 
 describe("artifactUrlSchema", () => {
+  it("akzeptiert die Form des getesteten Links (claude.ai/artifact/<id>)", () => {
+    expect(
+      artifactUrlSchema.safeParse("https://claude.ai/artifact/Cb5DRf6Fx8K2CWsKKrbBxo").success,
+    ).toBe(true);
+  });
   it("akzeptiert claude.ai-Links", () => {
     expect(artifactUrlSchema.safeParse("https://claude.ai/public/artifacts/abc").success).toBe(
       true,

@@ -143,6 +143,10 @@ export function ArtifactForm({
           </select>
         </div>
       </div>
+      <p className="hd-note">
+        Claude-Artifacts: Stelle die Freigabe in claude.ai auf «Jeder mit dem Link», sonst können
+        deine Freunde das Objekt nicht öffnen.
+      </p>
       <p className="hd-note">Teile keine Lösungen zu bewerteten Leistungsnachweisen.</p>
     </ActionForm>
   );
