@@ -30,6 +30,14 @@ export type ShellFriend = {
 /** Ein von dir erzeugter Freundschaftslink (nur Metadaten, der Klartext ist nicht gespeichert). */
 export type ShellLink = { id: string; expiresAt: string; maxUses: number; uses: number };
 
+/** Ein Connector-Token (ohne Klartext und Hash). */
+export type ShellToken = {
+  id: string;
+  label: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
+
 /** Nur für das eigene Dorf: Einstellungen und Auswahllisten für Formulare. */
 export type ShellOwn = {
   villageId: string;
@@ -42,6 +50,7 @@ export type ShellData = {
   villages: ShellVillage[];
   friends: ShellFriend[];
   links: ShellLink[];
+  tokens: ShellToken[];
   own: ShellOwn | null;
 };
 
@@ -101,6 +110,22 @@ async function loadLinks(supabase: SupabaseClient): Promise<ShellLink[]> {
   }));
 }
 
+/** Aktive Connector-Tokens der Person (leer, falls die Tabelle fehlt). */
+async function loadTokens(supabase: SupabaseClient): Promise<ShellToken[]> {
+  const { data, error } = await supabase
+    .from("mcp_tokens")
+    .select("id, label, created_at, last_used_at")
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []).map((t) => ({
+    id: t.id as string,
+    label: t.label as string,
+    createdAt: t.created_at as string,
+    lastUsedAt: (t.last_used_at as string | null) ?? null,
+  }));
+}
+
 /**
  * Lädt alles für Start-, Reise-, Einstellungs- und Hinzufügen-Dialoge. Läuft mit dem RLS-Client:
  * Dörfer und Freundschaften sehen nur die Beteiligten.
@@ -109,7 +134,7 @@ export async function loadShell(
   supabase: SupabaseClient,
   profile: { id: string; username: string; display_name: string },
 ): Promise<ShellData> {
-  const [villagesRes, ownRes, friends, links] = await Promise.all([
+  const [villagesRes, ownRes, friends, links, tokens] = await Promise.all([
     supabase
       .from("villages")
       .select(
@@ -119,6 +144,7 @@ export async function loadShell(
     supabase.from("villages").select("id, zentrale_style").eq("owner_id", profile.id).maybeSingle(),
     loadFriends(supabase, profile.id),
     loadLinks(supabase),
+    loadTokens(supabase),
   ]);
 
   const rows = (villagesRes.data ?? []) as unknown as VillageRow[];
@@ -163,6 +189,7 @@ export async function loadShell(
     villages,
     friends,
     links,
+    tokens,
     own,
   };
 }

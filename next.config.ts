@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  // Der Skill wird zur Laufzeit gelesen: Datei in das Deployment aufnehmen
+  outputFileTracingIncludes: { "/api/skill": ["./skill/**/*"] },
   turbopack: {
     rules: {
       "*.css": {

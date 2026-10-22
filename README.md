@@ -21,4 +21,11 @@ npm run dev                  # http://localhost:3000
 
 ## Struktur
 
-`src/app` Seiten · `src/components` UI und 3D · `src/lib` Logik · `src/mcp` MCP-Tools · `supabase` Migrationen und RLS-Tests · `skill` Claude-Skill · `tests/e2e` Playwright · `docs` Doku.
+`src/app` Seiten · `src/components` UI und 3D · `src/lib` Logik · `src/lib/mcp` MCP-Tools (Route `src/app/api/mcp/[token]`) · `supabase` Migrationen und RLS-Tests · `skill` Claude-Skill · `tests/e2e` Playwright · `docs` Doku.
+
+## MCP-Connector (Phase 5)
+
+- Token im Einstellungen-Dialog, Tab «Claude», erzeugen (höchstens 5 aktive, widerrufbar). Die Connector-URL ist `<SITE_URL>/api/mcp/<token>` (Streamable HTTP, zustandslos).
+- Tools: `dorf_haeuser_auflisten`, `artifact_platzieren`, `objekt_platzieren` (Alias für alle Linktypen), `haus_erstellen`, `letzte_artifacts`. Höchstens 60 Tool-Aufrufe pro Token und Stunde.
+- Skill: `skill/hub-dome-platzieren/SKILL.md`, als ZIP unter `/api/skill` herunterladbar.
+- Lokal testen: `npx @modelcontextprotocol/inspector`, Transport «Streamable HTTP», URL `http://localhost:3000/api/mcp/<token>`.

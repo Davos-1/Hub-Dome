@@ -189,3 +189,12 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Nicht getestet:** Öffnen mit einem **zweiten eingeloggten Gratis-Konto** (Schritt 2). Da der Link auch ohne Login geht, ist das für Freunde unkritisch; gilt als erledigt.
 - **Folgen:** (1) Das Formular «Objekt hinzufügen» weist darauf hin, in claude.ai «Jeder mit dem Link» zu wählen. (2) Der Skill (Phase 5) erinnert vor dem Platzieren daran: «Teile das Artifact in claude.ai mit ‹Jeder mit dem Link›, damit deine Freunde es öffnen können.» (3) Ein Pro-Konto ist für das Öffnen nicht nötig; entscheidend ist die Freigabe des Besitzers.
 - **Damit ist die Sperre vor Phase 5 aufgehoben.**
+
+## 2026-10-22 – Phase 5: MCP-Connector und Skill umgesetzt
+- **Route** `POST /api/mcp/<token>` (Streamable HTTP, zustandslos, max. 256 KB pro Anfrage). Token nur gehasht mit `TOKEN_PEPPER`; alle Abfragen mit Service Role filtern auf den Token-Besitzer.
+- **Tools:** `dorf_haeuser_auflisten`, `artifact_platzieren` (mit `objekt_typ`), Alias `objekt_platzieren`, `haus_erstellen`, `letzte_artifacts`. Unbekanntes Haus legt nichts automatisch an, sondern nennt die vorhandenen Häuser. Gleiche URL aktualisiert den Eintrag.
+- **`im_topdorf_zeigen`** wird erst mit Migration 5b (`topdorf_ok`) aktiv, bis dahin ignoriert.
+- **Rate-Limit:** Migration `20261022000400_mcp_rate_limit.sql` (`mcp_rate`, `mcp_hit`), 60 `tools/call` pro Token und Stunde; höchstens 5 aktive Tokens pro Person (Trigger).
+- **Skill** erinnert an «Jeder mit dem Link» (Ergebnis Link-Test), fragt nicht von sich aus nach Topdorf; Download als ZIP unter `/api/skill`.
+- **Tests:** Unit 109/109, RLS 57/57 (Token, widerrufen, nur eigenes Dorf, Duplikat-URL, Protokoll, Limit).
+- **Offen:** Abnahme mit dem MCP Inspector (Gian) und in claude.ai nach dem Deployment (Phase 6).

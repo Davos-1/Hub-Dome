@@ -5,11 +5,13 @@ import { updateDisplayName } from "@/app/einstellungen/actions";
 import { StyleSettings } from "@/components/settings/style-settings";
 import { ActionForm } from "@/components/ui/action-form";
 import type { ShellData } from "@/lib/shell-data";
+import { ClaudeTab } from "./claude-tab";
 import { DialogShell } from "./dialog-shell";
 
 export const SETTINGS_TABS = [
   ["profil", "Profil"],
   ["dorf", "Dorf"],
+  ["claude", "Claude"],
 ] as const;
 export type SettingsTab = (typeof SETTINGS_TABS)[number][0];
 
@@ -62,7 +64,7 @@ function VillageTab({ shell }: { shell: ShellData }) {
   );
 }
 
-/** Einstellungen als Dialog mit den Tabs Profil und Dorf (Zentrale). Anzeige-Optionen sind ein eigenes kleines Fenster. */
+/** Einstellungen als Dialog mit den Tabs Profil, Dorf (Zentrale) und Claude (Connector). Anzeige-Optionen sind ein eigenes kleines Fenster. */
 export function SettingsDialog({
   shell,
   tab,
@@ -113,6 +115,7 @@ export function SettingsDialog({
         <div role="tabpanel">
           {current === "profil" && <ProfileTab shell={shell} />}
           {current === "dorf" && <VillageTab shell={shell} />}
+          {current === "claude" && <ClaudeTab tokens={shell.tokens} />}
         </div>
       </div>
     </DialogShell>
