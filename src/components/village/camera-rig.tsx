@@ -82,8 +82,10 @@ export function CameraRig({
     }
     // Kamera im Bogen um das Ziel führen (Kugelkoordinaten) statt geradeaus: der Blick bleibt
     // während der ganzen Fahrt auf dem Ziel, am Ende dreht sie nicht mehr ruckartig nach.
+    // Drehpunkt ist das neue Ziel: die Kamera kreist im Anflug um das Haus selbst, nicht um den
+    // wandernden Blickpunkt (sonst kippt der Blick bei Häusern, die von der Kamera wegschauen).
     const fromTarget = controls.target.clone();
-    const fromOff = new THREE.Spherical().setFromVector3(camera.position.clone().sub(fromTarget));
+    const fromOff = new THREE.Spherical().setFromVector3(camera.position.clone().sub(target));
     const toOff = new THREE.Spherical().setFromVector3(to.clone().sub(target));
     const topDown = fromOff.phi < TOP_DOWN_PHI || toOff.phi < TOP_DOWN_PHI;
     const turn = topDown ? 0 : angleDelta(fromOff.theta, toOff.theta);
@@ -123,7 +125,8 @@ export function CameraRig({
     if (!a || !controls) return;
     a.t = Math.min(1, a.t + delta / a.duration);
     const k = ease(a.t);
-    controls.target.lerpVectors(a.fromTarget, a.toTarget, k);
+    // Der Blick erreicht das Ziel früher als die Kamera ihre Endposition: kein Nachdrehen am Ende.
+    controls.target.lerpVectors(a.fromTarget, a.toTarget, ease(Math.min(1, a.t * 1.6)));
     const theta =
       a.turn === 0
         ? THREE.MathUtils.lerp(a.fromOff.theta, a.toOff.theta, k)
@@ -135,7 +138,7 @@ export function CameraRig({
     );
     // In der Mitte des Bogens etwas höher, damit er nicht durch Dächer und Bäume führt.
     const lift = new THREE.Vector3(0, Math.sin(Math.PI * k) * a.lift, 0);
-    camera.position.setFromSpherical(off).add(controls.target).add(lift);
+    camera.position.setFromSpherical(off).add(a.toTarget).add(lift);
     controls.update();
     if (a.t >= 1) anim.current = null;
     else invalidate();

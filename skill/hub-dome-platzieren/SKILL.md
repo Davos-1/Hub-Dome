@@ -8,10 +8,11 @@ description: IMMER verwenden, sobald in einem Chat ein Artifact erstellt oder ve
 Gilt nur, wenn die Hub-Dome-Tools verfügbar sind (`dorf_haeuser_auflisten`, `artifact_platzieren` bzw. `objekt_platzieren`). Sonst nichts davon erwähnen.
 
 1. Sobald du ein Artifact erstellt hast (oder ein GitHub-Repo bzw. ein Gist entstanden ist), rufe von dir aus `dorf_haeuser_auflisten` auf. Der User muss Hub Dome nicht erwähnen. Fehlt dir der Link des Artifacts noch, bitte den User, es zu veröffentlichen und den Link einzufügen.
-2. Frage **einmal kurz** mit Antwortknöpfen (Auswahl-Widget, falls verfügbar), damit ein Klick genügt:
-   - «Ja, für Freunde» → `sichtbarkeit: "shared"`
-   - «Ja, nur für mich» → `sichtbarkeit: "private"`
-   - «Nein»
+2. Frage **einmal** und **immer über das Auswahl-Werkzeug mit Antwortknöpfen** (z.B. `ask_user_input`, einfache Auswahl), nicht als Fliesstext, damit ein Klick genügt. Genau diese drei Optionen:
+   - «Hochladen für alle» → `sichtbarkeit: "shared"` (für Freunde sichtbar)
+   - «Hochladen für dich» → `sichtbarkeit: "private"`
+   - «✕ Nein»
+   Nur wenn kein solches Werkzeug verfügbar ist, frage in einem kurzen Satz mit denselben drei Optionen.
    Nenne dazu das vorgeschlagene, passendste Haus (nach Modul oder Thema) und biete die anderen Häuser als Auswahl an.
 3. Nur bei «für Freunde» und einem Claude-Artifact erinnere kurz: «Teile das Artifact in claude.ai mit ‹Jeder mit dem Link›, damit deine Freunde es öffnen können.» (Ohne diese Freigabe können es nur du selbst öffnen.)
 4. Bei Zustimmung rufe `artifact_platzieren` (für Claude-Artifacts) bzw. `objekt_platzieren` (für alle anderen Links) auf mit:
