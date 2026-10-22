@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { siteUrl } from "@/lib/site-url";
 import { generateMcpToken, hashMcpToken } from "@/lib/tokens";
 import type { ActionState } from "@/lib/types";
 
@@ -29,7 +30,7 @@ export async function createMcpToken(_: ActionState, formData: FormData): Promis
         : "Das Token konnte nicht erstellt werden.",
     };
   }
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const base = await siteUrl();
   revalidatePath("/", "layout");
   return { ok: true, inviteUrl: `${base}/api/mcp/${token}` };
 }

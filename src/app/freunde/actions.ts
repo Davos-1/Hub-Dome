@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { siteUrl } from "@/lib/site-url";
 import { FRIEND_LINK_DAYS, friendLinkSchema, friendTokenFrom } from "@/lib/friend-links";
 import { generateToken, hashToken } from "@/lib/tokens";
 import type { ActionState } from "@/lib/types";
@@ -84,7 +85,7 @@ export async function createFriendLink(_: ActionState, formData: FormData): Prom
     max_uses: parsed.data.maxUses,
   });
   if (error) return { error: "Der Freundschaftslink konnte nicht erstellt werden." };
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const base = await siteUrl();
   revalidatePath("/", "layout");
   return { ok: true, inviteUrl: `${base}/freund/${token}` };
 }
