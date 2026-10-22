@@ -102,16 +102,11 @@ export function ClaudeTab({ tokens }: { tokens: ShellToken[] }) {
           </Step>
           <Step n={3}>
             Lade den Skill herunter und lade ihn in claude.ai unter Einstellungen → Fähigkeiten
-            (Skills) hoch:{" "}
-            <a
-              href="/api/skill"
-              download
-              className="font-semibold text-[#2f5d4a] underline underline-offset-2"
-            >
-              hub-dome-platzieren.zip
+            (Skills) hoch. Er sorgt dafür, dass Claude nach jedem Artifact fragt, ob es in Hub Dome
+            soll (für Freunde oder nur für dich).
+            <a href="/api/skill" download className="hd-btn hd-btn-primary mt-2 w-full">
+              ⬇ Skill herunterladen (hub-dome-platzieren.zip)
             </a>
-            . Der Skill sorgt dafür, dass Claude nach dem Veröffentlichen einmal fragt, ob das
-            Artifact in Hub Dome soll.
           </Step>
           <Step n={4}>
             Erstelle ein Artifact. Claude fragt, in welches Haus es soll, und platziert es. Teile
