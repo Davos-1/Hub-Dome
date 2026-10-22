@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { emailSchema } from "@/lib/validation";
+import { sendMagicLink } from "./actions";
 
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_LOGIN === "true";
 
@@ -11,8 +12,8 @@ export function LoginForm({ next }: { next?: string }) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
 
+  // Nur für Google (PKCE, gleicher Browser); der Mail-Link wird serverseitig angefordert.
   const callback = () => {
-    // `next` immer setzen: die Mail-Vorlage hängt `&token_hash=…` an diese Adresse an.
     const url = new URL("/auth/callback", window.location.origin);
     url.searchParams.set("next", next ?? "/start");
     return url.toString();
@@ -25,13 +26,10 @@ export function LoginForm({ next }: { next?: string }) {
     if (!parsed.success) return setError(parsed.error.issues[0].message);
 
     setStatus("sending");
-    const { error } = await createClient().auth.signInWithOtp({
-      email: parsed.data,
-      options: { emailRedirectTo: callback() },
-    });
+    const { error } = await sendMagicLink(parsed.data, next);
     if (error) {
       setStatus("idle");
-      return setError("Der Link konnte nicht gesendet werden. Bitte später erneut versuchen.");
+      return setError(error);
     }
     setStatus("sent");
   }
@@ -48,8 +46,8 @@ export function LoginForm({ next }: { next?: string }) {
   if (status === "sent") {
     return (
       <p role="status" className="rounded-xl bg-[#e6efe9] p-4 text-[#1f4132]">
-        Wir haben dir einen Anmelde-Link an <strong>{email}</strong> gesendet. Öffne ihn im selben
-        Browser.
+        Wir haben dir einen Anmelde-Link an <strong>{email}</strong> gesendet. Du kannst ihn auch
+        auf einem anderen Gerät öffnen.
       </p>
     );
   }
