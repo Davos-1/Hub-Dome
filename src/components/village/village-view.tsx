@@ -159,6 +159,18 @@ export function VillageView(props: Props) {
     });
   }, [store]);
 
+  // Zurück im Tab (z.B. nach dem Platzieren in claude.ai): Dorfdaten neu laden, höchstens alle 10 s.
+  useEffect(() => {
+    let last = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 10_000) return;
+      last = Date.now();
+      router.refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
+
   // Sobald der Start-Dialog nicht mehr offen ist, fliegt die Kamera zur Übersicht ein.
   useEffect(() => {
     if (active !== "start") store.set({ intro: false });

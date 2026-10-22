@@ -1,16 +1,21 @@
 ---
 name: hub-dome-platzieren
-description: Nach dem Veröffentlichen eines Artifacts (oder wenn ein GitHub-Repo bzw. Gist entstanden ist) einmal fragen, ob es in Hub Dome soll, und es über den Hub-Dome-Connector im passenden Haus platzieren.
+description: IMMER verwenden, sobald in einem Chat ein Artifact erstellt oder veröffentlicht wurde (oder ein GitHub-Repo bzw. Gist entstanden ist) und der Hub-Dome-Connector verfügbar ist, auch wenn der User Hub Dome nicht erwähnt. Fragt einmal, ob und wie (für Freunde oder privat) es in Hub Dome soll, und platziert es im passenden Haus.
 ---
 
 # Objekt in Hub Dome stellen
 
 Gilt nur, wenn die Hub-Dome-Tools verfügbar sind (`dorf_haeuser_auflisten`, `artifact_platzieren` bzw. `objekt_platzieren`). Sonst nichts davon erwähnen.
 
-1. Sobald du ein Artifact veröffentlicht hast (oder ein GitHub-Repo bzw. ein Gist entstanden ist) und dessen Link kennst, rufe `dorf_haeuser_auflisten` auf.
-2. Frage **einmal kurz**: «Soll ich das in Hub Dome stellen?» und schlage das passendste Haus vor (nach Modul oder Thema des Inhalts). Biete die anderen Häuser als Auswahl an.
-3. Bei einem Claude-Artifact erinnere kurz: «Teile das Artifact in claude.ai mit ‹Jeder mit dem Link›, damit deine Freunde es öffnen können.» (Ohne diese Freigabe können es nur du selbst öffnen.)
+1. Sobald du ein Artifact erstellt hast (oder ein GitHub-Repo bzw. ein Gist entstanden ist), rufe von dir aus `dorf_haeuser_auflisten` auf. Der User muss Hub Dome nicht erwähnen. Fehlt dir der Link des Artifacts noch, bitte den User, es zu veröffentlichen und den Link einzufügen.
+2. Frage **einmal kurz** mit Antwortknöpfen (Auswahl-Widget, falls verfügbar), damit ein Klick genügt:
+   - «Ja, für Freunde» → `sichtbarkeit: "shared"`
+   - «Ja, nur für mich» → `sichtbarkeit: "private"`
+   - «Nein»
+   Nenne dazu das vorgeschlagene, passendste Haus (nach Modul oder Thema) und biete die anderen Häuser als Auswahl an.
+3. Nur bei «für Freunde» und einem Claude-Artifact erinnere kurz: «Teile das Artifact in claude.ai mit ‹Jeder mit dem Link›, damit deine Freunde es öffnen können.» (Ohne diese Freigabe können es nur du selbst öffnen.)
 4. Bei Zustimmung rufe `artifact_platzieren` (für Claude-Artifacts) bzw. `objekt_platzieren` (für alle anderen Links) auf mit:
+   - `sichtbarkeit` gemäss Antwort aus Schritt 2,
    - `url`: der Link, `titel`: kurz (max. 120 Zeichen), `beschreibung`: ein Satz,
    - `haus_id` oder `haus_titel` aus der Liste der Häuser (kein Haus erfinden),
    - `typ`: passende Kategorie (`rechner`, `quiz`, `zusammenfassung`, `cheatsheet`, `tool`, `visualisierung`, sonst `sonstiges`),
