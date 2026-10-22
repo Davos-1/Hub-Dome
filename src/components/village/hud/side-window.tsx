@@ -75,7 +75,7 @@ function Shell({
   return (
     <aside
       aria-label={title}
-      className="pointer-events-auto absolute top-3 right-3 bottom-3 z-20 flex w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea] shadow-[0_12px_40px_rgba(28,27,25,.28)]"
+      className="pointer-events-auto absolute top-16 right-3 bottom-3 z-20 flex w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea] shadow-[0_12px_40px_rgba(28,27,25,.28)]"
     >
       <div className="hd-plank flex items-center justify-between gap-3 px-[18px] py-3.5">
         <div className="min-w-0">

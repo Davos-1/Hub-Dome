@@ -60,7 +60,7 @@ export function SearchBox({ model, actions }: { model: VillageModel; actions: Sc
   };
 
   return (
-    <div className="pointer-events-auto absolute top-3 right-3 flex w-[260px] max-w-[calc(100vw-24px)] flex-col gap-1">
+    <div className="pointer-events-auto absolute top-3 right-3 z-30 flex w-[260px] max-w-[calc(100vw-24px)] flex-col gap-1">
       <input
         type="search"
         value={query}
