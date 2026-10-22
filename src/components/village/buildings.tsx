@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
-import type { HouseLayout } from "@/lib/layout";
+import type { HouseLayout, PlotSlot } from "@/lib/layout";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { HouseInfo } from "@/lib/village-model";
 import { avatarColor } from "./colors";
@@ -16,6 +16,7 @@ import {
 } from "./models";
 import type { SceneActions } from "./scene-actions";
 import { useScene, type SceneStore } from "./scene-store";
+import { zentraleRingGeometry } from "./zentrale-objects";
 
 /** Höhe der Zentrale auf ihrer Terrasse. */
 export const ZENTRALE_LIFT = 0.22;
@@ -130,31 +131,46 @@ export function House3D({
       >
         <boxGeometry args={[fp * 3.2, top, fp * 3.2]} />
       </mesh>
-      {l.plot?.slots.map((s) => (
-        <mesh
-          key={s.id}
-          position={[s.x, 0.6, s.z]}
-          visible={false}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            store.set({ hoverObjId: s.id, hoverHouseId: null });
-            document.body.style.cursor = "pointer";
-          }}
-          onPointerOut={() => {
-            if (store.get().hoverObjId === s.id) store.set({ hoverObjId: null });
-            document.body.style.cursor = "";
-          }}
-          onClick={(e) => {
-            if (!isClick(e)) return;
-            e.stopPropagation();
-            actions.goToObject(info.id, s.id);
-          }}
-        >
-          <boxGeometry args={[0.7, 1.2, 0.7]} />
-        </mesh>
-      ))}
+      <SlotHits slots={l.plot?.slots} houseId={info.id} store={store} actions={actions} />
     </group>
   );
+}
+
+/** Unsichtbare Trefferflächen der Objekt-Plätze (Hover-Karte, Klick springt zum Objekt). */
+function SlotHits({
+  slots,
+  houseId,
+  store,
+  actions,
+}: {
+  slots: PlotSlot[] | null | undefined;
+  houseId: string;
+  store: SceneStore;
+  actions: SceneActions;
+}) {
+  return slots?.map((s) => (
+    <mesh
+      key={s.id}
+      position={[s.x, 0.6, s.z]}
+      visible={false}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        store.set({ hoverObjId: s.id, hoverHouseId: null });
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        if (store.get().hoverObjId === s.id) store.set({ hoverObjId: null });
+        document.body.style.cursor = "";
+      }}
+      onClick={(e) => {
+        if (!isClick(e)) return;
+        e.stopPropagation();
+        actions.goToObject(houseId, s.id);
+      }}
+    >
+      <boxGeometry args={[0.7, 1.2, 0.7]} />
+    </mesh>
+  ));
 }
 
 /** Die Zentrale auf ihrer Terrasse, in dem Stil, den der Besitzer gewählt hat. */
@@ -164,6 +180,7 @@ export function Zentrale3D({
   style,
   avatarSeed,
   glow,
+  store,
   actions,
   children,
 }: {
@@ -172,6 +189,7 @@ export function Zentrale3D({
   style: ZentraleStyle;
   avatarSeed: string;
   glow: number;
+  store: SceneStore;
   actions: SceneActions;
   children?: ReactNode;
 }) {
@@ -181,9 +199,26 @@ export function Zentrale3D({
   const top = zentraleTopFactor(style) * fp;
   const figure = useMemo(() => figureModel(avatarColor(avatarSeed)), [avatarSeed]);
   useEffect(() => () => figure.dispose(), [figure]);
+  const ring = useMemo(
+    () =>
+      zentraleRingGeometry(
+        style,
+        l.ring ?? [],
+        new Map(info.items.map((o) => [o.id, { isNew: o.isNew, isCopy: o.isCopy }])),
+      ),
+    [style, l.ring, info.items],
+  );
+  useEffect(() => () => ring?.dispose(), [ring]);
 
   return (
     <group position={[l.x, ZENTRALE_LIFT, l.z]}>
+      {/* Objekte im Ring um die Zentrale */}
+      {ring && (
+        <mesh geometry={ring} castShadow receiveShadow>
+          <meshStandardMaterial vertexColors roughness={0.75} />
+        </mesh>
+      )}
+      <SlotHits slots={l.ring} houseId={info.id} store={store} actions={actions} />
       <group
         onPointerOver={(e) => {
           e.stopPropagation();

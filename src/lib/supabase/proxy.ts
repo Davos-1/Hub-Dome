@@ -9,6 +9,8 @@ const PUBLIC_PATHS = [
   "/login",
   "/auth",
   "/api/mcp",
+  "/api/cron",
+  "/datenschutz",
   ...(process.env.NODE_ENV === "production" ? [] : ["/dev"]),
 ];
 

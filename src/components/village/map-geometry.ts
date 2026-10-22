@@ -27,6 +27,13 @@ export function buildMapGeometry(model: VillageModel): THREE.BufferGeometry | nu
             color: "#efe6d4",
             pos: [0, 0.05, 0],
           },
+          ...(l.ring ?? []).map(
+            (s): Part => ({
+              geo: box(0.6, 0.05, 0.6),
+              color: KIND_COLORS[s.kind],
+              pos: [s.x, 0.06, s.z],
+            }),
+          ),
         ],
         l,
       );

@@ -103,7 +103,7 @@ export function plazaSurface(p: PlazaPoly, fill: string, edge: string): THREE.Bu
 }
 
 /** Zweistufige Terrasse unter der Zentrale in der Form des Hauptplatzes. */
-function terraceParts(p: PlazaPoly): Part[] {
+function terraceParts(p: PlazaPoly, top: number): Part[] {
   const out: Part[] = [];
   const ex = (r: number, h: number, color: string) => {
     const g = new THREE.ExtrudeGeometry(polyShape(r, p.n, p.rot), {
@@ -113,8 +113,8 @@ function terraceParts(p: PlazaPoly): Part[] {
     g.rotateX(-Math.PI / 2);
     out.push({ geo: g, color });
   };
-  ex(5.5, 0.11, "#cfc7b4");
-  ex(4.95, 0.22, "#ddd5c3");
+  ex(top + 0.55, 0.11, "#cfc7b4");
+  ex(top, 0.22, "#ddd5c3");
   return out;
 }
 
@@ -150,10 +150,10 @@ export function fountainParts(x: number, z: number): Part[] {
   ];
 }
 
-/** Position des Brunnens und des Anschlagbretts am Hauptplatz. */
-export const FOUNTAIN_POS = polar(Math.PI / 2 + 0.78, 7.2);
+/** Position des Brunnens und des Anschlagbretts am Hauptplatz (rücken mit grösserem Platz nach aussen). */
+export const fountainPos = (plaza: number) => polar(Math.PI / 2 + 0.78, plaza - 2.2);
 export const NOTICE_ANGLE = Math.PI / 2 - 0.78;
-export const NOTICE_POS = polar(NOTICE_ANGLE, 7.3);
+export const noticePos = (plaza: number) => polar(NOTICE_ANGLE, plaza - 2.1);
 
 /** Pfosten und Dach des Anschlagbretts (lokal; Brett selbst kommt aus dem Atlas). */
 export function noticePostParts(): Part[] {
@@ -192,7 +192,11 @@ export function mainPlazaDeco(layout: VillageLayout): {
 } {
   const main = layout.polys.find((p) => p.main);
   if (!main) return { parts: [], trees: [] };
-  const parts: Part[] = [...terraceParts(main), ...fountainParts(FOUNTAIN_POS.x, FOUNTAIN_POS.z)];
+  const fountain = fountainPos(layout.plazaRadius);
+  const parts: Part[] = [
+    ...terraceParts(main, layout.terrace),
+    ...fountainParts(fountain.x, fountain.z),
+  ];
   const trees: { x: number; z: number; s: number }[] = [];
   const { n } = main;
   const R = main.a / Math.cos(Math.PI / n);

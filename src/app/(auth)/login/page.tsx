@@ -6,7 +6,7 @@ import { LoginForm } from "./login-form";
 export const metadata = { title: "Anmelden – Hub Dome" };
 
 async function LoginContent({ searchParams }: Pick<PageProps<"/login">, "searchParams">) {
-  const { next, fehler } = await searchParams;
+  const { next, fehler, loeschung } = await searchParams;
   const nextPath = typeof next === "string" ? safeNextPath(next, "") : "";
 
   return (
@@ -19,7 +19,18 @@ async function LoginContent({ searchParams }: Pick<PageProps<"/login">, "searchP
           Die Anmeldung hat nicht geklappt. Bitte fordere einen neuen Link an.
         </p>
       )}
+      {loeschung && (
+        <p role="status" className="rounded-xl bg-[#fff3cf] p-3 text-[#6b4e00]">
+          Dein Konto wird in einem Tag mit allen Daten gelöscht. Meldest du dich vorher wieder an,
+          wird die Löschung abgebrochen.
+        </p>
+      )}
       <LoginForm next={nextPath || undefined} />
+      <p className="hd-note">
+        <a href="/datenschutz" className="underline">
+          Datenschutz
+        </a>
+      </p>
     </AuthCard>
   );
 }

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { FACH_ORDER } from "./fachbereiche";
-import { computeLayout, houseTier, plotCorners, satOverlap, type LayoutHouse } from "./layout";
+import {
+  computeLayout,
+  houseTier,
+  plotCorners,
+  satOverlap,
+  TERRACE_MIN,
+  ZENTRALE_RING_R,
+  type LayoutHouse,
+} from "./layout";
 import { ARTIFACT_KINDS } from "./types";
 
 /** n Häuser, reihum auf `spread` Fachbereiche verteilt, je `items` Objekte. */
@@ -112,5 +120,51 @@ describe("computeLayout", () => {
   it("extent umfasst alle Häuser", () => {
     const l = computeLayout(make(30, 5, 3));
     for (const h of Object.values(l.houses)) expect(Math.hypot(h.x, h.z)).toBeLessThan(l.extent);
+  });
+});
+
+describe("Objekt-Ring der Zentrale", () => {
+  const withZentrale = (n: number, houses = 8) => {
+    const list = make(houses, 3, 1);
+    list[0] = {
+      ...list[0],
+      items: Array.from({ length: n }, (_, j) => ({
+        id: `z${j}`,
+        kind: ARTIFACT_KINDS[j % ARTIFACT_KINDS.length],
+      })),
+    };
+    return list;
+  };
+
+  it("ohne Objekte: kein Ring, Terrasse und Platz wie bisher", () => {
+    const l = computeLayout(make(8, 3, 1));
+    expect(l.houses.z.ring).toBeNull();
+    expect(l.houses.z.plot).toBeNull();
+    expect(l.terrace).toBe(TERRACE_MIN);
+  });
+
+  it.each([1, 5, 12, 40])("%i Objekte: alle im Ring, auf der Terrasse, vorne frei", (n) => {
+    const l = computeLayout(withZentrale(n));
+    const ring = l.houses.z.ring!;
+    expect(ring.map((s) => s.id).sort()).toEqual(
+      Array.from({ length: n }, (_, j) => `z${j}`).sort(),
+    );
+    for (const s of ring) {
+      const r = Math.hypot(s.x, s.z);
+      expect(r).toBeGreaterThanOrEqual(ZENTRALE_RING_R - 0.01);
+      expect(r).toBeLessThan(l.terrace);
+      // Bogen vor der Zentrale (+z) bleibt für Figur und Treppe frei
+      expect(Math.atan2(s.z, s.x)).not.toBeCloseTo(Math.PI / 2, 0);
+    }
+    // Platz und Quartiere liegen ausserhalb der Terrasse
+    expect(l.plazaRadius).toBeGreaterThan(l.terrace + 4);
+    for (const q of l.quarters) expect(Math.hypot(q.x, q.z) - q.radius).toBeGreaterThan(l.terrace);
+  });
+
+  it("Plätze überschneiden sich nicht", () => {
+    const ring = computeLayout(withZentrale(40)).houses.z.ring!;
+    for (let i = 0; i < ring.length; i++)
+      for (let j = i + 1; j < ring.length; j++)
+        expect(Math.hypot(ring[i].x - ring[j].x, ring[i].z - ring[j].z)).toBeGreaterThan(1);
   });
 });

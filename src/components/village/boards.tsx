@@ -8,7 +8,7 @@ import type { VillageModel } from "@/lib/village-model";
 import type { AtlasEntry } from "./label-atlas";
 import type { VillageGardens } from "./garden-geometry";
 import { mergeParts, type Part } from "./geo";
-import { NOTICE_ANGLE, NOTICE_POS, noticePostParts, quarterPostParts } from "./plaza-geometry";
+import { NOTICE_ANGLE, noticePos, noticePostParts, quarterPostParts } from "./plaza-geometry";
 import type { VillageAtlas } from "./village-atlas";
 
 type Spec = {
@@ -82,6 +82,7 @@ function buildPosts(model: VillageModel) {
     g.applyMatrix4(m);
     geos.push(g);
   };
+  const notice = noticePos(model.layout.plazaRadius);
   for (const q of model.layout.quarters) {
     const ux = Math.cos(q.theta);
     const uz = Math.sin(q.theta);
@@ -90,7 +91,7 @@ function buildPosts(model: VillageModel) {
   add(
     noticePostParts(),
     compose(
-      [NOTICE_POS.x, 0, NOTICE_POS.z],
+      [notice.x, 0, notice.z],
       Math.atan2(Math.cos(NOTICE_ANGLE), Math.sin(NOTICE_ANGLE)),
     ),
   );
@@ -151,6 +152,7 @@ export function Boards({
         kind: "quartier",
       });
     }
+    const notice = noticePos(model.layout.plazaRadius);
     specs.push({
       entry: atlas.notice,
       w: 2.3,
@@ -160,7 +162,7 @@ export function Boards({
         0,
         0,
         compose(
-          [NOTICE_POS.x, 0, NOTICE_POS.z],
+          [notice.x, 0, notice.z],
           Math.atan2(Math.cos(NOTICE_ANGLE), Math.sin(NOTICE_ANGLE)),
         ),
       ),

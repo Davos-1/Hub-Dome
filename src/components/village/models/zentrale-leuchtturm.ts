@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { box, cyl, gable, rbox, sphere } from "../geo";
-import { Builder, darken, STONE, WARM, WHITE, WOOD, type Model } from "./common";
+import { box, cyl, rbox, sphere } from "../geo";
+import { Builder, STONE, WARM, WHITE, WOOD, type Model } from "./common";
 
-/** Leuchtturm: gestreifter Turm auf Felsen, Galerie, leuchtende Laterne und Wärterhaus. */
+/** Leuchtturm: gestreifter Turm auf Felsen, Galerie, leuchtende Laterne und Boot. */
 export function leuchtturmModel(fp: number): Model {
   const b = new Builder();
 
@@ -89,42 +89,7 @@ export function leuchtturmModel(fp: number): Model {
   b.add({ geo: cyl(0.02, 0.02, 0.6, 4), color: "#9ca3af", pos: [0, yg + 0.14 + fp * 1.35, 0] });
   b.light({ geo: sphere(0.07, 8), color: "#ffd479", pos: [0, yg + 0.14 + fp * 1.67, 0] });
 
-  // Wärterhaus
-  const hx = fp * 1.55;
-  const hz = fp * 0.55;
-  b.add({
-    geo: rbox(fp * 1.0, fp * 0.75, fp * 0.8, 0.05),
-    color: "#f3efe6",
-    pos: [hx, y0 * 0.55 + fp * 0.38, hz],
-  });
-  b.add({
-    geo: gable(fp * 1.25, fp * 0.45, fp * 0.95),
-    color: "#4b5563",
-    pos: [hx, y0 * 0.55 + fp * 0.75, hz],
-    rot: [0, Math.PI / 2, 0],
-  });
-  b.add({
-    geo: box(fp * 0.22, fp * 0.4, 0.08),
-    color: WOOD,
-    pos: [hx, y0 * 0.55 + fp * 0.2, hz + fp * 0.4 + 0.01],
-  });
-  b.light({
-    geo: box(fp * 0.2, fp * 0.2, 0.09),
-    color: WARM,
-    pos: [hx + fp * 0.3, y0 * 0.55 + fp * 0.45, hz + fp * 0.4 + 0.02],
-  });
-  b.add({
-    geo: cyl(0.1, 0.12, fp * 0.5, 8),
-    color: "#a35a45",
-    pos: [hx + fp * 0.3, y0 * 0.55 + fp * 1.0, hz - fp * 0.2],
-  });
-  // Steg zum Turm und kleines Boot
-  b.add({
-    geo: rbox(fp * 0.6, 0.06, fp * 0.3, 0.02),
-    color: darken(WOOD, 1.2),
-    pos: [fp * 0.85, 0.32, fp * 0.55],
-    rot: [0, -0.5, 0],
-  });
+  // Kleines Boot am Felsen (das frühere Wärterhaus entfällt: es wirkte wie ein Haus im Turm)
   b.add({
     geo: new THREE.CapsuleGeometry(0.12, 0.6, 4, 8),
     color: "#2563eb",

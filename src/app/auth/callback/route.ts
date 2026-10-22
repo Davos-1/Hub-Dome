@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Anmelden innerhalb der Wartefrist bricht eine beantragte Kontolöschung ab.
+      await supabase.rpc("cancel_account_deletion");
       return NextResponse.redirect(new URL(safeNextPath(searchParams.get("next")), origin));
     }
   }

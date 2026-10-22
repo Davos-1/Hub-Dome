@@ -2,7 +2,7 @@
 
 import { signOut } from "@/app/doerfer/actions";
 import { setTopdorfAll } from "@/app/dorf/actions";
-import { updateDisplayName } from "@/app/einstellungen/actions";
+import { requestAccountDeletion, updateDisplayName } from "@/app/einstellungen/actions";
 import { StyleSettings } from "@/components/settings/style-settings";
 import { ActionForm } from "@/components/ui/action-form";
 import type { ShellData } from "@/lib/shell-data";
@@ -45,6 +45,35 @@ function ProfileTab({ shell }: { shell: ShellData }) {
           Abmelden
         </button>
       </form>
+      <section className="hd-card flex flex-col gap-2">
+        <h3 className="text-[15px] font-bold">Konto löschen</h3>
+        <p className="hd-note">
+          Löscht nach einem Tag dein Konto mit Dorf, Häusern, Objekten, Freundschaften,
+          Connector-Tokens und Nutzungszahlen. Meldest du dich vorher wieder an, wird die Löschung
+          abgebrochen. Übernahmen deiner Objekte bei anderen bleiben als «Original entfernt».{" "}
+          <a href="/datenschutz" target="_blank" className="underline">
+            Datenschutz
+          </a>
+        </p>
+        <ActionForm
+          action={requestAccountDeletion}
+          submitLabel="Konto löschen"
+          pendingLabel="Wird beantragt…"
+          confirm="Konto wirklich löschen? Du wirst abgemeldet."
+          buttonClassName="hd-btn hd-btn-sm self-start bg-[#9b2c1f] text-white"
+        >
+          <label htmlFor="confirmUsername" className="hd-label">
+            Zur Bestätigung Benutzernamen eingeben ({shell.me.username})
+          </label>
+          <input
+            id="confirmUsername"
+            name="confirmUsername"
+            required
+            autoComplete="off"
+            className="hd-input"
+          />
+        </ActionForm>
+      </section>
     </div>
   );
 }

@@ -352,6 +352,7 @@ export default function VillageScene(props: SceneProps) {
               style={zentraleStyle}
               avatarSeed={avatarSeed}
               glow={glow}
+              store={store}
               actions={actions}
             />
           ) : (

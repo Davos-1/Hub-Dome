@@ -40,6 +40,8 @@ export type HouseLayout = {
   footprint: number;
   /** Grundstück samt Objekt-Plätzen; die Zentrale hat keines. */
   plot: Plot | null;
+  /** Nur Zentrale: Objekt-Plätze im Ring um die Zentrale (lokal zur Zentrale, auf der Terrasse). */
+  ring: PlotSlot[] | null;
   quarterId: FachbereichId | null;
   /** Winkel der Vieleckseite am Nebenplatz, an der der Hausweg beginnt. */
   side: number;
@@ -85,6 +87,8 @@ export type VillageLayout = {
   paths: VillagePath[];
   /** Apothem des Hauptplatzes. */
   plazaRadius: number;
+  /** Apothem der oberen Terrassenstufe unter der Zentrale (wächst mit dem Objekt-Ring). */
+  terrace: number;
   /** Radius des Dorfs samt Rand (für Kamera, Gelände, Natur). */
   extent: number;
 };
@@ -100,6 +104,12 @@ export const TIER_FOOTPRINT: Record<Tier, number> = { 1: 1.1, 2: 1.25, 3: 1.4 };
 export const ZENTRALE_FOOTPRINT = 2.3;
 /** Kleinster Apothem des Hauptplatzes. */
 export const PLAZA_MIN = 9.4;
+/** Terrasse ohne Objekte; erster Objekt-Ring der Zentrale und Abstand zwischen den Ringen. */
+export const TERRACE_MIN = 4.95;
+export const ZENTRALE_RING_R = 6.2;
+const RING_STEP = 1.3;
+/** Vorne (+z) bleibt ein Bogen frei für Figur und Treppe. */
+const RING_FRONT_GAP = 0.6;
 /** Breite der Hauptwege und der Hauswege. */
 export const MAIN_PATH_WIDTH = 1.9;
 export const HOUSE_PATH_WIDTH = 1.5;
@@ -153,6 +163,43 @@ export function plotFor(fp: number, tier: Tier, items: LayoutItem[]): Plot {
   const hw = Math.max(houseHalf + 0.9, n ? 1.25 + (cols - 1) * 1.2 + 0.85 : 0, 2.3);
   const front = Math.max(fp * 1.05 + 1.8, n ? fp * 1.05 + 1.05 + (rows - 1) * 1.2 + 0.95 : 0);
   return { hw, front, back: fp * 1.05 + 1.1, slots };
+}
+
+/**
+ * Objekt-Plätze der Zentrale: nach Kategorie sortiert im Kreis um die Zentrale, beginnend hinten,
+ * vorne bleibt ein Bogen frei. Volle Ringe werden durch einen weiteren, grösseren ergänzt.
+ */
+export function zentraleRing(items: LayoutItem[]): PlotSlot[] {
+  const sorted = items
+    .slice()
+    .sort((a, b) => ARTIFACT_KINDS.indexOf(a.kind) - ARTIFACT_KINDS.indexOf(b.kind));
+  const out: PlotSlot[] = [];
+  let i = 0;
+  for (let row = 0; i < sorted.length; row++) {
+    const r = ZENTRALE_RING_R + row * RING_STEP;
+    const arc = TAU - 2 * RING_FRONT_GAP;
+    const cap = Math.max(1, Math.floor((arc * r) / 1.3));
+    const n = Math.min(cap, sorted.length - i);
+    for (let col = 0; col < n; col++, i++) {
+      // gleichmässig im Bogen verteilt, zentriert um die Rückseite (−z)
+      const a = -Math.PI / 2 + (col - (n - 1) / 2) * (arc / Math.max(n, Math.min(cap, 8)));
+      out.push({
+        ...sorted[i],
+        side: 1,
+        row,
+        col,
+        x: round(Math.cos(a) * r),
+        z: round(Math.sin(a) * r),
+      });
+    }
+  }
+  return out;
+}
+
+/** Aussenradius des Objekt-Rings (0 ohne Objekte). */
+export function ringOuter(ring: PlotSlot[] | null): number {
+  if (!ring || ring.length === 0) return 0;
+  return ZENTRALE_RING_R + Math.max(...ring.map((s) => s.row)) * RING_STEP;
 }
 
 type Pt = { x: number; z: number };
@@ -271,6 +318,7 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
       tier: 3,
       footprint: ZENTRALE_FOOTPRINT,
       plot: null,
+      ring: zentrale.items.length ? zentraleRing(zentrale.items) : null,
       quarterId: null,
       side: 0,
     };
@@ -292,6 +340,7 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
     groups.push({ id, index: groups.length, info, rp, radius, pos, cx: 0, cz: 0 });
   }
 
+  const ringR = zentrale ? ringOuter(result[zentrale.id].ring) : 0;
   const k = groups.length;
   const polyN = Math.max(5, k);
   // Hauptplatz: genug Platz für den Weg jedes Quartiers und für alle Häuser
@@ -299,7 +348,10 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
     PLAZA_MIN,
     round((others.length * 1.95) / TAU),
     round(3.2 / Math.tan(Math.PI / polyN)),
+    // Objekt-Ring der Zentrale samt Terrasse, Brunnen und Bänken
+    ringR ? round(ringR + 5.2) : 0,
   );
+  const terrace = ringR ? round(ringR + 0.9) : TERRACE_MIN;
 
   // Kompakt: Winkelanteil pro Quartier ∝ Radius, Start vorne (+z)
   const minD = (g: Group) => plaza + g.rp + 4 + g.radius * 0.45;
@@ -394,6 +446,7 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
         tier: p.info.tier,
         footprint: p.info.fp,
         plot: p.info.plot,
+        ring: null,
         quarterId: g.id,
         side: 0,
       };
@@ -447,6 +500,7 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
     polys,
     paths: [],
     plazaRadius: plaza,
+    terrace,
     extent: round(extent),
   };
   layout.paths = computePaths(layout);

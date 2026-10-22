@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { requireProfile, requireUser } from "@/lib/auth";
 import type { ActionState } from "@/lib/types";
 import { zentraleStyleSchema } from "@/lib/styles";
 
@@ -40,4 +42,22 @@ export async function updateVillageStyle(_: ActionState, formData: FormData): Pr
   if (error) return { error: "Die Stile konnten nicht gespeichert werden." };
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/**
+ * Konto löschen beantragen: Nach einem Tag löscht der Cron alles. Wer sich vorher wieder anmeldet,
+ * bricht die Löschung ab (siehe /auth/callback). Danach wird abgemeldet.
+ */
+export async function requestAccountDeletion(
+  _: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { supabase, profile } = await requireProfile();
+  const confirm = z.string().trim().safeParse(formData.get("confirmUsername"));
+  if (!confirm.success || confirm.data !== profile.username)
+    return { error: "Bitte gib zur Bestätigung deinen Benutzernamen ein." };
+  const { error } = await supabase.rpc("request_account_deletion");
+  if (error) return { error: "Die Löschung konnte nicht beantragt werden." };
+  await supabase.auth.signOut();
+  redirect("/login?loeschung=1");
 }

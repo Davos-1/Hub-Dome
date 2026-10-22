@@ -22,7 +22,7 @@ export function toWorld(l: Pick<HouseLayout, "x" | "z" | "angle">, lx: number, l
 export function objectWorld(model: VillageModel, objId: string) {
   for (const h of model.houses) {
     const l = model.layout.houses[h.id];
-    const slot = l?.plot?.slots.find((s) => s.id === objId);
+    const slot = (l?.plot?.slots ?? l?.ring)?.find((s) => s.id === objId);
     if (l && slot) return { house: h, ...toWorld(l, slot.x, slot.z) };
   }
   return null;
@@ -80,7 +80,7 @@ export function HighlightRing({ model, store }: { model: VillageModel; store: Sc
     return {
       x: l.x,
       z: l.z,
-      r: l.plot ? Math.max(l.plot.hw, l.footprint * 2) : l.footprint * 2.4,
+      r: l.plot ? Math.max(l.plot.hw, l.footprint * 2) : model.layout.terrace + 0.6,
       color: "#1c1b19",
     };
   }, [hl, model]);
