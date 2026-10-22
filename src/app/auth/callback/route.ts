@@ -1,4 +1,3 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -17,16 +16,21 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = otpType.safeParse(searchParams.get("type"));
 
+  if (tokenHash && type.success) {
+    // Nicht hier per GET einlösen: Mail-Scanner rufen Links vorab auf und verbrauchen den
+    // Einmal-Token. Die Bestätigungsseite löst ihn erst nach einem Klick (POST) ein.
+    const confirm = new URL("/bestaetigen", origin);
+    confirm.searchParams.set("token_hash", tokenHash);
+    confirm.searchParams.set("type", type.data);
+    confirm.searchParams.set("next", safeNextPath(searchParams.get("next")));
+    return NextResponse.redirect(confirm);
+  }
+
   const supabase = await createClient();
   let ok = false;
-  if (tokenHash && type.success) {
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: type.data as EmailOtpType,
-    });
-    ok = !error;
-  } else if (code) {
+  if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) console.error("exchangeCodeForSession fehlgeschlagen:", error.code, error.message);
     ok = !error;
   }
 

@@ -227,3 +227,9 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Build-Lehre:** Unter Cache Components darf eine Seite `params` nicht ausserhalb von `Suspense` lesen; reine Umleitungen als Route-Handler (`/dorf/<name>/liste`).
 - **Nachtrag:** Der erste Versuch scheiterte trotzdem: Der Browser-Client von `@supabase/ssr` fordert den Link im PKCE-Verfahren an, `{{ .TokenHash }}` beginnt dann mit `pkce_` und gilt nur im selben Browser. Der Mail-Link wird deshalb jetzt per Server Action (`src/app/(auth)/login/actions.ts`) mit `flowType: "implicit"` angefordert. Google bleibt PKCE im Browser.
 - **Nachtrag 2:** Mails im alten Format (`/auth/v1/verify?…&type=signup`, z.B. wenn die Vorlage «Confirm signup» nicht umgestellt ist) liefern im Implicit-Flow die Sitzung als `#access_token` an `/auth/callback`. Der Callback leitet dann ohne Fehler auf `/login?next=…`; die Login-Seite übernimmt die Sitzung aus dem Fragment (`setSession`) und bricht über `POST /auth/nach-login` eine beantragte Kontolöschung ab. Der Login funktioniert damit mit beiden Vorlagen.
+
+## 2026-10-22 – Mail-Link per Klick einlösen
+- Kontext: Externe Tester landeten nach dem Mail-Link auf /login?fehler=1 (verifyOtp schlug fehl).
+- Entscheidung: /auth/callback löst den token_hash nicht mehr per GET ein, sondern leitet auf /bestaetigen; dort löst ein Knopf (POST, Server Action) ihn ein. Fehler werden geloggt.
+- Grund: Mail-Scanner/Link-Vorschauen rufen Links vorab auf und verbrauchen den Einmal-Token; ein POST wird von ihnen nicht ausgelöst.
+

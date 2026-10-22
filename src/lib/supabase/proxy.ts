@@ -7,6 +7,7 @@ import { supabasePublishableKey, supabaseUrl } from "./env";
 const PUBLIC_PATHS = [
   "/",
   "/login",
+  "/bestaetigen",
   "/auth",
   "/api/mcp",
   "/api/cron",
