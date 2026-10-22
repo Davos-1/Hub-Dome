@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { emailSchema } from "@/lib/validation";
 import { sendMagicLink } from "./actions";
@@ -11,6 +11,23 @@ export function LoginForm({ next }: { next?: string }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Sitzung aus dem Fragment übernehmen (Mail-Link im alten Format, siehe /auth/callback).
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const access_token = hash.get("access_token");
+    const refresh_token = hash.get("refresh_token");
+    if (!access_token || !refresh_token) return;
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    createClient()
+      .auth.setSession({ access_token, refresh_token })
+      .then(async ({ error }) => {
+        if (error)
+          return setError("Die Anmeldung hat nicht geklappt. Bitte fordere einen neuen Link an.");
+        await fetch("/auth/nach-login", { method: "POST" }).catch(() => {});
+        window.location.assign(next ?? "/start");
+      });
+  }, [next]);
 
   // Nur für Google (PKCE, gleicher Browser); der Mail-Link wird serverseitig angefordert.
   const callback = () => {

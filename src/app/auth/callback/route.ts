@@ -35,5 +35,12 @@ export async function GET(request: NextRequest) {
     await supabase.rpc("cancel_account_deletion");
     return NextResponse.redirect(new URL(safeNextPath(searchParams.get("next")), origin));
   }
+  if (!code && !tokenHash) {
+    // Alte Mail-Vorlage: Supabase hängt die Sitzung als `#access_token=…` an (für den Server
+    // unsichtbar). Der Browser behält das Fragment bei der Umleitung; die Login-Seite übernimmt es.
+    const login = new URL("/login", origin);
+    login.searchParams.set("next", safeNextPath(searchParams.get("next")));
+    return NextResponse.redirect(login);
+  }
   return NextResponse.redirect(new URL("/login?fehler=1", origin));
 }
