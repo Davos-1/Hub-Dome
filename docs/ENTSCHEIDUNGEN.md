@@ -175,3 +175,9 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Entfernte Seiten:** `/dorf/<name>/liste`, `/einladung/<token>`, `AppHeader`. `/doerfer` und `/einstellungen` leiten auf Dialoge um, `/` leitet auf `/start` bzw. `/login`.
 - **Kamera:** `housePose` steht höher und weiter draussen und hebt die Kamera, bis die Blickachse mit 1.3 m Abstand über jeder Quartiertafel liegt (Test über alle Häuser).
 - **Lehren:** (1) Nach einer Server Action liefert Next die Seite mit der ursprünglichen URL neu; Dialog-Zustand deshalb zusätzlich in React halten (`useDialog`), sonst geht der Dialog wieder auf. (2) Verschwindet das Objekt eines Bearbeiten-Dialogs (z.B. nach dem Löschen), schliesst sich der Dialog selbst, weil sein Formular mit dem Objekt verschwindet.
+
+## 2026-10-22 – Phase 4e abgeschlossen
+- **Freundschaftslink (Entscheid Gian):** Das Erzeugen des Links gilt als Zustimmung des Absenders, Annehmen genügt. Migration `20261022000300_friend_links.sql` (Tabelle `friend_links` mit Hash, Ablauf, Nutzungen; `friend_link_info` zeigt Absender und Zustand ohne etwas zu verbrauchen; `accept_friend_link` erzeugt gegenseitige Freundschaft, nimmt eine offene Anfrage an und verbraucht bei bestehender Freundschaft nichts). Max. 8 Tage Ablauf und 100 Nutzungen per Check bzw. Policy, `uses` nicht von Hand änderbar. Annehmen nur per Knopf, nicht per Seitenaufruf.
+- **Listen-Dialog** `?d=liste` (Knopf und Taste L) mit Suche und Typ-Filter; `/dorf/<name>/liste` leitet um.
+- **Tests:** RLS 34/34; E2E `freundeslink.spec` und `freigabe.spec` grün. Bei vielen aufeinanderfolgenden Tests wird der Dev-Server langsam (Einzelläufe sind schnell); Timeouts der Aktions-Tests grosszügig gesetzt.
+- **Lehre:** Mit `Suspense` ausgelieferte Seiten, die `notFound()` aufrufen, antworten mit Status 200; E2E-Tests prüfen den Text «This page could not be found.» statt den Status.

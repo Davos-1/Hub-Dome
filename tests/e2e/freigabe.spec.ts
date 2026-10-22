@@ -72,7 +72,7 @@ test("Freunde anfragen, annehmen, Dorf besuchen und Freundschaft beenden", async
   await expect(travelB).toBeVisible({ timeout: 30_000 });
   await travelB.getByPlaceholder("@benutzername").fill(`@${a.username}`);
   await travelB.getByRole("button", { name: "Anfrage senden" }).click();
-  await expect(travelB.getByText("Anfrage gesendet.")).toBeVisible({ timeout: 20_000 });
+  await expect(travelB.getByText("Anfrage gesendet.")).toBeVisible({ timeout: 90_000 });
   await expect(travelB.getByText("wartet auf Antwort")).toBeVisible({ timeout: 20_000 });
 
   // A: sieht die Anfrage (Hinweis in der Leiste) und nimmt an

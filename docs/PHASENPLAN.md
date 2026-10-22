@@ -17,7 +17,7 @@ Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** 
 | 4-Handoff | Design «3D-Dorf Endfassung» (Quartiere, Haustypen, Vollbild) | docs/design_handoff_dorf3d | fertig, Migration `semester` eingespielt |
 | 4c | Welt-Shell: Dialoge statt Seiten, Start- und Reise-Dialog | dieses Dokument | fertig, committet |
 | **4d** | **Feinschliff und Freundschaften:** Holzschild-Stil für alle Dialoge, kleines Anzeige-Fenster, Vogelperspektive beim Haus, keine eigenen Modelle mehr, Freundschaften statt Einladungslinks, alle Seiten in die 3D-Welt eingebettet | docs/ENTSCHEIDUNGEN.md (2026-10-22) | **fertig, committet (`d3c2627`); Migrationen einspielen siehe 4e** |
-| **4e** | **Lücken aus 4d schliessen:** Migrationen einspielen, Freundschaftslink, Listen-Dialog, aufräumen, committen | dieses Dokument | **offen, als Nächstes** |
+| **4e** | **Lücken aus 4d schliessen:** Migrationen einspielen, Freundschaftslink, Listen-Dialog, aufräumen, committen | dieses Dokument | **fertig** (Migration 3 eingespielt, RLS 34/34, E2E grün; nur der Link-Test aus Phase 0 steht vor Phase 5 aus) |
 | 5 | MCP-Connector + Skill `hub-dome-platzieren` + MCP-Anteil aus 3b (`objekt_typ`, `objekt_platzieren`) + Zusatz C (`im_topdorf_zeigen`, erst ab 5b aktiv) | PLAN.md, PLAN-ERWEITERUNG.md, PLAN-ERWEITERUNG-2.md Teil C | offen, startet erst nach Link-Test und 4e |
 | 5b | Übernehmen + Nutzungsdaten (`/o/<id>`, `copy_artifact`, `item_events`) | PLAN-ERWEITERUNG-2.md Teil A | offen |
 | 6 | Deployment, Pilot (vorher: eigener Mailversand, Google-Freigabe, nDSG-Hinweis, Konto löschen) | PLAN.md | offen |

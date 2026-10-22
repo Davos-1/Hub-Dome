@@ -43,7 +43,9 @@ test("GitHub-Repo: Vorschau mit README, Cache, Typprüfung", async ({ browser })
     "https://claude.ai/public/artifacts/x",
     "github_repo",
   );
-  await expect(wrong.getByRole("alert")).toContainText("passt nicht zum gewählten Objekttyp");
+  await expect(wrong.getByRole("alert")).toContainText("passt nicht zum gewählten Objekttyp", {
+    timeout: 60_000,
+  });
 
   // Typ wird automatisch erkannt; der Dialog schliesst sich nach dem Speichern
   await addItem(page, "Hello World Repo", "https://github.com/octocat/Hello-World");
