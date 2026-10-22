@@ -1,3 +1,4 @@
+import { EMPTY_EXTRAS } from "@/lib/item-extras";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -104,6 +105,7 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
       houses={houses}
       artifacts={artifacts}
       previews={{}}
+      extras={EMPTY_EXTRAS}
       shell={{
         me: { id: "u", username: "vorschau", displayName: "Vorschau" },
         villages: [],

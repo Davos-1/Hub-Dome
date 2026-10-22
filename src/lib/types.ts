@@ -40,6 +40,12 @@ export type Artifact = {
   visibility: "shared" | "private";
   sort: number;
   created_at: string;
+  /** Ab Phase 5b (Migration copy_and_events); in älteren Datenbanken fehlend. */
+  is_copy?: boolean;
+  source_artifact_id?: string | null;
+  source_owner_id?: string | null;
+  allow_copy?: boolean;
+  topdorf_ok?: boolean;
 };
 
 export type House = {

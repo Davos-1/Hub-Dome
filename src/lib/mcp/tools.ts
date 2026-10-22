@@ -55,7 +55,7 @@ export const placeInputShape = {
     .boolean()
     .optional()
     .describe(
-      "Noch ohne Wirkung (Topdorf folgt später). Nur setzen, wenn der User es ausdrücklich sagt.",
+      "Für alle angemeldeten Hub-Dome-Nutzer sichtbar machen (nur bei shared). Nur setzen, wenn der User es ausdrücklich sagt.",
     ),
 };
 export const placeInput = z.object(placeInputShape);
@@ -191,11 +191,17 @@ export async function placeArtifact(ctx: McpContext, rawInput: unknown): Promise
 
   const { data: existing } = await ctx.db
     .from("artifacts")
-    .select("id, url")
+    .select("id, url, is_copy")
     .eq("owner_id", ctx.userId)
     .eq("url", a.url)
     .maybeSingle();
 
+  // Übernahmen bleiben privat und ausserhalb des Topdorfs.
+  const visibility = existing?.is_copy ? "private" : a.visibility;
+  const topdorf =
+    i.im_topdorf_zeigen === undefined || existing?.is_copy
+      ? {}
+      : { topdorf_ok: i.im_topdorf_zeigen && visibility === "shared" };
   const values = {
     house_id: a.houseId,
     title: a.title,
@@ -203,7 +209,8 @@ export async function placeArtifact(ctx: McpContext, rawInput: unknown): Promise
     kind: a.kind,
     item_type: a.itemType,
     tags: a.tags,
-    visibility: a.visibility,
+    visibility,
+    ...topdorf,
   };
   let id: string;
   let created = false;
@@ -228,12 +235,12 @@ export async function placeArtifact(ctx: McpContext, rawInput: unknown): Promise
   ctx.afterPlace?.(id);
 
   const shareHint =
-    a.itemType === "claude_artifact" && a.visibility === "shared"
+    a.itemType === "claude_artifact" && visibility === "shared"
       ? " Hinweis: Damit deine Freunde es öffnen können, muss das Artifact in claude.ai mit «Jeder mit dem Link» geteilt sein."
       : "";
   return {
     ok: true,
-    text: `${created ? "Platziert" : "Aktualisiert"}: «${a.title}» im Haus «${houseLabel(house)}» (${a.itemType}, ${a.visibility === "shared" ? "für Freunde sichtbar" : "nur für dich"}). Dein Dorf: ${village.link}.${shareHint}`,
+    text: `${created ? "Platziert" : "Aktualisiert"}: «${a.title}» im Haus «${houseLabel(house)}» (${a.itemType}, ${visibility === "shared" ? "für Freunde sichtbar" : "nur für dich"}${topdorf.topdorf_ok ? ", im Topdorf" : ""}). Dein Dorf: ${village.link}.${shareHint}`,
     data: { id, neu: created, haus: houseLabel(house), dorf: village.link },
   };
 }

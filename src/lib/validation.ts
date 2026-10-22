@@ -87,6 +87,9 @@ const httpsUrl = z.url().refine((u) => URL.parse(u)?.protocol === "https:", {
   message: "Nur https://-Links sind erlaubt.",
 });
 
+/** Checkbox aus FormData: «on» = an, fehlend = aus. */
+const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean());
+
 export const artifactSchema = z
   .object({
     houseId: z.uuid({ message: "Bitte ein Haus wählen." }),
@@ -101,12 +104,24 @@ export const artifactSchema = z
     kind: z.enum(ARTIFACT_KINDS),
     tags: tagsSchema,
     visibility: z.enum(["shared", "private"]),
+    allowCopy: checkbox,
+    topdorfOk: checkbox,
   })
   .transform((d) => ({
     ...d,
+    // Topdorf nur für geteilte Objekte
+    topdorfOk: d.topdorfOk && d.visibility === "shared",
     itemType: d.itemType === "auto" ? detectItemType(d.url) : d.itemType,
   }))
   .refine((d) => urlMatchesType(d.itemType, d.url), {
     message: "Der Link passt nicht zum gewählten Objekttyp.",
     path: ["url"],
   });
+
+/** Übernehmen: Quelle und Zielhaus (eigene Haus-ID oder «neu:<Modulcode>»). */
+export const copySchema = z.object({
+  source: z.uuid({ message: "Ungültiges Objekt." }),
+  house: z.union([z.uuid(), z.string().regex(/^neu:[A-Za-z0-9_.-]{1,40}$/)], {
+    message: "Bitte ein Haus wählen.",
+  }),
+});

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { requireProfile } from "@/lib/auth";
+import { loadItemExtras } from "@/lib/item-extras";
 import { needsRefresh } from "@/lib/item-types";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import { ZENTRALE_STYLES } from "@/lib/styles";
@@ -66,5 +67,7 @@ export async function loadVillage(username: string) {
     village.zentrale_style = "rathaus";
   }
 
-  return { supabase, me, owner, village, houses, artifacts, isOwner };
+  const extras = await loadItemExtras(supabase, me, artifacts, isOwner);
+
+  return { supabase, me, owner, village, houses, artifacts, isOwner, extras };
 }

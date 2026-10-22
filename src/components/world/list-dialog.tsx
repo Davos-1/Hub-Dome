@@ -14,6 +14,7 @@ import type { HouseInfo, VillageModel } from "@/lib/village-model";
 import { KIND_COLORS } from "../village/colors";
 import type { SceneActions } from "../village/scene-actions";
 import { DialogShell } from "./dialog-shell";
+import { CopyControl, ItemMeta, openHref } from "./item-extras";
 
 type Section = { key: string; title: string; houses: HouseInfo[] };
 
@@ -206,7 +207,7 @@ export function ListDialog({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <a
-                            href={a.url}
+                            href={openHref(a)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="min-w-0 text-[14px] font-semibold text-[#2f5d4a] underline underline-offset-2"
@@ -233,6 +234,8 @@ export function ListDialog({
                         </p>
                         {a.description && <p className="text-[13px]">{a.description}</p>}
                         {a.tags.length > 0 && <p className="hd-note">#{a.tags.join(" #")}</p>}
+                        <ItemMeta artifact={a} />
+                        <CopyControl artifact={a} />
                         <div className="mt-1 flex gap-1.5">
                           <button
                             type="button"

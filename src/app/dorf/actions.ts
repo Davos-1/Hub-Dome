@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import type { ActionState } from "@/lib/types";
-import { artifactSchema, houseSchema, houseUpdateSchema } from "@/lib/validation";
+import { artifactSchema, copySchema, houseSchema, houseUpdateSchema } from "@/lib/validation";
 
 const firstError = (e: { issues: { message: string }[] }) => e.issues[0].message;
 
@@ -98,10 +99,17 @@ export async function createArtifact(_: ActionState, formData: FormData): Promis
   if (!parsed.success) return { error: firstError(parsed.error) };
   const { supabase, user } = await requireUser();
 
-  const { houseId, itemType, ...rest } = parsed.data;
+  const { houseId, itemType, allowCopy, topdorfOk, ...rest } = parsed.data;
   const { data: created, error } = await supabase
     .from("artifacts")
-    .insert({ ...rest, house_id: houseId, item_type: itemType, owner_id: user.id })
+    .insert({
+      ...rest,
+      house_id: houseId,
+      item_type: itemType,
+      owner_id: user.id,
+      allow_copy: allowCopy,
+      topdorf_ok: topdorfOk,
+    })
     .select("id")
     .single();
   if (error) {
@@ -123,18 +131,23 @@ export async function updateArtifact(_: ActionState, formData: FormData): Promis
   if (!parsed.success) return { error: firstError(parsed.error) };
   const { supabase, user } = await requireUser();
 
-  const { houseId, itemType, ...rest } = parsed.data;
+  const { houseId, itemType, allowCopy, topdorfOk, ...rest } = parsed.data;
   const { data: before } = await supabase
     .from("artifacts")
-    .select("url")
+    .select("url, is_copy")
     .eq("id", id)
     .eq("owner_id", user.id)
     .maybeSingle();
+  // Übernahmen: Herkunft regelt die Datenbank; Erlaubnisse bleiben aus (bis eine eigene Version verknüpft ist).
+  const copyFields =
+    before?.is_copy && before.url === rest.url
+      ? { visibility: "private" as const }
+      : { allow_copy: allowCopy, topdorf_ok: topdorfOk };
   // Neue URL → alte Vorschau verwerfen, damit sie neu geladen wird.
   const resetMeta = before && before.url !== rest.url ? { meta: {}, meta_refreshed_at: null } : {};
   const { data, error } = await supabase
     .from("artifacts")
-    .update({ ...rest, ...resetMeta, house_id: houseId, item_type: itemType })
+    .update({ ...rest, ...copyFields, ...resetMeta, house_id: houseId, item_type: itemType })
     .eq("id", id)
     .eq("owner_id", user.id)
     .select("id");
@@ -161,6 +174,97 @@ export async function deleteArtifact(_: ActionState, formData: FormData): Promis
     .eq("owner_id", user.id)
     .select("id");
   if (error || !data?.length) return { error: "Das Objekt konnte nicht gelöscht werden." };
+  refresh();
+  return { ok: true };
+}
+
+const COPY_ERRORS: Record<string, string> = {
+  nicht_gefunden: "Dieses Objekt ist für dich nicht (mehr) sichtbar.",
+  eigenes_objekt: "Das ist schon dein eigenes Objekt.",
+  nicht_erlaubt: "Der Besitzer hat das Übernehmen für dieses Objekt deaktiviert.",
+  haus_ungueltig: "Bitte eines deiner eigenen Häuser wählen.",
+  bereits_vorhanden: "Dieser Link ist schon in deinem Dorf.",
+};
+
+export type CopyState = ActionState & { houseTitle?: string };
+
+/**
+ * Objekt aus einem fremden Dorf ins eigene übernehmen. `house` ist die ID eines eigenen Hauses
+ * oder `neu:<Modulcode>` («Haus anlegen und übernehmen»).
+ */
+export async function copyArtifact(_: CopyState, formData: FormData): Promise<CopyState> {
+  const parsed = copySchema.safeParse(fields(formData));
+  if (!parsed.success) return { error: firstError(parsed.error) };
+  const { supabase, user } = await requireUser();
+  const { source, house } = parsed.data;
+
+  let houseId: string;
+  let houseTitle: string;
+  if (house.startsWith("neu:")) {
+    const code = house.slice(4);
+    const [{ data: village }, { data: mod }] = await Promise.all([
+      supabase.from("villages").select("id").eq("owner_id", user.id).single(),
+      supabase.from("module_catalog").select("code, title").eq("code", code).single(),
+    ]);
+    if (!village || !mod) return { error: "Das Haus konnte nicht angelegt werden." };
+    // Gibt es das Modulhaus inzwischen schon, wird es verwendet.
+    const { data: existing } = await supabase
+      .from("houses")
+      .select("id, title")
+      .eq("village_id", village.id)
+      .eq("module_code", mod.code)
+      .maybeSingle();
+    if (existing) {
+      houseId = existing.id;
+      houseTitle = existing.title;
+    } else {
+      const { count } = await supabase
+        .from("houses")
+        .select("id", { count: "exact", head: true })
+        .eq("village_id", village.id);
+      const { data: created, error } = await supabase
+        .from("houses")
+        .insert({
+          village_id: village.id,
+          kind: "modul",
+          title: mod.title,
+          module_code: mod.code,
+          position_index: count ?? 0,
+        })
+        .select("id, title")
+        .single();
+      if (error || !created) return { error: "Das Haus konnte nicht angelegt werden." };
+      houseId = created.id;
+      houseTitle = created.title;
+    }
+  } else {
+    const { data: own } = await supabase
+      .from("houses")
+      .select("id, title, villages!inner(owner_id)")
+      .eq("id", house)
+      .eq("villages.owner_id", user.id)
+      .maybeSingle();
+    if (!own) return { error: COPY_ERRORS.haus_ungueltig };
+    houseId = own.id;
+    houseTitle = own.title;
+  }
+
+  const { error } = await supabase.rpc("copy_artifact", { p_source: source, p_house: houseId });
+  if (error) {
+    const code = Object.keys(COPY_ERRORS).find((k) => error.message.includes(k));
+    return { error: code ? COPY_ERRORS[code] : "Das Objekt konnte nicht übernommen werden." };
+  }
+  refresh();
+  return { ok: true, houseTitle };
+}
+
+/** Alle eigenen geteilten Objekte fürs Topdorf freigeben bzw. zurückziehen. */
+export async function setTopdorfAll(_: ActionState, formData: FormData): Promise<ActionState> {
+  const on = z.enum(["an", "aus"]).safeParse(formData.get("topdorf"));
+  if (!on.success) return { error: "Ungültige Eingabe." };
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("set_topdorf_all", { p_on: on.data === "an" });
+  if (error) return { error: "Die Freigabe konnte nicht geändert werden." };
   refresh();
   return { ok: true };
 }

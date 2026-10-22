@@ -7,9 +7,15 @@ import { darken, STONE, WOOD } from "./models/common";
 /**
  * Objektformen nach Kategorie: Rechner = Pult, Quiz = Tafel, Zusammenfassung = Buch, Cheatsheet = Blatt,
  * Tool = Werkzeugkiste, Visualisierung = Staffelei, Sonstiges = Tafel auf Sockel. Neue Objekte tragen
- * ein gelbes Fähnchen. Positionen sind lokal zum Haus (x, z = Platz im Grundstück).
+ * ein gelbes Fähnchen, Übernahmen einen flachen Ring am Boden. Positionen sind lokal zum Haus (x, z = Platz im Grundstück).
  */
-export function objectParts(kind: ArtifactKind, x: number, z: number, isNew: boolean): Part[] {
+export function objectParts(
+  kind: ArtifactKind,
+  x: number,
+  z: number,
+  isNew: boolean,
+  isCopy = false,
+): Part[] {
   const k = KIND_COLORS[kind];
   const out: Part[] = [];
   const add = (
@@ -71,6 +77,7 @@ export function objectParts(kind: ArtifactKind, x: number, z: number, isNew: boo
       add(cyl(0.26, 0.3, 0.32, 10), STONE, 0, 0.2, 0);
       add(box(0.44, 0.54, 0.08), k, 0, 0.66, 0, [-0.22, 0, 0]);
   }
+  if (isCopy) add(cyl(0.42, 0.42, 0.03, 16), "#0ea5e9", 0, 0.015, 0);
   if (isNew) {
     add(cyl(0.015, 0.015, 0.8, 5), "#3f3f46", 0.36, 0.9, -0.14);
     add(box(0.3, 0.18, 0.012), "#facc15", 0.51, 1.2, -0.14);

@@ -1,6 +1,7 @@
 "use client";
 
 import { signOut } from "@/app/doerfer/actions";
+import { setTopdorfAll } from "@/app/dorf/actions";
 import { updateDisplayName } from "@/app/einstellungen/actions";
 import { StyleSettings } from "@/components/settings/style-settings";
 import { ActionForm } from "@/components/ui/action-form";
@@ -60,6 +61,33 @@ function VillageTab({ shell }: { shell: ShellData }) {
         Zentrale.
       </p>
       <StyleSettings zentraleStyle={own.zentraleStyle} />
+      <section className="hd-card flex flex-col gap-2">
+        <h3 className="text-[15px] font-bold">Topdorf</h3>
+        <p className="hd-note">
+          Im Topdorf erscheinen die meistgenutzten Objekte. Freigegebene Objekte sind für alle
+          angemeldeten Hub-Dome-Nutzer sichtbar, mit deinem Namen. Einzelne Objekte stellst du im
+          Objektformular ein; Übernahmen und private Objekte sind nie dabei.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <ActionForm
+            action={setTopdorfAll}
+            submitLabel="Alle geteilten Objekte freigeben"
+            successText="Freigegeben."
+            confirm="Alle deine geteilten Objekte fürs Topdorf freigeben?"
+            buttonClassName="hd-btn hd-btn-ghost hd-btn-sm"
+          >
+            <input type="hidden" name="topdorf" value="an" />
+          </ActionForm>
+          <ActionForm
+            action={setTopdorfAll}
+            submitLabel="Alle zurückziehen"
+            successText="Zurückgezogen."
+            buttonClassName="hd-btn hd-btn-ghost hd-btn-sm"
+          >
+            <input type="hidden" name="topdorf" value="aus" />
+          </ActionForm>
+        </div>
+      </section>
     </div>
   );
 }

@@ -54,6 +54,7 @@ async function FreundContent({ params }: Pick<PageProps<"/freund/[token]">, "par
       houses={v.houses}
       artifacts={v.artifacts}
       previews={{}}
+      extras={v.extras}
       shell={shell}
       friendLink={friendLink}
     />

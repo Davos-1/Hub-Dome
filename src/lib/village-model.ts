@@ -17,6 +17,8 @@ export type ObjInfo = {
   itemType: ItemType;
   title: string;
   isNew: boolean;
+  /** Übernahme aus einem anderen Dorf (dezente Markierung am Boden). */
+  isCopy: boolean;
   createdAt: string;
 };
 
@@ -58,6 +60,7 @@ export function buildVillageModel(
       itemType: a.item_type,
       title: a.title,
       isNew: isNew(a.created_at, now),
+      isCopy: a.is_copy ?? false,
       createdAt: a.created_at,
     });
   }

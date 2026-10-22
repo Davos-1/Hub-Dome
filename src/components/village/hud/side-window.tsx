@@ -6,6 +6,7 @@ import { FACHBEREICHE } from "@/lib/fachbereiche";
 import { hostOf, ITEM_TYPE_ICONS, ITEM_TYPE_LABELS } from "@/lib/item-types";
 import { ARTIFACT_KIND_LABELS, type Artifact, type ArtifactKind } from "@/lib/types";
 import type { HouseInfo, VillageModel } from "@/lib/village-model";
+import { CopyControl, ItemMeta, openHref } from "../../world/item-extras";
 import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
 import { useScene, type SceneStore } from "../scene-store";
@@ -130,17 +131,19 @@ function ObjectDetail({
       {artifact.description && <p className="text-[14px]">{artifact.description}</p>}
       {artifact.tags.length > 0 && <p className="hd-note">#{artifact.tags.join(" #")}</p>}
       {artifact.visibility === "private" && <p className="text-xs text-amber-700">Privat</p>}
+      <ItemMeta artifact={artifact} />
       <a
-        href={artifact.url}
+        href={openHref(artifact)}
         target="_blank"
         rel="noopener noreferrer"
         className="hd-btn hd-btn-primary"
       >
         Öffnen
       </a>
+      <CopyControl artifact={artifact} hotkey />
       {isOwner && (
         <button type="button" onClick={onEdit} className="hd-btn hd-btn-ghost">
-          Objekt bearbeiten
+          {artifact.is_copy ? "Eigene Version verknüpfen" : "Objekt bearbeiten"}
         </button>
       )}
       {preview}

@@ -3,12 +3,14 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { ItemExtras } from "@/lib/item-extras";
 import type { ShellData } from "@/lib/shell-data";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { buildVillageModel, type VillageModel } from "@/lib/village-model";
 import type { FriendLinkInfo } from "../world/friend-link-dialog";
 import { useDialog } from "../world/use-dialog";
+import { ItemExtrasProvider } from "../world/item-extras";
 import { WelcomeBanner } from "../world/welcome-banner";
 import { WorldDialogs } from "../world/world-dialogs";
 import { BottomBar } from "./hud/bottom-bar";
@@ -35,6 +37,8 @@ type Props = {
   houses: House[];
   artifacts: Artifact[];
   previews: Record<string, ReactNode>;
+  /** Übernehmen, Herkunft und Nutzungszahlen (Phase 5b). */
+  extras: ItemExtras;
   /** Daten für die Dialoge (Start, Reise und Freunde, Einstellungen, Hinzufügen). */
   shell: ShellData;
   /** Geöffneter Freundschaftslink: zeigt den Annehmen-Dialog über der Welt. */
@@ -191,8 +195,17 @@ export function VillageView(props: Props) {
   const ownVillage = shell.villages.find((v) => v.mine);
   const empty = model.houses.length <= 1;
   const friendRequests = shell.friends.filter((f) => f.status === "eingehend").length;
+  const extras = useMemo(
+    () => ({
+      ...props.extras,
+      isOwner: props.isOwner,
+      houses: Object.fromEntries(houses.map((h) => [h.id, h])),
+    }),
+    [props.extras, props.isOwner, houses],
+  );
 
   return (
+    <ItemExtrasProvider value={extras}>
     <div
       className="hubdome-ui fixed inset-0 overflow-hidden bg-[#cfe4f4] text-[#1c1b19]"
       role="application"
@@ -296,5 +309,6 @@ export function VillageView(props: Props) {
         onEnter={dialog.close}
       />
     </div>
+    </ItemExtrasProvider>
   );
 }

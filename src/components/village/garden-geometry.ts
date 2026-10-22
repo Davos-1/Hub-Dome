@@ -247,7 +247,7 @@ export function buildVillageGardens(model: VillageModel): VillageGardens {
     for (const slot of l.plot.slots) {
       const o = info.get(slot.id);
       (perKind[slot.kind] ??= []).push(
-        ...objectParts(slot.kind, slot.x, slot.z, o?.isNew ?? false),
+        ...objectParts(slot.kind, slot.x, slot.z, o?.isNew ?? false, o?.isCopy ?? false),
       );
     }
     for (const [kind, parts] of Object.entries(perKind) as [ArtifactKind, Part[]][]) {
