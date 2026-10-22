@@ -5,11 +5,12 @@ import { completeOnboarding, type OnboardingState } from "./actions";
 
 const initial: OnboardingState = {};
 
-export function OnboardingForm({ suggestedName }: { suggestedName: string }) {
+export function OnboardingForm({ suggestedName, next }: { suggestedName: string; next?: string }) {
   const [state, action, pending] = useActionState(completeOnboarding, initial);
 
   return (
     <form action={action} className="flex flex-col gap-3">
+      {next && <input type="hidden" name="next" value={next} />}
       <label htmlFor="displayName" className="hd-label">
         Anzeigename
       </label>

@@ -108,6 +108,7 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
         me: { id: "u", username: "vorschau", displayName: "Vorschau" },
         villages: [],
         friends: [],
+        links: [],
         own: null,
       }}
     />

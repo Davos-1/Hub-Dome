@@ -7,6 +7,7 @@ import type { ShellData } from "@/lib/shell-data";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { buildVillageModel, type VillageModel } from "@/lib/village-model";
+import type { FriendLinkInfo } from "../world/friend-link-dialog";
 import { useDialog } from "../world/use-dialog";
 import { WelcomeBanner } from "../world/welcome-banner";
 import { WorldDialogs } from "../world/world-dialogs";
@@ -36,6 +37,8 @@ type Props = {
   previews: Record<string, ReactNode>;
   /** Daten für die Dialoge (Start, Reise und Freunde, Einstellungen, Hinzufügen). */
   shell: ShellData;
+  /** Geöffneter Freundschaftslink: zeigt den Annehmen-Dialog über der Welt. */
+  friendLink?: FriendLinkInfo;
 };
 
 /** Media-Query als Hook (Server: false). */
@@ -130,7 +133,11 @@ export function VillageView(props: Props) {
 
   // Welcher Dialog ist offen? Start und Bearbeiten-Dialoge gelten nur im eigenen Dorf.
   const ownerOnly = ["start", "objekt", "objektedit", "haus", "hausedit"].includes(dialog.id ?? "");
-  const active = ownerOnly && !props.isOwner ? null : dialog.id;
+  const active = props.friendLink
+    ? ("freund" as const)
+    : ownerOnly && !props.isOwner
+      ? null
+      : dialog.id;
 
   const [now] = useState(() => Date.now());
   const model = useMemo(() => buildVillageModel(houses, artifacts, now), [houses, artifacts, now]);
@@ -160,6 +167,12 @@ export function VillageView(props: Props) {
       if (document.querySelector("[data-hd-dialog]")) return;
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      // Tastenkürzel L: Liste öffnen
+      if ((e.key === "l" || e.key === "L") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        dialog.open("liste");
+        return;
+      }
       if (e.key === "Escape" && store.get().panel) {
         store.set({ panel: null });
         e.stopPropagation();
@@ -173,7 +186,7 @@ export function VillageView(props: Props) {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [store, actions]);
+  }, [store, actions, dialog]);
 
   const ownVillage = shell.villages.find((v) => v.mine);
   const empty = model.houses.length <= 1;
@@ -237,6 +250,7 @@ export function VillageView(props: Props) {
           windowOpen={windowOpen}
           friendRequests={friendRequests}
           onTravel={() => dialog.open("reise")}
+          onList={() => dialog.open("liste")}
           onSettings={() => dialog.open("einstellungen", { tab: "profil" })}
           onAddHouse={props.isOwner ? () => dialog.open("haus") : undefined}
         />
@@ -270,6 +284,7 @@ export function VillageView(props: Props) {
         active={active}
         dialog={dialog}
         shell={shell}
+        friendLink={props.friendLink}
         model={model}
         houses={houses}
         artifacts={artifacts}
@@ -277,6 +292,7 @@ export function VillageView(props: Props) {
         villageName={props.villageName}
         ownerUsername={ownerUsername}
         lowDetail={lowDetail}
+        actions={actions}
         onEnter={dialog.close}
       />
     </div>

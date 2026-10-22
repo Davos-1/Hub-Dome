@@ -7,7 +7,7 @@
 > 3. **Phase 6** – Deployment und Pilot (unverändert)
 > 4. **Phase 6b** – Topdorf (dieses Dokument, Teil B), erst wenn mindestens ca. 10 aktive Nutzer da sind
 >
-> **Stand 2026-10-22:** Dorfzugriff entsteht nur noch über gegenseitige Freundschaften (siehe `docs/ENTSCHEIDUNGEN.md`). «Dorfzugriff» heisst in diesem Dokument: befreundet. Reihenfolge und Stand: `docs/PHASENPLAN.md` (vor Phase 5 kommen Phase 4d und der Link-Test aus Phase 0).
+> **Stand 2026-10-22:** Dorfzugriff entsteht nur noch über gegenseitige Freundschaften (siehe `docs/ENTSCHEIDUNGEN.md`). «Dorfzugriff» heisst in diesem Dokument: befreundet. Reihenfolge und Stand: `docs/PHASENPLAN.md` (vor Phase 5 kommen Phase 4e und der Link-Test aus Phase 0).
 >
 > Alle Änderungen sind **additiv**: neue Migrationsdateien, keine bestehenden ändern. Gian spielt sie im SQL-Editor ein. Vor dem Start jeder Phase `docs/ENTSCHEIDUNGEN.md` lesen und Entscheidungen dort nachtragen. Nach jeder Phase stoppen und zusammenfassen.
 
@@ -110,7 +110,7 @@ Die Policy `artifacts_select` wird **ersetzt** (drop + create in der neuen Migra
 ## A2 – Öffnen mit Zählung
 
 - Neue Route `src/app/o/[id]/route.ts` (GET): UUID mit Zod prüfen, eingeloggte Session verlangen (sonst `/login?next=…`), `record_item_event(id,'geoeffnet')` per RLS-Client, URL per RLS-Client lesen, **302** auf die Objekt-URL. Nicht sichtbar ergibt 404.
-- Alle «Öffnen»-Links (`hud/side-window.tsx`, der Listen-Dialog aus Phase 4d und künftige) zeigen auf `/o/<id>`, und zwar als normales `<a target="_blank" rel="noopener noreferrer">`, **nicht** als `next/link` (kein Prefetch, sonst entstehen Phantom-Zählungen).
+- Alle «Öffnen»-Links (`hud/side-window.tsx`, der Listen-Dialog aus Phase 4e und künftige) zeigen auf `/o/<id>`, und zwar als normales `<a target="_blank" rel="noopener noreferrer">`, **nicht** als `next/link` (kein Prefetch, sonst entstehen Phantom-Zählungen).
 - `proxy.ts`: `/o/*` ist **nicht** öffentlich.
 
 ## A3 – Übernehmen (Oberfläche)

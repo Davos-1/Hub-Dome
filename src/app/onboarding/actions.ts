@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { onboardingSchema } from "@/lib/validation";
+import { onboardingSchema, safeNextPath } from "@/lib/validation";
 
 export type OnboardingState = { error?: string };
 
@@ -23,5 +23,5 @@ export async function completeOnboarding(
   });
   if (error) return { error: error.message };
 
-  redirect("/start");
+  redirect(safeNextPath(String(formData.get("next") ?? ""), "/start"));
 }

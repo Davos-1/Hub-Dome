@@ -3,17 +3,21 @@
 import type { ShellData } from "@/lib/shell-data";
 import type { Artifact, House } from "@/lib/types";
 import type { VillageModel } from "@/lib/village-model";
+import { FriendLinkDialog, type FriendLinkInfo } from "./friend-link-dialog";
 import { AddHouseDialog, AddObjectDialog, EditHouseDialog, EditObjectDialog } from "./add-dialogs";
+import { ListDialog } from "./list-dialog";
 import { SettingsDialog, type SettingsTab } from "./settings-dialog";
 import { StartDialog } from "./start-dialog";
 import { TravelDialog, type TravelTab } from "./travel-dialog";
 import type { DialogApi, DialogId } from "./use-dialog";
+import type { SceneActions } from "../village/scene-actions";
 
 /** Zeigt den Dialog, der laut URL offen ist. */
 export function WorldDialogs({
   active,
   dialog,
   shell,
+  friendLink,
   model,
   houses,
   artifacts,
@@ -21,11 +25,13 @@ export function WorldDialogs({
   villageName,
   ownerUsername,
   lowDetail,
+  actions,
   onEnter,
 }: {
-  active: DialogId | null;
+  active: DialogId | "freund" | null;
   dialog: DialogApi;
   shell: ShellData;
+  friendLink?: FriendLinkInfo;
   model: VillageModel;
   houses: House[];
   artifacts: Artifact[];
@@ -33,6 +39,7 @@ export function WorldDialogs({
   villageName: string;
   ownerUsername: string;
   lowDetail: boolean;
+  actions: SceneActions;
   /** «Mein Dorf betreten»: Start-Dialog schliessen, Kamera fliegt ein. */
   onEnter: () => void;
 }) {
@@ -82,6 +89,20 @@ export function WorldDialogs({
           onClose={dialog.close}
         />
       );
+    case "liste":
+      return (
+        <ListDialog
+          model={model}
+          artifacts={artifacts}
+          isOwner={isOwner}
+          actions={actions}
+          lowDetail={lowDetail}
+          onAddObject={(houseId) => dialog.open("objekt", { houseId })}
+          onEditHouse={(houseId) => dialog.open("hausedit", { houseId })}
+          onEditObject={(objectId) => dialog.open("objektedit", { objectId })}
+          onClose={dialog.close}
+        />
+      );
     case "objekt":
       return (
         <AddObjectDialog
@@ -119,6 +140,8 @@ export function WorldDialogs({
         />
       );
     }
+    case "freund":
+      return friendLink ? <FriendLinkDialog link={friendLink} lowDetail={lowDetail} /> : null;
     default:
       return null;
   }

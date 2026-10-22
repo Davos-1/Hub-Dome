@@ -53,7 +53,7 @@ alter table artifacts add constraint artifacts_url_by_type check (
    - Private oder nicht gefundene Repos zeigen den Hinweis «Vorschau nicht verfügbar». Der Link bleibt gültig.
 3. **Gist-Vorschau**: Dateinamen und die ersten Zeilen mit Syntax-Hervorhebung, gleiches Caching.
 4. **Externe Links**: Domain sichtbar anzeigen, `rel="noopener noreferrer"`, neuer Tab.
-5. **2D-Liste**: Icon pro Objekttyp und ein Filter nach Typ (heute: Listen-Dialog, Phase 4d).
+5. **2D-Liste**: Icon pro Objekttyp und ein Filter nach Typ (heute: Listen-Dialog, Phase 4e).
 
 ### MCP-Connector (rückwärtskompatibel)
 

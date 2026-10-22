@@ -6,7 +6,7 @@ export function generateToken() {
 }
 
 /**
- * SHA-256 als Hex. Identisch zur DB-Funktion `accept_invite`
+ * SHA-256 als Hex. Identisch zur DB-Funktion `accept_friend_link`
  * (encode(sha256(convert_to(token,'UTF8')),'hex')).
  */
 export function hashToken(token: string) {

@@ -27,6 +27,9 @@ export type ShellFriend = {
   since: string;
 };
 
+/** Ein von dir erzeugter Freundschaftslink (nur Metadaten, der Klartext ist nicht gespeichert). */
+export type ShellLink = { id: string; expiresAt: string; maxUses: number; uses: number };
+
 /** Nur für das eigene Dorf: Einstellungen und Auswahllisten für Formulare. */
 export type ShellOwn = {
   villageId: string;
@@ -38,6 +41,7 @@ export type ShellData = {
   me: { id: string; username: string; displayName: string };
   villages: ShellVillage[];
   friends: ShellFriend[];
+  links: ShellLink[];
   own: ShellOwn | null;
 };
 
@@ -81,6 +85,22 @@ async function loadFriends(supabase: SupabaseClient, meId: string): Promise<Shel
   });
 }
 
+/** Eigene, noch gültige Freundschaftslinks (leer, falls die Tabelle noch fehlt). */
+async function loadLinks(supabase: SupabaseClient): Promise<ShellLink[]> {
+  const { data, error } = await supabase
+    .from("friend_links")
+    .select("id, expires_at, max_uses, uses")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []).map((l) => ({
+    id: l.id as string,
+    expiresAt: l.expires_at as string,
+    maxUses: l.max_uses as number,
+    uses: l.uses as number,
+  }));
+}
+
 /**
  * Lädt alles für Start-, Reise-, Einstellungs- und Hinzufügen-Dialoge. Läuft mit dem RLS-Client:
  * Dörfer und Freundschaften sehen nur die Beteiligten.
@@ -89,7 +109,7 @@ export async function loadShell(
   supabase: SupabaseClient,
   profile: { id: string; username: string; display_name: string },
 ): Promise<ShellData> {
-  const [villagesRes, ownRes, friends] = await Promise.all([
+  const [villagesRes, ownRes, friends, links] = await Promise.all([
     supabase
       .from("villages")
       .select(
@@ -98,6 +118,7 @@ export async function loadShell(
       .order("created_at"),
     supabase.from("villages").select("id, zentrale_style").eq("owner_id", profile.id).maybeSingle(),
     loadFriends(supabase, profile.id),
+    loadLinks(supabase),
   ]);
 
   const rows = (villagesRes.data ?? []) as unknown as VillageRow[];
@@ -141,6 +162,7 @@ export async function loadShell(
     me: { id: profile.id, username: profile.username, displayName: profile.display_name },
     villages,
     friends,
+    links,
     own,
   };
 }

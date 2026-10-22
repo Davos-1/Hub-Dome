@@ -16,53 +16,52 @@ Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** 
 | 4, 4b | 3D-Dorf, Gestaltung | PLAN.md, docs/PLAN-4B-GESTALTUNG.md | fertig (eigene GLB-Modelle am 2026-10-22 entfernt) |
 | 4-Handoff | Design «3D-Dorf Endfassung» (Quartiere, Haustypen, Vollbild) | docs/design_handoff_dorf3d | fertig, Migration `semester` eingespielt |
 | 4c | Welt-Shell: Dialoge statt Seiten, Start- und Reise-Dialog | dieses Dokument | fertig, committet |
-| **4d** | **Umbau abschliessen: Freundschaften, GLB weg, Listen-Dialog, Freundschaftslink** | dieses Dokument | **in Arbeit, nicht committet** |
-| **4d** | **Feinschliff und Freundschaften:** Holzschild-Stil für alle Dialoge, kleines Anzeige-Fenster, Vogelperspektive beim Haus, keine eigenen Modelle mehr, Freundschaften statt Einladungslinks, alle Seiten in die 3D-Welt eingebettet | docs/ENTSCHEIDUNGEN.md (2026-10-22) | **fertig, Migrationen müssen eingespielt werden** |
-| 5 | MCP-Connector + Skill `hub-dome-platzieren` + MCP-Anteil aus 3b (`objekt_typ`, `objekt_platzieren`) + Zusatz C (`im_topdorf_zeigen`, erst ab 5b aktiv) | PLAN.md, PLAN-ERWEITERUNG.md, PLAN-ERWEITERUNG-2.md Teil C | offen, startet erst nach Link-Test und 4d |
+| **4d** | **Feinschliff und Freundschaften:** Holzschild-Stil für alle Dialoge, kleines Anzeige-Fenster, Vogelperspektive beim Haus, keine eigenen Modelle mehr, Freundschaften statt Einladungslinks, alle Seiten in die 3D-Welt eingebettet | docs/ENTSCHEIDUNGEN.md (2026-10-22) | **fertig, committet (`d3c2627`); Migrationen einspielen siehe 4e** |
+| **4e** | **Lücken aus 4d schliessen:** Migrationen einspielen, Freundschaftslink, Listen-Dialog, aufräumen, committen | dieses Dokument | **offen, als Nächstes** |
+| 5 | MCP-Connector + Skill `hub-dome-platzieren` + MCP-Anteil aus 3b (`objekt_typ`, `objekt_platzieren`) + Zusatz C (`im_topdorf_zeigen`, erst ab 5b aktiv) | PLAN.md, PLAN-ERWEITERUNG.md, PLAN-ERWEITERUNG-2.md Teil C | offen, startet erst nach Link-Test und 4e |
 | 5b | Übernehmen + Nutzungsdaten (`/o/<id>`, `copy_artifact`, `item_events`) | PLAN-ERWEITERUNG-2.md Teil A | offen |
 | 6 | Deployment, Pilot (vorher: eigener Mailversand, Google-Freigabe, nDSG-Hinweis, Konto löschen) | PLAN.md | offen |
 | 6b | Topdorf (erst ab ca. 10 aktiven Nutzern, bis dahin hinter `NEXT_PUBLIC_TOPDORF=true`) | PLAN-ERWEITERUNG-2.md Teil B | offen |
 | 7 | OAuth, Gruppendörfer, Likes, Saison-Bestenliste, Haus-Freigabe, eigene Modelle nur mit Prüfung | PLAN.md, PLAN-ERWEITERUNG-2.md Teil D | später |
 | 8, 9 | Datei-Uploads, Pakete | PLAN-ERWEITERUNG.md | nach dem Pilot |
 
-**Warum 4d vor Phase 5:** Der Umbau liegt halb fertig und nicht committet im Arbeitsverzeichnis. Phase 5 baut auf Einstellungen und Freigabe auf, beides muss vorher stabil, getestet und eingecheckt sein.
+**Warum 4e vor Phase 5:** 4d ist committet, aber die beiden neuen Migrationen müssen in der Datenbank sein, bevor die Freundschafts-Tests grün laufen. Ausserdem fehlen gegenüber vorher zwei Funktionen (Link für neue Personen, vollständige Liste mit WebGL). Phase 5 baut auf Einstellungen und Freigabe auf; beides soll vorher vollständig und getestet sein.
 
 **Warum Phase 0 jetzt:** Der Kern von Hub Dome sind Links auf claude.ai-Artifacts. Gehen geteilte Links für Freunde nicht auf, verliert die Plattform ihren Kern. Der Test kostet wenig und bestimmt, was Skill und Formular dem Besitzer sagen müssen.
 
 ---
 
-# Phase 4d – Umbau abschliessen
+# Phase 4e – Lücken aus 4d schliessen
 
-**Ausgangslage (Arbeitsverzeichnis, 2026-10-22):** Freundschaften statt Einladungslinks (Migration `20261022000100_friendships.sql`, `src/app/freunde/actions.ts`, Anfragen im Reise-Dialog), eigene GLB-Modelle entfernt (Migration `20261022000200_remove_custom_model.sql`), Seiten `/einladung/<token>` und `/dorf/<name>/liste` entfernt, neues Anzeige-Fenster (`display-popup.tsx`). Entscheidungen dazu: `docs/ENTSCHEIDUNGEN.md`, Einträge vom 2026-10-22.
+**Ausgangslage nach Phase 4d (committet als `d3c2627`, 2026-10-22):** Freundschaften statt Einladungslinks (Migration `20261022000100_friendships.sql`, `src/app/freunde/actions.ts`, Anfragen im Reise-Dialog), eigene GLB-Modelle entfernt (Migration `20261022000200_remove_custom_model.sql`), Seiten `/einladung/<token>` und `/dorf/<name>/liste` entfernt, neues Anzeige-Fenster (`display-popup.tsx`). Entscheidungen dazu: `docs/ENTSCHEIDUNGEN.md`, Einträge vom 2026-10-22.
 
 ## Aufgaben
 
-1. **Migrationen einspielen:** `20261022000100_friendships.sql`, danach `20261022000200_remove_custom_model.sql`, von Gian im SQL-Editor ausführen lassen. Danach `npm run test:rls`.
+1. **Migrationen einspielen:** `20261022000100_friendships.sql`, danach `20261022000200_remove_custom_model.sql`, von Gian im SQL-Editor ausführen lassen (falls noch nicht geschehen; im Log ist es als offen vermerkt). Danach `npm run test:rls` und `npm run test:e2e`: Die Freundschafts-Tests aus 4d (RLS und E2E `freigabe`) laufen erst danach grün.
 2. **Freundschaftslink** (übernimmt die Aufgabe des alten Einladungslinks, damit keine Funktion verloren geht):
    - Erzeugen im Reise-Dialog: Gültigkeit 7 Tage, 1–100 Nutzungen, widerrufbar. Token nur gehasht speichern, Klartext genau einmal anzeigen (gleiche Regeln wie früher bei der Einladung).
    - Öffnen: `/freund/<token>` zeigt über dem eigenen Dorf den Dialog «@name möchte mit dir befreundet sein». Ohne Konto: Login, dann Onboarding, dann zurück zum Dialog (`next` bleibt erhalten).
    - Annehmen per Button, nicht per GET (Link-Vorschau-Bots). Danach gegenseitiger Zugriff und direkter Sprung ins Dorf des Absenders.
-   - **Entscheid Gian beim Start von 4d:** Gilt das Erzeugen des Links als Zustimmung des Absenders, sodass Annehmen genügt (Vorschlag)? Oder entsteht nur eine Anfrage, die der Absender noch bestätigen muss?
+   - **Entscheid Gian beim Start von 4e:** Gilt das Erzeugen des Links als Zustimmung des Absenders, sodass Annehmen genügt (Vorschlag)? Oder entsteht nur eine Anfrage, die der Absender noch bestätigen muss?
    - Technik: eigene Tabelle mit Token-Hash, Ablauf und Nutzungen, Funktion `accept_friend_link(p_token)` (security definer) nutzt `grant_mutual_access`. RLS und Tests wie für jede neue Tabelle (CLAUDE.md).
 3. **Listenansicht als Dialog** `?d=liste`: alle Häuser nach Quartier, Objekte pro Haus, mit Icon pro Objekttyp, Filter nach Typ und Suche (Funktionen der früheren 2D-Liste aus Phase 3b). Besitzer sehen Bearbeiten-Knöpfe (öffnen `objektedit`/`hausedit`), Besucher nur Lesen. Immer erreichbar über die Leiste und ein Tastenkürzel, auf Mobile als Vollbild-Sheet. Ersetzt die entfernte Seite; `/dorf/<name>/liste` leitet auf `/dorf/<name>?d=liste` um.
-4. **Aufräumen:** `tests/e2e/tmp-shots.spec.ts` (Hilfsdatei für Screenshots, nicht im Repo) entfernen oder nach `tests/tools/` verschieben und vom normalen Testlauf ausschliessen. Keine Verweise mehr auf `invites`, `accept_invite`, `InviteForm`, `ModelUpload` im Code.
+4. **Aufräumen:** Der Kommentar in `src/lib/tokens.ts` verweist noch auf `accept_invite`; beim Bau des Freundschaftslinks anpassen. (`tmp-shots.spec.ts` ist bereits weg, sonst keine Altlasten im Code.)
 5. **Prüfen und einchecken:** `npm run check`, `npm run test:e2e` und `npm run test:rls` grün, dann committen.
 
-## Abnahme Phase 4d
+## Abnahme Phase 4e
 
-- [ ] A sendet B eine Anfrage, B nimmt an: beide sehen das Dorf des anderen. A entfernt B: beide sehen nichts mehr (E2E `freigabe`).
-- [ ] Private Objekte bleiben für Freunde unsichtbar (RLS-Test).
+- [ ] Migrationen eingespielt, die Freundschafts-Tests aus 4d sind grün (RLS inkl. «keine privaten Objekte für Freunde», E2E `freigabe`).
 - [ ] Freundschaftslink: Eine neue Person ohne Konto registriert sich über den Link, kommt nach dem Onboarding zurück zum Dialog und landet nach dem Annehmen direkt im Dorf des Absenders. Ein abgelaufener oder widerrufener Link zeigt eine klare Meldung.
 - [ ] Listen-Dialog: Alles, was in 3D erreichbar ist, ist auch dort erreichbar, inklusive Typ-Icons und Typ-Filter. Bedienbar mit Tastatur und Screenreader. `/dorf/<name>/liste` leitet um.
 - [ ] Lint, Typecheck, Unit-, E2E- und RLS-Tests grün, alles committet.
 
-## Oberfläche heute (nach 4c, mit Arbeitsstand 4d)
+## Oberfläche heute (nach 4d)
 
 | Bereich | Stand |
 |---|---|
 | 3D-Dorf | Vollbild, Leiste unten, Brotkrumen, Suche, Fenster rechts für Details (Quartier, Haus, Objekt), kleines Anzeige-Fenster (Tageszeit, Ansicht, Filter) |
 | Dialoge | Start, Reise (Dörfer, Freunde, Anfragen), Einstellungen (Profil, Dorf), Objekt und Haus anlegen bzw. bearbeiten |
-| Liste | Seite entfernt, kommt als Dialog in 4d. Ohne WebGL zeigt das Dorf eine einfache Liste |
+| Liste | Seite in 4d entfernt, kommt als Dialog in 4e. Ohne WebGL zeigt das Dorf eine einfache Liste |
 | Einrichtung | `/login`, `/onboarding` (Seiten) |
 
 ---
@@ -138,7 +137,7 @@ Das rechte Fenster bleibt für **Details** (Quartier, Haus, Objekt). Einstellung
 - Start-Dialog erscheint **bei jedem Login** (`/start` leitet auf `/dorf/<eigener>?d=start`), nicht bei Deep-Links oder Neuladen. Die Kamera beginnt weit draussen und fliegt nach «Mein Dorf betreten» ein.
 - Besuch eines fremden Dorfs zeigt das **Willkommens-Banner «Dorf von …»** (7 s, mit «Zurück in mein Dorf»); Besucher sehen keine Bearbeiten-Knöpfe.
 - Dialoge: Start, Reise, Einstellungen (Profil, Dorf, Teilen, Anzeige), Objekt hinzufügen, Haus anlegen, Einladung. Alte Adressen `/doerfer` und `/einstellungen` leiten um; `/einladung/<token>` zeigt den Dialog über dem eigenen Dorf und führt nach dem Annehmen direkt ins Dorf.
-- **Listenansicht** bleibt vorerst eine Seite; Gian möchte sie **später auch als Dialog** (offen, nach Phase 5/6 einplanen). → Überholt: Seite im Umbau entfernt, Dialog vorgezogen in Phase 4d.
+- **Listenansicht** bleibt vorerst eine Seite; Gian möchte sie **später auch als Dialog** (offen, nach Phase 5/6 einplanen). → Überholt: Seite in 4d entfernt, Listen-Dialog folgt in Phase 4e.
 - `/onboarding` bleibt vorerst eine Seite (vor dem ersten Login existiert noch kein Dorf, das im Hintergrund laden könnte). Idee für später: Platzhalter-Dorf als Hintergrund.
 - Noch offen aus dem Konzept: Claude-Tab (kommt mit Phase 5), Konto löschen (Phase 6), Topdorf-Karte im Reise-Dialog (Phase 6b).
 

@@ -17,6 +17,7 @@ export function BottomBar({
   windowOpen,
   friendRequests,
   onTravel,
+  onList,
   onSettings,
   onAddHouse,
 }: {
@@ -28,6 +29,8 @@ export function BottomBar({
   friendRequests: number;
   /** Dialog «Reise und Freunde» öffnen. */
   onTravel: () => void;
+  /** Dialog «Liste» öffnen (Tastenkürzel L). */
+  onList: () => void;
   /** Dialog «Einstellungen» öffnen. */
   onSettings: () => void;
   /** Dialog «Haus anlegen» (nur Besitzer). */
@@ -96,6 +99,9 @@ export function BottomBar({
               {friendRequests}
             </span>
           )}
+        </button>
+        <button type="button" onClick={onList} className={flat} aria-keyshortcuts="L">
+          Liste
         </button>
         {onAddHouse && (
           <button type="button" onClick={onAddHouse} className={flat}>

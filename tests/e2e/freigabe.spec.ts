@@ -63,8 +63,8 @@ test("Freunde anfragen, annehmen, Dorf besuchen und Freundschaft beenden", async
   await addArtifact("Geheime Notiz", "https://claude.ai/public/artifacts/e2e-private", "private");
 
   // B: ohne Freundschaft kein Zugriff (das Dorf gibt es für B nicht)
-  const denied = await pb.goto(`/dorf/${a.username}`);
-  expect(denied?.status()).toBe(404);
+  await pb.goto(`/dorf/${a.username}`);
+  await expect(pb.getByText("This page could not be found.")).toBeVisible({ timeout: 30_000 });
 
   // B: Freundschaftsanfrage an A (aus der eigenen Welt)
   await pb.goto(`/dorf/${b.username}?d=reise&t=freunde`);
@@ -110,8 +110,8 @@ test("Freunde anfragen, annehmen, Dorf besuchen und Freundschaft beenden", async
   await expect(pa.getByText("Noch keine Freunde.")).toBeVisible({ timeout: 30_000 });
 
   // B: sieht das Dorf nicht mehr
-  const gone = await pb.goto(`/dorf/${a.username}`);
-  expect(gone?.status()).toBe(404);
+  await pb.goto(`/dorf/${a.username}`);
+  await expect(pb.getByText("This page could not be found.")).toBeVisible({ timeout: 30_000 });
   await pb.goto("/doerfer");
   await expect(pb.getByRole("dialog", { name: "Reise und Freunde" })).toBeVisible({
     timeout: 30_000,

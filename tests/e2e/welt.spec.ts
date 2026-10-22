@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createTestUser, deleteTestUser, loginAs, type E2EUser } from "./helpers";
+import { createTestUser, deleteTestUser, loginAs, seedVillage, type E2EUser } from "./helpers";
 
 // Abnahme Welt-Shell (Phase 4c): Start-Dialog über der Welt, Reise-Dialog, Einstellungen, Haus anlegen,
 // alte Adressen leiten in die Dialoge um.
@@ -117,4 +117,45 @@ test("alte Adressen leiten in die Dialoge um", async ({ browser }) => {
   await expect(page.getByRole("dialog", { name: "Einstellungen" })).toBeVisible({
     timeout: 30_000,
   });
+});
+
+test("Liste als Dialog: Suche, Typ-Filter, Tastenkürzel und Umleitung", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const lister = await createTestUser("liste");
+  try {
+    await seedVillage(lister.id, 4, 5);
+    const ctx = await browser.newContext();
+    await loginAs(ctx, lister);
+    const page = await ctx.newPage();
+    await page.goto(`/dorf/${lister.username}`);
+    await expect(page.locator("canvas")).toBeVisible({ timeout: 30_000 });
+
+    // Tastenkürzel L öffnet die Liste; alle 4 Häuser mit Objekten sind da
+    await page.keyboard.press("l");
+    const list = page.getByRole("dialog", { name: "Liste" });
+    await expect(list).toBeVisible({ timeout: 20_000 });
+    await expect(list.getByText("20 Objekte")).toBeVisible();
+    await expect(list.getByRole("heading", { name: "Haus 1" })).toBeVisible();
+
+    // Suche und Typ-Filter
+    await list.getByLabel("In der Liste suchen").fill("Objekt 2.3");
+    await expect(list.getByRole("link", { name: "Objekt 2.3" })).toBeVisible();
+    await expect(list.getByRole("link", { name: "Objekt 1.1" })).toHaveCount(0);
+    await list.getByLabel("In der Liste suchen").fill("");
+    await list.getByRole("button", { name: /GitHub-Repo/ }).click();
+    await expect(list.getByRole("link", { name: "Objekt 1.2" })).toBeVisible();
+    await expect(list.getByRole("link", { name: "Objekt 1.1" })).toHaveCount(0);
+
+    // «In 3D zeigen» schliesst die Liste und öffnet das Haus in der Welt
+    await list.getByRole("button", { name: "In 3D zeigen" }).first().click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Ebene im Dorf" })).toContainText("Haus");
+
+    // Alte Adresse leitet um
+    await page.goto(`/dorf/${lister.username}/liste`);
+    await expect(page).toHaveURL(/\?d=liste/, { timeout: 30_000 });
+    await expect(page.getByRole("dialog", { name: "Liste" })).toBeVisible({ timeout: 30_000 });
+  } finally {
+    await deleteTestUser(lister.id);
+  }
 });

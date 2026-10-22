@@ -274,6 +274,152 @@ describe("Freundschaft und Freigabe", () => {
   });
 });
 
+describe("Freundschaftslink", () => {
+  const newToken = () => randomBytes(32).toString("base64url");
+  async function makeLink(owner: TestUser, maxUses = 1, expiresInMs = 7 * 864e5) {
+    const token = newToken();
+    const { error } = await owner.client.from("friend_links").insert({
+      owner_id: owner.id,
+      token_hash: sha256(token),
+      expires_at: new Date(Date.now() + expiresInMs).toISOString(),
+      max_uses: maxUses,
+    });
+    expect(error).toBeNull();
+    return token;
+  }
+  const seesVillage = async (viewer: TestUser, owner: TestUser) =>
+    (await viewer.client.from("villages").select("id").eq("id", owner.villageId)).data!.length ===
+    1;
+  const cleanup = async () => {
+    await admin.from("friendships").delete().in("requester_id", [a.id, b.id, c.id]);
+    await admin.from("village_access").delete().in("viewer_id", [a.id, b.id, c.id]);
+  };
+
+  it("nur der Besitzer sieht und erzeugt Links, Fremde nicht", async () => {
+    const token = await makeLink(a);
+    expect((await b.client.from("friend_links").select("id")).data).toEqual([]);
+    expect((await a.client.from("friend_links").select("id")).data!.length).toBeGreaterThan(0);
+    const fake = await b.client.from("friend_links").insert({
+      owner_id: a.id,
+      token_hash: sha256(newToken()),
+      expires_at: new Date(Date.now() + 864e5).toISOString(),
+    });
+    expect(fake.error).not.toBeNull();
+    const tooLong = await a.client.from("friend_links").insert({
+      owner_id: a.id,
+      token_hash: sha256(newToken()),
+      expires_at: new Date(Date.now() + 30 * 864e5).toISOString(),
+    });
+    expect(tooLong.error).not.toBeNull();
+    const used = await a.client.from("friend_links").insert({
+      owner_id: a.id,
+      token_hash: sha256(newToken()),
+      expires_at: new Date(Date.now() + 864e5).toISOString(),
+      uses: 5,
+    });
+    expect(used.error).not.toBeNull();
+    // Nutzungen lassen sich nicht von Hand ändern
+    const upd = await a.client
+      .from("friend_links")
+      .update({ uses: 0 })
+      .eq("token_hash", sha256(token));
+    expect(upd.error).not.toBeNull();
+  });
+
+  it("friend_link_info zeigt den Absender, ohne etwas zu verbrauchen", async () => {
+    const token = await makeLink(a);
+    const info = await b.client.rpc("friend_link_info", { p_token: token });
+    expect(info.data).toEqual([{ username: a.username, display_name: "Test a", state: "ok" }]);
+    expect(await seesVillage(b, a)).toBe(false);
+    const bad = await b.client.rpc("friend_link_info", { p_token: "falsch" });
+    expect(bad.data).toEqual([{ username: null, display_name: null, state: "ungueltig" }]);
+    const own = await a.client.rpc("friend_link_info", { p_token: token });
+    expect(own.data![0].state).toBe("selbst");
+  });
+
+  it("ungültig, selbst, abgelaufen und aufgebraucht werden abgelehnt", async () => {
+    expect(
+      (await b.client.rpc("accept_friend_link", { p_token: "falsch" })).error?.message,
+    ).toContain("ungültig");
+    const t = await makeLink(a);
+    expect((await a.client.rpc("accept_friend_link", { p_token: t })).error?.message).toContain(
+      "eigener",
+    );
+    const expired = await makeLink(a, 1, -1000);
+    expect(
+      (await b.client.rpc("accept_friend_link", { p_token: expired })).error?.message,
+    ).toContain("abgelaufen");
+    expect((await b.client.rpc("friend_link_info", { p_token: expired })).data![0].state).toBe(
+      "abgelaufen",
+    );
+  });
+
+  it("Annehmen macht beide gegenseitig zu Freunden und verbraucht eine Nutzung", async () => {
+    const t = await makeLink(a, 1);
+    const r = await b.client.rpc("accept_friend_link", { p_token: t });
+    expect(r.error).toBeNull();
+    expect(r.data).toBe(a.username);
+    expect(await seesVillage(b, a)).toBe(true);
+    expect(await seesVillage(a, b)).toBe(true);
+    const link = await admin
+      .from("friend_links")
+      .select("uses")
+      .eq("token_hash", sha256(t))
+      .single();
+    expect(link.data?.uses).toBe(1);
+    // Schon befreundet: nochmal annehmen verbraucht nichts und schlägt nicht fehl
+    expect((await b.client.rpc("accept_friend_link", { p_token: t })).error).toBeNull();
+    // aufgebraucht für Dritte
+    expect((await c.client.rpc("accept_friend_link", { p_token: t })).error?.message).toContain(
+      "aufgebraucht",
+    );
+    expect((await c.client.rpc("friend_link_info", { p_token: t })).data![0].state).toBe(
+      "aufgebraucht",
+    );
+    expect(await seesVillage(c, a)).toBe(false);
+    await cleanup();
+  });
+
+  it("ein Link mit mehreren Nutzungen funktioniert für mehrere Personen", async () => {
+    const t = await makeLink(a, 2);
+    expect((await b.client.rpc("accept_friend_link", { p_token: t })).error).toBeNull();
+    expect((await c.client.rpc("accept_friend_link", { p_token: t })).error).toBeNull();
+    expect(await seesVillage(b, a)).toBe(true);
+    expect(await seesVillage(c, a)).toBe(true);
+    await cleanup();
+  });
+
+  it("eine offene Anfrage wird durch den Link angenommen", async () => {
+    expect(
+      (await b.client.rpc("send_friend_request", { p_username: a.username })).error,
+    ).toBeNull();
+    const t = await makeLink(a, 1);
+    expect((await b.client.rpc("accept_friend_link", { p_token: t })).error).toBeNull();
+    expect(await seesVillage(b, a)).toBe(true);
+    const rows = await admin.from("friendships").select("status").in("requester_id", [a.id, b.id]);
+    expect(rows.data).toEqual([{ status: "accepted" }]);
+    await cleanup();
+  });
+
+  it("widerrufene Links funktionieren nicht mehr", async () => {
+    const t = await makeLink(a, 5);
+    const del = await a.client.from("friend_links").delete().eq("token_hash", sha256(t)).select();
+    expect(del.data).toHaveLength(1);
+    expect((await b.client.rpc("accept_friend_link", { p_token: t })).error?.message).toContain(
+      "ungültig",
+    );
+    expect(await seesVillage(b, a)).toBe(false);
+    // Fremde können keine Links anderer löschen
+    const t2 = await makeLink(a, 5);
+    const foreign = await b.client
+      .from("friend_links")
+      .delete()
+      .eq("token_hash", sha256(t2))
+      .select();
+    expect(foreign.data).toEqual([]);
+  });
+});
+
 describe("Daten-Validierung und Profile", () => {
   it("nur claude.ai-URLs", async () => {
     const { error } = await a.client

@@ -51,7 +51,7 @@ Hub-Dome/  (Repo-Root)
 │  │  ├─ doerfer/             # leitet auf den Reise-Dialog um
 │  │  ├─ dorf/[username]/     # Welt-Shell: 3D-Dorf + Dialoge (?d=…), Liste als Dialog ?d=liste
 │  │  ├─ freunde/             # Server Actions für Freundschaften
-│  │  ├─ freund/[token]/      # Freundschaftslink (Phase 4d)
+│  │  ├─ freund/[token]/      # Freundschaftslink (Phase 4e)
 │  │  ├─ einstellungen/       # leitet auf den Einstellungen-Dialog um
 │  │  └─ api/mcp/[token]/route.ts   # MCP-Endpunkt
 │  ├─ components/
@@ -154,7 +154,7 @@ create table friendships (
   check (requester_id <> addressee_id)
 );
 -- Pro Paar höchstens eine Zeile (eindeutiger Index auf least/greatest der beiden IDs).
--- Freundschaftslinks (Phase 4d) erhalten eine eigene Tabelle mit Token-Hash, Ablauf und Nutzungen.
+-- Freundschaftslinks (Phase 4e) erhalten eine eigene Tabelle mit Token-Hash, Ablauf und Nutzungen.
 
 -- Persönliche Connector-Tokens (nur Hash speichern!)
 create table mcp_tokens (
@@ -189,7 +189,7 @@ language sql stable security definer set search_path = public as $$
 $$;
 ```
 
-Server-Funktionen (security definer): `send_friend_request(p_username)`, `respond_friend_request(p_id, p_accept)`, `cancel_friend_request(p_id)`, `remove_friend(p_other)`. Beim Annehmen setzt `grant_mutual_access` den Zugriff in beide Richtungen, `remove_friend` entfernt ihn in beide Richtungen. Phase 4d ergänzt `accept_friend_link(p_token)` (hasht das Token, prüft Ablauf und Nutzungen). Niemand kann sich selbst befreunden.
+Server-Funktionen (security definer): `send_friend_request(p_username)`, `respond_friend_request(p_id, p_accept)`, `cancel_friend_request(p_id)`, `remove_friend(p_other)`. Beim Annehmen setzt `grant_mutual_access` den Zugriff in beide Richtungen, `remove_friend` entfernt ihn in beide Richtungen. Phase 4e ergänzt `accept_friend_link(p_token)` (hasht das Token, prüft Ablauf und Nutzungen). Niemand kann sich selbst befreunden.
 
 Trigger `on auth.users insert`: Profil-Platzhalter anlegen. Dorf und Zentrale werden im Onboarding erstellt, sobald der Benutzername gesetzt ist.
 
@@ -199,10 +199,10 @@ Trigger `on auth.users insert`: Profil-Platzhalter anlegen. Dorf und Zentrale we
 2. **Häuser verwalten**: Haus aus dem Modulkatalog hinzufügen oder ein eigenes Themenhaus anlegen. Umbenennen, Farbe ändern, löschen (mit Bestätigung, Artifacts werden mitgelöscht oder vorher verschoben).
 3. **Artifact hinzufügen (Web)**: Link einfügen, dann Titel, Beschreibung, Typ, Tags, Haus und Sichtbarkeit wählen. Die Validierung erlaubt für Artifacts nur `claude.ai`-Links (weitere Objekttypen: PLAN-ERWEITERUNG.md).
 4. **Artifact bearbeiten, verschieben, löschen.**
-5. **Freunde**: Anfrage per Benutzername senden, annehmen oder ablehnen, Freund entfernen (wirkt beidseitig). Ab Phase 4d zusätzlich ein Freundschaftslink (7 Tage, 1–100 Nutzungen, widerrufbar), auch für Personen ohne Konto.
+5. **Freunde**: Anfrage per Benutzername senden, annehmen oder ablehnen, Freund entfernen (wirkt beidseitig). Ab Phase 4e zusätzlich ein Freundschaftslink (7 Tage, 1–100 Nutzungen, widerrufbar), auch für Personen ohne Konto.
 6. **Reise-Dialog** (früher Seite «Meine Dörfer»): Karten mit dem eigenen Dorf zuoberst, darunter die Dörfer der Freunde. Pro Karte: Name, Anzahl Häuser und Artifacts, letzte Aktivität.
 7. **3D-Dorf ansehen** (siehe Abschnitt 7).
-8. **Listenansicht** desselben Dorfs als Dialog (`?d=liste`, Phase 4d): Häuser als Abschnitte, Objekte als Karten.
+8. **Listenansicht** desselben Dorfs als Dialog (`?d=liste`, Phase 4e): Häuser als Abschnitte, Objekte als Karten.
 9. **Connector-Token**: In den Einstellungen Token erzeugen. Es wird **einmal** angezeigt, zusammen mit der fertigen Connector-URL und einer Schritt-für-Schritt-Anleitung. Token sind widerrufbar.
 
 ## 7. 3D-Dorf – Gestaltung und Verhalten
@@ -280,7 +280,7 @@ Gilt nur, wenn die Hub-Dome-Tools (dorf_haeuser_auflisten, artifact_platzieren) 
 
 ## 10. Phasen mit Abnahmekriterien
 
-> **Aktuelle Reihenfolge und Stand: `docs/PHASENPLAN.md`.** Neu hinzugekommen: Phase 4c (Welt-Shell mit Dialogen), 4d (Freundschaften, Listen-Dialog, Freundschaftslink), 5b (Übernehmen, `PLAN-ERWEITERUNG-2.md` Teil A) und 6b (Topdorf, Teil B). Die Phasen unten bleiben die Detailbeschreibung. In Phase 2–4 sind die Punkte zu Einladungslinks und zur 2D-Seite durch 4c und 4d ersetzt.
+> **Aktuelle Reihenfolge und Stand: `docs/PHASENPLAN.md`.** Neu hinzugekommen: Phase 4c (Welt-Shell mit Dialogen), 4d (Feinschliff, Freundschaften), 4e (Freundschaftslink, Listen-Dialog), 5b (Übernehmen, `PLAN-ERWEITERUNG-2.md` Teil A) und 6b (Topdorf, Teil B). Die Phasen unten bleiben die Detailbeschreibung. In Phase 2–4 sind die Punkte zu Einladungslinks und zur 2D-Seite durch 4c und 4d ersetzt.
 
 ### Phase 0 – Abklärungen (ohne Code) – **Link-Test ist Sperre vor Phase 5**
 
@@ -331,7 +331,7 @@ Gilt nur, wenn die Hub-Dome-Tools (dorf_haeuser_auflisten, artifact_platzieren) 
 
 ### Phase 5 – MCP-Connector und Skill
 
-- [ ] Vorbedingung: Link-Test aus Phase 0 abgeschlossen und Ergebnis umgesetzt (Hinweise in Skill und Formular), Phase 4d committet
+- [ ] Vorbedingung: Link-Test aus Phase 0 abgeschlossen und Ergebnis umgesetzt (Hinweise in Skill und Formular), Phase 4e abgeschlossen und alles committet
 - [ ] Token-Verwaltung im Tab «Claude» des Einstellungen-Dialogs
 - [ ] MCP-Route mit den 4 Tools plus MCP-Anteil aus 3b (`objekt_typ`, Alias `objekt_platzieren`, siehe PLAN-ERWEITERUNG.md), Rate-Limit, Fehlermeldungen auf Deutsch
 - [ ] Tests: Token-Validierung, widerrufenes Token, Platzieren nur im eigenen Dorf, Duplikat-URL wird aktualisiert
@@ -366,7 +366,7 @@ TOKEN_PEPPER=                     # zusätzlicher Geheimwert für Token-Hashes
 GITHUB_TOKEN=                     # optional, erhöht das GitHub-API-Limit für Vorschauen
 ```
 
-`TOKEN_PEPPER` gilt laut Entscheidungslog nur für MCP-Tokens. Tokens, die in der Datenbank gehasht werden (früher Einladung, ab 4d Freundschaftslink), kommen ohne Pepper aus, weil die Datenbank ihn nicht kennt.
+`TOKEN_PEPPER` gilt laut Entscheidungslog nur für MCP-Tokens. Tokens, die in der Datenbank gehasht werden (früher Einladung, ab 4e Freundschaftslink), kommen ohne Pepper aus, weil die Datenbank ihn nicht kennt.
 
 ## 12. Definition of Done (pro Phase)
 
@@ -386,4 +386,4 @@ Die gültige Fassung liegt im Repo-Root (`CLAUDE.md`). Sie ersetzt die ursprüng
 3. **Google-Login**: eingerichtet; Freigabe der Google-App vor dem Pilot (Phase 6)
 4. **Pilotgruppe**: 3–5 Personen mit gemischten Abos (Gratis und Pro), offen
 5. **Link-Test Phase 0**: offen, Sperre vor Phase 5
-6. **Freundschaftslink**: Gilt das Erzeugen als Zustimmung des Absenders? Entscheid beim Start von Phase 4d
+6. **Freundschaftslink**: Gilt das Erzeugen als Zustimmung des Absenders? Entscheid beim Start von Phase 4e

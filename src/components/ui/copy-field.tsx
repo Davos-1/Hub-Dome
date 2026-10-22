@@ -6,15 +6,10 @@ export function CopyField({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex gap-2">
-      <input
-        readOnly
-        value={value}
-        aria-label="Link"
-        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-black"
-      />
+      <input readOnly value={value} aria-label="Link" className="hd-input" />
       <button
         type="button"
-        className="rounded-lg border border-zinc-300 px-3 py-1 text-sm"
+        className="hd-btn hd-btn-ghost flex-none"
         onClick={async () => {
           await navigator.clipboard.writeText(value);
           setCopied(true);

@@ -3,6 +3,7 @@ export const DIALOG_IDS = [
   "start",
   "reise",
   "einstellungen",
+  "liste",
   "objekt",
   "objektedit",
   "haus",
