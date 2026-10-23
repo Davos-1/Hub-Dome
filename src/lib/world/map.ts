@@ -20,11 +20,22 @@ import {
 } from "./geom";
 import { pickWeighted, range, rng } from "./seed";
 import { DIRECTIONS, laneAxis } from "./axes";
+import { SEED_OBJEKT, seedObjektShape, type SeedObjekt } from "./seed-objects";
 
 /** Merkmale bleiben so weit von jeder Gassenachse weg, dass dort beidseits Häuser Platz haben. */
-const LANE_BAND = 10.8;
+export const LANE_BAND = 10.8;
 
-export type Landschaft = "flussbogen" | "bachtal" | "seeufer" | "huegelland";
+/** Landschaften v1 (flussbogen, bachtal, seeufer, huegelland) und v2 (zusätzlich die übrigen). */
+export type Landschaft =
+  | "flussbogen"
+  | "bachtal"
+  | "seeufer"
+  | "huegelland"
+  | "flussdorf"
+  | "flussgabel"
+  | "bergsee"
+  | "bucht"
+  | "hochplateau";
 export type Stimmung = "fruehling" | "sommer" | "herbst" | "alpin";
 
 export const LANDSCHAFT_LABELS: Record<Landschaft, string> = {
@@ -32,6 +43,11 @@ export const LANDSCHAFT_LABELS: Record<Landschaft, string> = {
   bachtal: "Bachtal",
   seeufer: "Seeufer",
   huegelland: "Hügelland",
+  flussdorf: "Flussdorf",
+  flussgabel: "Flussgabel mit Insel",
+  bergsee: "Bergsee",
+  bucht: "Bucht",
+  hochplateau: "Hochplateau",
 };
 export const STIMMUNG_LABELS: Record<Stimmung, string> = {
   fruehling: "Frühling",
@@ -117,8 +133,33 @@ export const PALETTES: Record<Stimmung, Palette> = {
   },
 };
 
-export type River = { points: Pt[]; width: number };
-export type Bridge = { x: number; z: number; angle: number; span: number };
+export type River = {
+  points: Pt[];
+  width: number;
+  /** Nur v2: Bach (schmal, klar) oder Fluss (breit, mit Sandbänken und Schaumlinien). */
+  kind?: "fluss" | "bach";
+};
+/** Brücke; `style` nur v2 (Steinbogen bei breitem Wasser, sonst Holz). */
+export type Bridge = {
+  x: number;
+  z: number;
+  angle: number;
+  span: number;
+  style?: "holz" | "stein";
+};
+/** Felsen (v2): Gruppe von Blöcken auf einem Kreis. */
+export type Rock = { x: number; z: number; r: number; h: number };
+/** Kontinuierliche Parameter der Welt (v2). */
+export type MapParams = {
+  /** Waldanteil (Dichte der Streu- und Hügelbäume), 0.6–1.5. */
+  forest: number;
+  /** Felsanteil 0–1. */
+  rocks: number;
+  /** Dichte der Seed-Objekte 0–1. */
+  density: number;
+  /** Farbton von Licht und Himmel: −1 kühl … +1 warm. */
+  tint: number;
+};
 export type Pasture = { x: number; z: number; w: number; d: number; angle: number };
 export type Windmill = { x: number; z: number; angle: number };
 export type Orchard = { x: number; z: number; w: number; d: number; angle: number };
@@ -145,8 +186,34 @@ export type WorldMap = {
   orchard: Orchard | null;
   /** Aussichtsbank am Ende des Wanderwegs. */
   viewBench: { x: number; z: number; angle: number } | null;
-  hills: { amp: number; f1: number; f2: number; p1: number; p2: number };
+  hills: {
+    amp: number;
+    f1: number;
+    f2: number;
+    p1: number;
+    p2: number;
+    /** Nur v2: Breite des Anstiegs am Rand der flachen Zone (v1: 18 m; Hochplateau steiler). */
+    ramp?: number;
+  };
+  /** Generator-Version der Karte (fehlt bei v1). */
+  version?: number;
+  /** Nur v2: weitere Wasserläufe (Flussarm, Zufluss, Bach). Brücken dürfen sie queren. */
+  streams?: River[];
+  /** Nur v2: Seed-Objekte (Auswahl je Welt). */
+  objects?: SeedObjekt[];
+  /** Nur v2: Felsen. */
+  rocks?: Rock[];
+  /** Nur v2: Sandbänke im Fluss (nur Darstellung, Umriss). */
+  sandbanks?: Pt[][];
+  /** Nur v2: Wasserfall am Rand (Bach über die Plateaukante), nur Darstellung. */
+  waterfall?: { x: number; z: number; angle: number } | null;
+  /** Nur v2: kontinuierliche Parameter. */
+  params?: MapParams;
 };
+
+/** Alle Wasserläufe der Karte (Hauptfluss und, nur v2, weitere). */
+export const riversOf = (m: Pick<WorldMap, "river" | "streams">): River[] =>
+  m.river ? [m.river, ...(m.streams ?? [])] : [...(m.streams ?? [])];
 
 export const RIVER_WIDTH = 3.4;
 /** Uferstreifen beidseits des Flusses (Sand, Schilf). */
@@ -210,15 +277,15 @@ function seeufer(r: () => number): { x: number; z: number; r: number; outline: P
 }
 
 /** Wasser als Grundflächen (für die Prüfung von Merkmalen auf der Karte selbst). */
-function waterHits(
-  m: Pick<WorldMap, "river" | "pond" | "lake">,
+export function waterHits(
+  m: Pick<WorldMap, "river" | "pond" | "lake" | "streams">,
   s: Shape,
   margin: number,
 ): boolean {
-  if (m.river) {
-    const d = distPointPolyline(s.x, s.z, m.river.points);
+  for (const river of riversOf(m)) {
+    const d = distPointPolyline(s.x, s.z, river.points);
     const reach = s.kind === "circle" ? s.r : Math.hypot(s.hw, s.hd);
-    if (d < m.river.width / 2 + RIVER_BANK + reach + margin) return true;
+    if (d < river.width / 2 + RIVER_BANK + reach + margin) return true;
   }
   if (m.pond && overlaps(s, m.pond, margin + 1.2)) return true;
   if (m.lake) {
@@ -231,9 +298,9 @@ function waterHits(
 }
 
 /** Erste gültige Stelle auf einem Ring für ein Merkmal (deterministisch, meidet Wasser und andere Merkmale). */
-function placeOnRing(
+export function placeOnRing(
   r: () => number,
-  m: Pick<WorldMap, "river" | "pond" | "lake">,
+  m: Pick<WorldMap, "river" | "pond" | "lake" | "streams">,
   taken: Shape[],
   axes: Pt[][],
   radii: [number, number],
@@ -419,18 +486,33 @@ export function featureShapes(m: WorldMap): { shape: Shape; label: string }[] {
   }
   if (m.viewBench)
     out.push({ shape: circle(m.viewBench.x, m.viewBench.z, 1.2), label: "an der Aussichtsbank" });
+  // Nur v2: Seed-Objekte und Felsen
+  for (const o of m.objects ?? [])
+    out.push({ shape: seedObjektShape(o), label: SEED_OBJEKT[o.typ].label });
+  for (const k of m.rocks ?? []) out.push({ shape: circle(k.x, k.z, k.r), label: "an den Felsen" });
   return out;
 }
 
-export type Crossing = { x: number; z: number; angle: number; span: number; ok: boolean };
+export type Crossing = {
+  x: number;
+  z: number;
+  angle: number;
+  span: number;
+  ok: boolean;
+  /** Breite des gequerten Wassers. */
+  width: number;
+};
 
 /**
  * Stellen, an denen ein Weg den Fluss quert (Brücken). `ok` heisst: Winkel zum Fluss ≥ 35° und kurz genug.
  * `angle` ist die Richtung des Wegs (atan2(dx, dz)), `span` die Länge der Brücke.
  */
 export function riverCrossings(m: WorldMap, pts: Pt[], hw: number): Crossing[] {
-  if (!m.river) return [];
-  const reach = m.river.width / 2 + RIVER_BANK + hw + 0.3;
+  return riversOf(m).flatMap((river) => crossingsOf(river, pts, hw));
+}
+
+function crossingsOf(river: River, pts: Pt[], hw: number): Crossing[] {
+  const reach = river.width / 2 + RIVER_BANK + hw + 0.3;
   const out: Crossing[] = [];
   let run: number[] = [];
   const flush = () => {
@@ -442,32 +524,33 @@ export function riverCrossings(m: WorldMap, pts: Pt[], hw: number): Crossing[] {
     // Flussrichtung an der Stelle
     let best = 0;
     let bd = Infinity;
-    m.river!.points.forEach((p, i) => {
+    river.points.forEach((p, i) => {
       const d = Math.hypot(p.x - mid.x, p.z - mid.z);
       if (d < bd) {
         bd = d;
         best = i;
       }
     });
-    const rp = m.river!.points;
+    const rp = river.points;
     const f0 = rp[Math.max(0, best - 2)];
     const f1 = rp[Math.min(rp.length - 1, best + 2)];
     const flow = Math.atan2(f1.x - f0.x, f1.z - f0.z);
     const sin = Math.abs(Math.sin(dir - flow));
     const span = Math.hypot(b.x - a.x, b.z - a.z);
     // Schräge Brücken bis 35° sind erlaubt; die Brücke ist dann entsprechend länger
-    const across = m.river!.width + 2 * RIVER_BANK + 2 * hw + 0.6;
+    const across = river.width + 2 * RIVER_BANK + 2 * hw + 0.6;
     out.push({
       x: mid.x,
       z: mid.z,
       angle: dir,
       span,
       ok: sin > 0.57 && span < across / Math.max(sin, 0.57) + 1.5,
+      width: river.width,
     });
     run = [];
   };
   pts.forEach((p, i) => {
-    if (distPointPolyline(p.x, p.z, m.river!.points) < reach) run.push(i);
+    if (distPointPolyline(p.x, p.z, river.points) < reach) run.push(i);
     else flush();
   });
   flush();
@@ -482,7 +565,8 @@ export function inWater(m: WorldMap, s: Shape, margin = 0): boolean {
 /** Abstand eines Punktes zur nächsten Wasserkante (negativ im Wasser); Infinity ohne Wasser. */
 export function waterEdgeDist(m: WorldMap, x: number, z: number): number {
   let best = Infinity;
-  if (m.river) best = Math.min(best, distPointPolyline(x, z, m.river.points) - m.river.width / 2);
+  for (const river of riversOf(m))
+    best = Math.min(best, distPointPolyline(x, z, river.points) - river.width / 2);
   if (m.pond) best = Math.min(best, Math.hypot(x - m.pond.x, z - m.pond.z) - m.pond.r);
   if (m.lake) {
     const d = distPointPolyline(x, z, [...m.lake.outline, m.lake.outline[0]]);
@@ -494,7 +578,7 @@ export function waterEdgeDist(m: WorldMap, x: number, z: number): number {
 /** Geländehöhe: flach bis `rFlat`, aussen sanfte Hügel; an Wasser und Merkmalen flach gedrückt. */
 export function heightAt(m: WorldMap, x: number, z: number): number {
   const r = Math.hypot(x, z);
-  const s = smooth((r - m.rFlat) / 18);
+  const s = smooth((r - m.rFlat) / (m.hills.ramp ?? 18));
   if (s <= 0) return 0;
   const { amp, f1, f2, p1, p2 } = m.hills;
   let h =

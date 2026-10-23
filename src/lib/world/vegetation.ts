@@ -6,11 +6,12 @@
 
 import { DIRECTIONS } from "./axes";
 import { circle, polar, polylineLength, TAU, type Pt } from "./geom";
-import { heightAt, waterEdgeDist } from "./map";
+import { heightAt, riversOf, waterEdgeDist } from "./map";
 import { range, rng } from "./seed";
 import type { ClaimKind, Space } from "./space";
 
-export type TreeKind = "laub" | "nadel" | "obst" | "bluete";
+/** Baumarten; `weide` (Trauerweide am Ufer) nur in Generator v2. */
+export type TreeKind = "laub" | "nadel" | "obst" | "bluete" | "weide";
 export type Tree = {
   x: number;
   z: number;
@@ -25,7 +26,8 @@ export type Vegetation = { trees: Tree[]; bushes: Small[]; rocks: Small[]; flowe
 export type LampSpot = { x: number; z: number };
 
 /** Kronenradius eines Baums (für Abstände). */
-export const treeRadius = (kind: TreeKind, s: number) => (kind === "nadel" ? 0.95 : 1.15) * s;
+export const treeRadius = (kind: TreeKind, s: number) =>
+  (kind === "nadel" ? 0.95 : kind === "weide" ? 1.6 : 1.15) * s;
 
 /** Raster für schnelle Abstandsprüfungen unter Pflanzen. */
 class Grid {
@@ -259,26 +261,61 @@ export function placeVegetation(
     }
   }
 
+  // 2b. Nur v2: Trauerweiden an Fluss und Bächen (eigener Zufallsstrom, v1 bleibt unberührt)
+  if (map.version === 2) {
+    const wr = rng(seed, "weiden");
+    for (const river of riversOf(map)) {
+      const pts = river.points;
+      let side = wr() < 0.5 ? 1 : -1;
+      for (let i = 4 + Math.floor(wr() * 6); i < pts.length - 4; i += 6 + Math.floor(wr() * 4)) {
+        const p = pts[i];
+        if (Math.hypot(p.x, p.z) > map.rFlat + 30) continue;
+        const a = pts[i - 2];
+        const b = pts[i + 2];
+        const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+        const sc = (0.85 + wr() * 0.3) * density ** 0.2;
+        const off = river.width / 2 + treeRadius("weide", sc) + 1.15;
+        side = wr() < 0.7 ? -side : side;
+        const x = p.x + (-(b.z - a.z) / l) * off * side;
+        const z = p.z + ((b.x - a.x) / l) * off * side;
+        const rad = treeRadius("weide", sc);
+        if (!grid.free(x, z, rad, 0.15) || blocked(space, x, z, rad, 1.6, true)) continue;
+        grid.add(x, z, rad);
+        out.trees.push({
+          x,
+          z,
+          y: heightAt(map, x, z),
+          s: sc,
+          rot: wr() * TAU,
+          kind: "weide",
+          color: pal.leaves[Math.floor(wr() * pal.leaves.length) % pal.leaves.length],
+        });
+      }
+    }
+  }
+  // Waldanteil der Welt (nur v2, sonst 1)
+  const forestK = map.params?.forest ?? 1;
+
   // 3. Wäldchen in der Wiese und Waldrand um die Siedlung
   const edge = Math.max(settlementR + 9, 34);
   const groves = 3 + Math.floor(r() * 3);
   for (let g = 0; g < groves; g++) {
     const c = polar(r() * TAU, range(r, edge - 4, map.rFlat - 4));
-    const n = Math.round((8 + r() * 10) * density);
+    const n = Math.round((8 + r() * 10) * density * forestK);
     for (let i = 0, made = 0; i < n * 3 && made < n; i++) {
       const p = polar(r() * TAU, Math.sqrt(r()) * 9);
       if (addTree(c.x + p.x, c.z + p.z, 0.8 + r() * 0.5, treeKind())) made++;
     }
   }
   // Streu-Bäume innerhalb und am Rand der Siedlung
-  const scatter = Math.round(60 * density);
+  const scatter = Math.round(60 * density * forestK);
   for (let i = 0, made = 0; i < scatter * 6 && made < scatter; i++) {
     const p = polar(r() * TAU, range(r, plaza.a + 4, map.rFlat + 4));
     if (addTree(p.x, p.z, 0.75 + r() * 0.55, treeKind())) made++;
   }
   // Waldrand und Hügelwald
   if (forest) {
-    const belt = Math.round(260 * density);
+    const belt = Math.round(260 * density * forestK);
     for (let i = 0, made = 0; i < belt * 5 && made < belt; i++) {
       const p = polar(r() * TAU, range(r, edge + 4, map.rFlat + 48));
       if (
@@ -322,7 +359,7 @@ export function placeVegetation(
   };
   smalls(Math.round(55 * density), 0.55, out.bushes, pal.bushes, plaza.a + 3, map.rFlat + 10, 0.9);
   smalls(
-    Math.round((map.stimmung === "alpin" ? 40 : 22) * density),
+    Math.round((map.stimmung === "alpin" ? 40 : 22) * density * (0.6 + (map.params?.rocks ?? 0.4))),
     0.4,
     out.rocks,
     pal.rocks,

@@ -208,6 +208,52 @@ export function Ducks({
   return <Herd geometry={geometry} count={count} step={step} frozen={frozen} />;
 }
 
+/**
+ * Enten auf einem Fluss oder Bach (v2): paddeln auf einem Abschnitt nahe am Dorf langsam hin und her,
+ * immer in Fliessrichtung ausgerichtet und auf ihrer Seite des Wassers.
+ */
+export function RiverDucks({
+  river,
+  count,
+  frozen,
+}: {
+  river: { points: { x: number; z: number }[]; width: number };
+  count: number;
+  frozen: boolean;
+}) {
+  const geometry = useMerged(duckParts);
+  const track = useMemo(() => {
+    // Abschnitt nahe am Dorf (25–80 m von der Mitte), sonst der ganze Lauf
+    const near = river.points.filter((p) => {
+      const d = Math.hypot(p.x, p.z);
+      return d > 25 && d < 80;
+    });
+    const pts = near.length > 12 ? near : river.points;
+    const mid = Math.floor(pts.length / 2);
+    return pts.slice(Math.max(0, mid - 14), Math.min(pts.length, mid + 14));
+  }, [river.points]);
+  const step = useCallback(
+    (i: number, t: number, o: THREE.Object3D) => {
+      const n = track.length - 1;
+      // Hin und her mit weichem Wenden, jede Ente mit eigenem Takt
+      const u = 0.5 - 0.5 * Math.cos(t * (0.05 + i * 0.012) + i * 1.7);
+      const f = u * (n - 1);
+      const k = Math.min(n - 1, Math.floor(f));
+      const a = track[k];
+      const b = track[k + 1];
+      const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+      const side = ((i % 3) - 1) * river.width * 0.22;
+      const px = a.x + (b.x - a.x) * (f - k) + (-(b.z - a.z) / l) * side;
+      const pz = a.z + (b.z - a.z) * (f - k) + ((b.x - a.x) / l) * side;
+      o.position.set(px, 0.06 + 0.015 * Math.sin(t * 2 + i), pz);
+      const dir = Math.sin(t * (0.05 + i * 0.012) + i * 1.7) >= 0 ? 1 : -1;
+      o.rotation.y = heading(((b.x - a.x) / l) * dir, ((b.z - a.z) / l) * dir);
+    },
+    [track, river.width],
+  );
+  return <Herd geometry={geometry} count={count} step={step} frozen={frozen} />;
+}
+
 /** Vögel kreisen hoch über dem Dorf und schlagen mit den Flügeln. */
 export function Birds({
   extent,

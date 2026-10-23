@@ -21,6 +21,7 @@ import { dirAngle, DIRECTIONS } from "./axes";
 import type { DekoItem, WorldDoc } from "./doc";
 import { box, circle, polar, TAU, type Pt } from "./geom";
 import { generateMap, TRAIL_WIDTH, type WorldMap } from "./map";
+import { generateMapV2 } from "./map-v2";
 import { applyDeko } from "./rules";
 import { GENERATOR_VERSION } from "./seed";
 import {
@@ -158,7 +159,8 @@ export function generateWorld(input: WorldInput): World {
   const seed = input.seed;
   const version = input.version ?? GENERATOR_VERSION;
   const doc = input.doc ?? null;
-  const map = generateMap(seed);
+  // Karte nach Generator-Version (v1 bleibt eingefroren, Golden-Test)
+  const map = version >= 2 ? generateMapV2(seed) : generateMap(seed);
   const space = new Space(map);
   const zentrale = input.houses.find((h) => h.kind === "zentrale");
   const homes = input.houses.filter((h) => h.kind !== "zentrale");

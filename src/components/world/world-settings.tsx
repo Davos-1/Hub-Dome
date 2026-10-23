@@ -1,7 +1,7 @@
 "use client";
 
 import { describeMap } from "@/lib/world/map";
-import { makeSeed } from "@/lib/world/seed";
+import { GENERATOR_VERSION, makeSeed } from "@/lib/world/seed";
 import type { VillageModel } from "@/lib/village-model";
 
 /** Neuer Seed aus der Zufallsquelle des Browsers. */
@@ -44,13 +44,31 @@ export function WorldSettings({
             bleiben gleich, bis du neu würfelst. Du siehst die neue Welt zuerst als Vorschau; deine
             eigene Deko bleibt, wenn sie in die neue Landschaft passt.
           </p>
-          <button
-            type="button"
-            className="hd-btn hd-btn-ghost hd-btn-sm self-start"
-            onClick={() => onPreview(randomSeed())}
-          >
-            Welt neu würfeln …
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="hd-btn hd-btn-ghost hd-btn-sm"
+              onClick={() => onPreview(randomSeed())}
+            >
+              Welt neu würfeln …
+            </button>
+            {w.version < GENERATOR_VERSION && (
+              <button
+                type="button"
+                className="hd-btn hd-btn-primary hd-btn-sm"
+                onClick={() => onPreview(w.seed)}
+              >
+                Auf neue Welt-Version aktualisieren …
+              </button>
+            )}
+          </div>
+          {w.version < GENERATOR_VERSION && (
+            <p className="hd-note">
+              Die neue Version bringt mehr Abwechslung: Flüsse durchs Dorf, Seen, Buchten und
+              Hochplateaus, Mühlen, Kapellen und andere Fundstücke. Dein Seed bleibt, deine Häuser
+              behalten ihre Plätze, wo es passt; du siehst alles zuerst als Vorschau.
+            </p>
+          )}
         </>
       ) : (
         <p className="hd-note">

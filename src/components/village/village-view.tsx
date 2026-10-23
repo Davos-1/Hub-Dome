@@ -180,10 +180,19 @@ export function VillageView(props: Props) {
     if (building && !preview) return { ...props.world, doc: draftDoc(draft) };
     if (!preview) return props.world;
     const d = props.world.doc;
+    // Aktualisieren (gleicher Seed, neue Version): Hausplätze und Quartiere werden mitgenommen
+    const upgrade = preview === props.world.seed;
     return {
       seed: preview,
       version: GENERATOR_VERSION,
-      doc: resetPlacements ? { v: 1 } : { v: 1, deko: d.deko, varianten: d.varianten },
+      doc: resetPlacements
+        ? { v: 1 }
+        : {
+            v: 1,
+            deko: d.deko,
+            varianten: d.varianten,
+            ...(upgrade ? { quartiere: d.quartiere, haeuser: d.haeuser } : {}),
+          },
     };
   }, [preview, resetPlacements, props.world, building, draft]);
   const devZeit = props.dev?.zeit;
@@ -424,6 +433,7 @@ export function VillageView(props: Props) {
           {empty && !props.isOwner && <p className={hint}>Hier gibt es noch keine Häuser.</p>}
           {preview && props.isOwner && active === null && (
             <RerollBanner
+              upgrade={preview === props.world.seed}
               model={model}
               reset={resetPlacements}
               onReset={setResetPlacements}

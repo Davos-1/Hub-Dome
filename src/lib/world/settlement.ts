@@ -10,7 +10,7 @@
  */
 
 import { FACH_ORDER, FACHBEREICHE, type FachbereichId } from "../fachbereiche";
-import { AXIS_STEP, DIRECTIONS, laneAxis, NODE_RP, type Axis } from "./axes";
+import { AXIS_STEP, DIRECTIONS, laneAxesOf, NODE_RP, type Axis } from "./axes";
 import {
   box,
   circle,
@@ -23,7 +23,7 @@ import {
   type Pt,
 } from "./geom";
 import { rng } from "./seed";
-import { inWater, riverCrossings } from "./map";
+import { inWater, riverCrossings, type Bridge } from "./map";
 import type { ClaimKind, Space } from "./space";
 
 /** Feste Grösse jedes Grundstücks: Haus der Stufe 3 samt Anbau und 12 Objekt-Plätze (lokal: +z = Tor). */
@@ -106,7 +106,7 @@ export type PlacedHouse = {
 export type Settlement = {
   plaza: { a: number; n: number; rot: number };
   /** Brücken, wo Gassen den Fluss queren. */
-  bridges: { x: number; z: number; angle: number; span: number }[];
+  bridges: Bridge[];
   lanes: Lane[];
   nodes: SettlementNode[];
   houses: Record<string, PlacedHouse>;
@@ -435,7 +435,7 @@ function axisRoom(space: Space, a: Axis): number {
     const p = a.axis[i];
     const s = circle(p.x, p.z, LANE_WIDTH / 2 + PLOT.front + PLOT.back);
     if (
-      inWater({ ...m, river: null }, s, 0) ||
+      inWater({ ...m, river: null, streams: [] }, s, 0) ||
       space.claims.some((c) => c.kind === "merkmal" && overlaps(s, c.shape, 0))
     ) {
       return a.acc[i];
@@ -499,9 +499,7 @@ export function placeSettlement(
     space,
     plaza,
     lanes: new Map(),
-    axes: Array.from({ length: DIRECTIONS }, (_, k) =>
-      laneAxis(seed, plaza, k, map.rBuild, map.lake),
-    ),
+    axes: laneAxesOf(seed, map),
     nodes: [],
     houses: {},
     quarterDirs: new Map(),
@@ -595,7 +593,16 @@ export function placeSettlement(
   const bridges = paths
     .filter((p) => p.kind === "gasse")
     .flatMap((p) => riverCrossings(map, p.points, p.width / 2))
-    .map(({ x, z, angle, span }) => ({ x, z, angle, span: span + 1.2 }));
+    .map(({ x, z, angle, span, width }) => ({
+      x,
+      z,
+      angle,
+      span: span + 1.2,
+      // v2: breites Wasser bekommt eine Steinbogenbrücke (v1 kennt keinen Stil)
+      ...(map.version === 2
+        ? { style: width >= 4.5 ? ("stein" as const) : ("holz" as const) }
+        : {}),
+    }));
   return {
     plaza,
     bridges,

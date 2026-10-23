@@ -10,6 +10,7 @@ import type { WorldActions } from "@/lib/world/types";
  * Bestätigung; was in der neuen Landschaft nicht mehr passt, wird vorher genannt (nie stillschweigend).
  */
 export function RerollBanner({
+  upgrade = false,
   model,
   reset,
   onReset,
@@ -18,6 +19,8 @@ export function RerollBanner({
   onDone,
   reroll,
 }: {
+  /** «Auf neue Welt-Version aktualisieren» (gleicher Seed) statt neu würfeln. */
+  upgrade?: boolean;
   /** Server Action «neu würfeln» (in der Entwickler-Vorschau eine Attrappe). */
   reroll: WorldActions["reroll"];
   /** Modell der Vorschau (neuer Seed). */
@@ -49,12 +52,12 @@ export function RerollBanner({
   return (
     <div
       role="dialog"
-      aria-label="Vorschau: neue Welt"
+      aria-label={upgrade ? "Vorschau: neue Welt-Version" : "Vorschau: neue Welt"}
       className="hd-pop-in pointer-events-auto absolute top-16 left-1/2 z-30 flex w-[min(560px,calc(100vw-24px))] -translate-x-1/2 flex-col gap-2 rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea] p-4 shadow-[0_12px_40px_rgba(28,27,25,.3)]"
     >
       <div className="hd-kicker !text-[#7a766d]">Vorschau · noch nicht gespeichert</div>
       <div className="text-[17px] font-bold text-[#1c1b19]">
-        Neue Landschaft: {describeMap(model.world.map)}
+        {upgrade ? "Neue Welt-Version" : "Neue Landschaft"}: {describeMap(model.world.map)}
       </div>
       <label className="flex items-center gap-2 text-[13.5px] text-[#3a3732]">
         <input
@@ -92,14 +95,16 @@ export function RerollBanner({
             Übernehmen …
           </button>
         )}
-        <button
-          type="button"
-          className="hd-btn hd-btn-ghost"
-          disabled={pending}
-          onClick={() => (setConfirm(false), onAgain())}
-        >
-          Nochmals würfeln
-        </button>
+        {!upgrade && (
+          <button
+            type="button"
+            className="hd-btn hd-btn-ghost"
+            disabled={pending}
+            onClick={() => (setConfirm(false), onAgain())}
+          >
+            Nochmals würfeln
+          </button>
+        )}
         <button type="button" className="hd-btn hd-btn-ghost" disabled={pending} onClick={onCancel}>
           Verwerfen
         </button>

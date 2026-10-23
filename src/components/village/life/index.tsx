@@ -2,12 +2,12 @@
 
 import type { VillageLayout } from "@/lib/layout";
 import type { Environment } from "../world-env";
-import { Birds, Butterflies, Chickens, Ducks, Sheep, Villagers } from "./creatures";
+import { Birds, Butterflies, Chickens, Ducks, RiverDucks, Sheep, Villagers } from "./creatures";
 import { Clouds } from "./clouds";
 import { Fireflies } from "./fireflies";
 import { ChickenRun, Pasture, Windmill } from "./farm";
 import { LiveFrames } from "./live-frames";
-import { Bridges, Lake, Pond, River } from "./water";
+import { Bridges, Lake, Pond, River, Sandbanks } from "./water";
 
 type Props = {
   layout: VillageLayout;
@@ -21,6 +21,8 @@ type Props = {
   dark?: boolean;
   /** Ein Dialog liegt über der Welt: keine laufenden Frames (spart CPU und Akku). */
   paused?: boolean;
+  /** Leuchtkraft von Fenstern und Laternen (Tageszeit). */
+  glow?: number;
 };
 
 /**
@@ -36,6 +38,7 @@ export function Life({
   mapOnly = false,
   dark = false,
   paused = false,
+  glow = 0.85,
 }: Props) {
   const frozen = reducedMotion;
   const n = (full: number, low: number) => (lowDetail ? low : full);
@@ -47,11 +50,19 @@ export function Life({
   return (
     <>
       <LiveFrames enabled={!reducedMotion && !paused} fps={n(30, 20)} />
-      {env.river && (
-        <River river={env.river} bridges={env.bridges} frozen={frozen} density={n(1, 0.5)} />
-      )}
+      {env.rivers.map((river, i) => (
+        <River
+          key={i}
+          river={river}
+          bridges={env.bridges}
+          frozen={frozen}
+          density={n(1, 0.5)}
+          level={i === 0 && env.river ? 0.05 : 0.035}
+        />
+      ))}
+      {env.sandbanks.length > 0 && <Sandbanks polys={env.sandbanks} />}
       {env.lake && <Lake lake={env.lake} frozen={frozen} density={n(1, 0.5)} />}
-      <Bridges bridges={env.bridges} />
+      <Bridges bridges={env.bridges} glow={glow} />
       {!mapOnly && (
         <>
           {env.pond && <Pond pond={env.pond} frozen={frozen} density={n(1, 0.5)} />}
@@ -59,6 +70,9 @@ export function Life({
           {env.pasture && <Sheep pasture={env.pasture} count={n(5, 3)} frozen={frozen} />}
           {env.windmill && <Windmill windmill={env.windmill} frozen={frozen} />}
           {duckWater && <Ducks water={duckWater} count={n(3, 2)} frozen={frozen} />}
+          {env.rivers[0] && env.v2 && env.rivers[0].width >= 2.2 && (
+            <RiverDucks river={env.rivers[0]} count={n(4, 2)} frozen={frozen} />
+          )}
           {env.chickens && <ChickenRun run={env.chickens} />}
           {env.chickens && <Chickens center={env.chickens} count={n(4, 2)} frozen={frozen} />}
           <Villagers paths={layout.paths} count={homes > 0 ? villagers : 0} frozen={frozen} />

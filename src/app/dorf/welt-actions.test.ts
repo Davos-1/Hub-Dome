@@ -4,6 +4,7 @@ import { toLayoutHouses, type HouseRow } from "@/lib/world/layout-houses";
 import { checkDeko } from "@/lib/world/rules";
 import type { DekoItem, WorldDoc } from "@/lib/world/doc";
 import type { OwnWorld } from "@/lib/world/server-data";
+import { GENERATOR_VERSION } from "@/lib/world/seed";
 
 // Die Aktionen laufen hier ohne Datenbank: Sitzung, Laden und Schreiben sind Fakes, die Welt rechnet echt.
 const mocks = vi.hoisted(() => ({
@@ -35,11 +36,16 @@ const rows: HouseRow[] = [
 ];
 const houses = toLayoutHouses(rows, []);
 
-const own = (seed: string, doc: WorldDoc = { v: 1 }, stored = true): OwnWorld => ({
+const own = (
+  seed: string,
+  doc: WorldDoc = { v: 1 },
+  stored = true,
+  version: number = GENERATOR_VERSION,
+): OwnWorld => ({
   ok: true,
   villageId: VILLAGE,
   houses,
-  world: { seed, version: 1, doc, stored },
+  world: { seed, version, doc, stored },
 });
 
 const bank = (id: string, x: number, z: number): DekoItem => ({ id, typ: "bank", x, z, r: 0 });
@@ -232,7 +238,7 @@ describe("rerollWorld", () => {
     expect(mocks.writeWorld).toHaveBeenCalledWith(VILLAGE, USER, {
       placements: { v: 1 },
       seed: "wxyz5678",
-      generator_version: 1,
+      generator_version: GENERATOR_VERSION,
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
@@ -256,7 +262,7 @@ describe("rerollWorld", () => {
     expect(mocks.writeWorld).toHaveBeenCalledWith(VILLAGE, USER, {
       placements: { v: 1, deko, varianten: { h1: { dach: 1 } } },
       seed: b,
-      generator_version: 1,
+      generator_version: GENERATOR_VERSION,
     });
   });
 
@@ -289,11 +295,46 @@ describe("rerollWorld", () => {
       entfernt: 2,
     });
     const [, , patch] = mocks.writeWorld.mock.calls[0];
-    expect(patch).toEqual({ placements: { v: 1, deko: [keep] }, seed: b, generator_version: 1 });
+    expect(patch).toEqual({
+      placements: { v: 1, deko: [keep] },
+      seed: b,
+      generator_version: GENERATOR_VERSION,
+    });
     // Das gespeicherte Dokument ist in der neuen Welt vollständig gültig
     const again = generateWorld({ seed: b, houses, doc: patch.placements });
     expect(again.rejected).toEqual([]);
     expect(again.deko).toEqual([keep]);
+  });
+
+  it("aktualisiert ein v1-Dorf mit gleichem Seed auf v2: Deko, Varianten und Hausplätze bleiben, alles fixiert", async () => {
+    const seed = "abcd1234";
+    const v1 = generateWorld({ seed, version: 1, houses });
+    const pins = Object.fromEntries(
+      Object.values(v1.settlement.houses).map((h) => [h.id, { r: h.dir, s: h.slot }]),
+    );
+    mocks.loadOwnWorld.mockResolvedValue(
+      own(seed, { v: 1, haeuser: pins, varianten: { h1: { farbe: 2 } } }, true, 1),
+    );
+    expect(await rerollWorld({ seed, resetPlacements: false })).toEqual({ ok: true, entfernt: 0 });
+    const [, , patch] = mocks.writeWorld.mock.calls[0];
+    expect(patch.seed).toBe(seed);
+    expect(patch.generator_version).toBe(GENERATOR_VERSION);
+    expect(patch.placements.varianten).toEqual({ h1: { farbe: 2 } });
+    // Jedes Haus ist fixiert; die gespeicherte Welt rechnet ohne Abweisungen
+    expect(Object.keys(patch.placements.haeuser).sort()).toEqual(
+      houses
+        .filter((h) => h.kind !== "zentrale")
+        .map((h) => h.id)
+        .sort(),
+    );
+    const again = generateWorld({
+      seed,
+      version: GENERATOR_VERSION,
+      houses,
+      doc: patch.placements,
+    });
+    expect(again.settlement.droppedPins).toEqual([]);
+    expect(again.settlement.unplaced).toEqual([]);
   });
 
   it("meldet freundlich, wenn die Tabelle fehlt, und andere Fehler", async () => {

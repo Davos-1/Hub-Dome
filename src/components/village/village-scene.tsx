@@ -16,6 +16,8 @@ import { DekoLayer } from "./deko-layer";
 import { BuildLayer } from "./build/build-layer";
 import type { BuildStore } from "./build/build-store";
 import { Ground, Lamps, Nature, Paths, PlazaDeco, Plazas } from "./decor";
+import { RockOutcrops, SeedObjects } from "./landscape-extras";
+import { PanoramaLayer } from "./panorama";
 import { buildVillageGardens, type VillageGardens } from "./garden-geometry";
 import { loadLabelFont } from "./label-atlas";
 import { Labels } from "./labels";
@@ -317,7 +319,7 @@ export default function VillageScene(props: SceneProps) {
       shadows={lowDetail ? false : "percentage"}
       dpr={lowDetail ? [1, 1.25] : [1, 2]}
       gl={{ antialias: !lowDetail, powerPreference: "high-performance" }}
-      camera={{ position: overview, fov: 45, near: 0.1, far: 900 }}
+      camera={{ position: overview, fov: 45, near: 0.1, far: 1600 }}
       onCreated={({ gl, invalidate }) => {
         // Bei Kontextverlust (z.B. Grafiktreiber-Reset) Wiederherstellung erlauben und neu zeichnen.
         gl.domElement.addEventListener("webglcontextlost", (e) => e.preventDefault());
@@ -327,10 +329,25 @@ export default function VillageScene(props: SceneProps) {
         /* Klick ins Leere ändert nichts (verhindert versehentliches Verlassen) */
       }}
     >
-      <Daylight time={timeKey} extent={layout.extent} map={map} lowDetail={lowDetail} />
+      <Daylight
+        time={timeKey}
+        extent={layout.extent}
+        map={map}
+        lowDetail={lowDetail}
+        tint={world.map.params?.tint ?? 0}
+      />
 
       {/* Boden, Plätze, Wege und Rasen sind in beiden Ansichten sichtbar */}
-      <Ground world={world} />
+      <Ground world={world} lowDetail={lowDetail} />
+      {!map && (
+        <PanoramaLayer
+          map={world.map}
+          lowDetail={lowDetail}
+          glow={glow}
+          morning={timeKey === "morgen"}
+          frozen={reducedMotion}
+        />
+      )}
       <Plazas layout={layout} paving={world.map.palette.paving} />
       <Paths layout={layout} grass={world.map.palette.grassIn} />
       {gardens.lawns && (
@@ -347,12 +364,15 @@ export default function VillageScene(props: SceneProps) {
         mapOnly={map}
         dark={isDark(timeKey)}
         paused={paused}
+        glow={glow}
       />
 
       <group visible={!map}>
         <PlazaDeco world={world} />
         <Lamps world={world} glow={glow} lit={isDark(timeKey)} lowDetail={lowDetail} />
         <Nature world={world} />
+        <RockOutcrops rocks={world.map.rocks ?? []} map={world.map} />
+        <SeedObjects objects={world.map.objects ?? []} map={world.map} glow={glow} />
         <DekoLayer map={world.map} items={world.deko} glow={glow} />
         {gardens.body && (
           <mesh geometry={gardens.body} castShadow receiveShadow>

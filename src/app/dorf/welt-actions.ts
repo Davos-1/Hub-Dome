@@ -8,6 +8,7 @@ import { worldDocSchema, type WorldDoc } from "@/lib/world/doc";
 import { generateWorld, type World } from "@/lib/world/generate";
 import { checkVarianten } from "@/lib/world/kit";
 import { pruneDoc } from "@/lib/world/layout-houses";
+import { pinsFromSettlement } from "@/lib/world/settlement";
 import { GENERATOR_VERSION, seedSchema } from "@/lib/world/seed";
 import { loadOwnWorld, writeWorld } from "@/lib/world/server-data";
 import type { Abgewiesen, RerollWorldResult, SaveWorldResult } from "@/lib/world/types";
@@ -95,8 +96,9 @@ const rerollSchema = z.object({
 });
 
 /**
- * Welt mit dem Seed aus der Vorschau neu würfeln. Fixierte Quartiere und Häuser fallen immer weg (die Gassen
- * hängen am Seed), Varianten bleiben. Eigene Deko bleibt, sofern sie im neuen Gelände gültig ist; sonst
+ * Welt mit dem Seed aus der Vorschau neu würfeln (immer auf die aktuelle Generator-Version). Fixierte Quartiere
+ * und Häuser fallen weg (die Gassen hängen am Seed), Varianten bleiben. Ausnahme «Aktualisieren»: gleicher Seed
+ * auf neuer Version, dann bleiben die Fixierungen (übersetzt) und alle Häuser werden an ihrer neuen Lage fixiert. Eigene Deko bleibt, sofern sie im neuen Gelände gültig ist; sonst
  * Fehler mit Liste, ausser `dropInvalid`: Dann werden genau diese Elemente entfernt (Anzahl in `entfernt`).
  */
 export async function rerollWorld(input: unknown): Promise<RerollWorldResult> {
@@ -109,15 +111,22 @@ export async function rerollWorld(input: unknown): Promise<RerollWorldResult> {
   if (!own.ok) return { error: loadError(own.reason, TXT.keineTabelleWuerfeln) };
 
   const current = own.world.doc;
+  // Gleicher Seed auf neuer Generator-Version = «Auf neue Welt-Version aktualisieren»: Die Gassen bleiben
+  // dieselben, Fixierungen werden mitgenommen (was nicht mehr passt, setzt die Automatik)
+  const upgrade = seed === own.world.seed && own.world.version < GENERATOR_VERSION;
   const draft: WorldDoc = { v: 1 };
   if (!resetPlacements) {
     if (current.deko) draft.deko = current.deko;
     if (current.varianten) draft.varianten = current.varianten;
+    if (upgrade) {
+      if (current.quartiere) draft.quartiere = current.quartiere;
+      if (current.haeuser) draft.haeuser = current.haeuser;
+    }
   }
   const doc = pruneDoc(draft, new Set(own.houses.map((h) => h.id)));
 
   let entfernt = 0;
-  if (doc.deko?.length) {
+  if (doc.deko?.length || upgrade) {
     const world = generateWorld({ seed, version: GENERATOR_VERSION, houses: own.houses, doc });
     if (world.rejected.length) {
       if (!dropInvalid) return { error: TXT.passtNichtNeu, abgewiesen: rejections(world) };
@@ -125,6 +134,8 @@ export async function rerollWorld(input: unknown): Promise<RerollWorldResult> {
       entfernt = world.rejected.length;
       doc.deko = world.deko;
     }
+    // Aktualisieren: alle Häuser an ihrer neuen Lage fixieren (wie beim Speichern im Bau-Modus)
+    if (upgrade && !resetPlacements) Object.assign(doc, pinsFromSettlement(world.settlement));
   }
 
   const res = await writeWorld(own.villageId, user.id, {

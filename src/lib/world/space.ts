@@ -220,7 +220,8 @@ export class Space {
         }
       }
     }
-    const water = bridges && this.map.river ? { ...this.map, river: null } : this.map;
+    // Brücken queren Fluss und (v2) weitere Wasserläufe; Seen und Teiche nie
+    const water = bridges ? { ...this.map, river: null, streams: [] } : this.map;
     if (bridges && riverCrossings(this.map, pts, hw).some((c) => !c.ok))
       return { grund: REASONS.wasser };
     for (let i = 0; i < pts.length; i += 2) {
