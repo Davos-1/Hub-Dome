@@ -20,9 +20,11 @@ import { Life } from "./life";
 import { buildMapGeometry } from "./map-geometry";
 import { KIND_COLORS } from "./colors";
 import { zentraleTopFactor } from "./models";
+import { isClick } from "./pointer";
 import type { SceneActions } from "./scene-actions";
 import { ChimneySmoke, HighlightRing, ObjectCard } from "./scene-extras";
 import { useScene, type SceneStore } from "./scene-store";
+import { useDisposable } from "./use-disposable";
 import { buildVillageAtlas, type VillageAtlas } from "./village-atlas";
 import { ARTIFACT_KINDS } from "@/lib/types";
 
@@ -147,8 +149,7 @@ function Hedges({ gardens }: { gardens: VillageGardens }) {
 }
 
 function MapLayer({ model, atlas }: { model: VillageModel; atlas: VillageAtlas | null }) {
-  const geometry = useMemo(() => buildMapGeometry(model), [model]);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
+  const geometry = useDisposable(() => buildMapGeometry(model), [model]);
   const labels = useMemo(() => {
     if (!atlas) return [];
     const out: {
@@ -218,16 +219,7 @@ export default function VillageScene(props: SceneProps) {
     [layout.extent, villageId],
   );
   const height = useMemo(() => makeHeightFn(layout.extent, env), [layout.extent, env]);
-  const gardens = useMemo(() => buildVillageGardens(model), [model]);
-  useEffect(
-    () => () => {
-      gardens.lawns?.dispose();
-      gardens.body?.dispose();
-      gardens.glow?.dispose();
-      Object.values(gardens.objects).forEach((g) => g.dispose());
-    },
-    [gardens],
-  );
+  const gardens = useDisposable(() => buildVillageGardens(model), [model]);
   const atlas = useAtlas(model, ownerName);
   const glow = timeKey === "abend" ? 2.6 : timeKey === "mittag" ? 0.85 : 0.7;
 
@@ -331,7 +323,7 @@ export default function VillageScene(props: SceneProps) {
             onHoverPointer={setPointerCursor}
           />
         )}
-        {!lowDetail && !reducedMotion && <ChimneySmoke houses={model.houses} model={model} />}
+        {!lowDetail && !reducedMotion && <ChimneySmoke model={model} />}
         {atlas && (
           <Labels model={model} atlas={atlas} tops={tops} store={store} actions={actions} />
         )}
@@ -373,7 +365,7 @@ export default function VillageScene(props: SceneProps) {
           }}
           onPointerOut={() => (document.body.style.cursor = "")}
           onClick={(e) => {
-            if (e.delta > 5) return;
+            if (!isClick(e)) return;
             e.stopPropagation();
             actions.openQuarter(q.id);
           }}

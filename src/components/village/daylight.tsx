@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { overviewDistance } from "@/lib/camera-poses";
 import { TIMES, type TimeKey } from "@/lib/daytime";
+import { useDisposable } from "./use-disposable";
 
 /**
  * Himmel, Nebel, Sonne und Hemisphärenlicht nach Tageszeit (ohne Neuaufbau der Szene).
@@ -25,7 +26,7 @@ export function Daylight({
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
 
-  const sky = useMemo(() => {
+  const sky = useDisposable(() => {
     const c = document.createElement("canvas");
     c.width = 4;
     c.height = 256;
@@ -40,7 +41,6 @@ export function Daylight({
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }, [p]);
-  useEffect(() => () => sky.dispose(), [sky]);
 
   useEffect(() => {
     // Belichtung des Renderers pro Tageszeit (kein React-State, daher direkt setzen)

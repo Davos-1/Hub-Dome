@@ -9,7 +9,7 @@ const TAU = Math.PI * 2;
 const angDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 
 /** Vieleck mit Umkreisradius `R` (Shape liegt in XY und wird flach gedreht, daher y = -sin). */
-export function polyShape(R: number, n: number, rot: number): THREE.Shape {
+function polyShape(R: number, n: number, rot: number): THREE.Shape {
   const s = new THREE.Shape();
   for (let i = 0; i <= n; i++) {
     const b = rot + Math.PI / n + (TAU * i) / n;
@@ -98,9 +98,7 @@ export function plazaSurface(p: PlazaPoly, fill: string, edge: string): THREE.Bu
       seg(p.gap / 2, half);
     }
   }
-  const merged = mergeParts(parts);
-  parts.forEach((q) => q.geo.dispose());
-  return merged;
+  return mergeParts(parts);
 }
 
 /** Zweistufige Terrasse unter der Zentrale in der Form des Hauptplatzes. */
@@ -140,7 +138,7 @@ export function benchParts(x: number, z: number, rot: number): Part[] {
   return out;
 }
 
-export function fountainParts(x: number, z: number): Part[] {
+function fountainParts(x: number, z: number): Part[] {
   return [
     { geo: cyl(1.35, 1.42, 0.45, 28), color: STONE, pos: [x, 0.225, z] },
     { geo: cyl(1.18, 1.18, 0.04, 28), color: "#5f9fc6", pos: [x, 0.44, z] },
@@ -152,7 +150,7 @@ export function fountainParts(x: number, z: number): Part[] {
 }
 
 /** Position des Brunnens und des Anschlagbretts am Hauptplatz (rücken mit grösserem Platz nach aussen). */
-export const fountainPos = (plaza: number) => polar(Math.PI / 2 + 0.78, plaza - 2.2);
+const fountainPos = (plaza: number) => polar(Math.PI / 2 + 0.78, plaza - 2.2);
 export const NOTICE_ANGLE = Math.PI / 2 - 0.78;
 export const noticePos = (plaza: number) => polar(NOTICE_ANGLE, plaza - 2.1);
 

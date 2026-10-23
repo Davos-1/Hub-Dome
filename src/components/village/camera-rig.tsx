@@ -20,6 +20,10 @@ const angleDelta = (a: number, b: number) => {
   return d > Math.PI ? d - 2 * Math.PI : d < -Math.PI ? d + 2 * Math.PI : d;
 };
 
+/** Hilfsobjekte für die Kamerafahrt (pro Bild wiederverwendet statt neu angelegt). */
+const scratchOffset = new THREE.Spherical();
+const scratchLift = new THREE.Vector3();
+
 type Controls = {
   target: THREE.Vector3;
   update: () => void;
@@ -131,14 +135,14 @@ export function CameraRig({
       a.turn === 0
         ? THREE.MathUtils.lerp(a.fromOff.theta, a.toOff.theta, k)
         : a.fromOff.theta + a.turn * k;
-    const off = new THREE.Spherical(
+    scratchOffset.set(
       THREE.MathUtils.lerp(a.fromOff.radius, a.toOff.radius, k),
       THREE.MathUtils.lerp(a.fromOff.phi, a.toOff.phi, k),
       theta,
     );
     // In der Mitte des Bogens etwas höher, damit er nicht durch Dächer und Bäume führt.
-    const lift = new THREE.Vector3(0, Math.sin(Math.PI * k) * a.lift, 0);
-    camera.position.setFromSpherical(off).add(a.toTarget).add(lift);
+    scratchLift.set(0, Math.sin(Math.PI * k) * a.lift, 0);
+    camera.position.setFromSpherical(scratchOffset).add(a.toTarget).add(scratchLift);
     controls.update();
     if (a.t >= 1) anim.current = null;
     else invalidate();

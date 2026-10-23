@@ -6,32 +6,16 @@ import { OrbitControls } from "@react-three/drei";
 import { FACHBEREICHE, type FachbereichId } from "@/lib/fachbereiche";
 import { TIER_FOOTPRINT, ZENTRALE_FOOTPRINT, type Tier } from "@/lib/layout";
 import type { ZentraleStyle } from "@/lib/styles";
+import { ModelMesh } from "./buildings";
 import { Daylight } from "./daylight";
-import {
-  constructionModel,
-  houseModel,
-  zentraleModel,
-  zentraleTopFactor,
-  type Model,
-} from "./models";
+import { constructionModel, houseModel, zentraleModel, zentraleTopFactor } from "./models";
 
 type Props =
   { mode: "zentrale"; zentraleStyle: ZentraleStyle } | { mode: "haus"; fach: FachbereichId };
 
 const TIERS: Tier[] = [1, 2, 3];
-
-function ModelView({ model }: { model: Model }) {
-  return (
-    <group>
-      <mesh geometry={model.body}>
-        <meshStandardMaterial vertexColors roughness={0.78} />
-      </mesh>
-      <mesh geometry={model.glow}>
-        <meshStandardMaterial color="#ffe9b8" emissive="#ffb84d" emissiveIntensity={0.85} />
-      </mesh>
-    </group>
-  );
-}
+/** Leuchtstärke der Fenster in der Vorschau (Tageszeit Mittag). */
+const GLOW = 0.85;
 
 /**
  * Kleine Vorschau: die Zentrale in einem Stil oder der Haustyp eines Fachbereichs
@@ -71,11 +55,11 @@ export default function StylePreview(props: Props) {
       {house ? (
         houses.map((h, i) => (
           <group key={i} position={[h.x, 0, 0]}>
-            <ModelView model={h.model} />
+            <ModelMesh model={h.model} glow={GLOW} />
           </group>
         ))
       ) : (
-        <ModelView model={zentrale} />
+        <ModelMesh model={zentrale} glow={GLOW} />
       )}
       <OrbitControls
         enablePan={false}

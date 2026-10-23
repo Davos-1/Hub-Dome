@@ -37,27 +37,11 @@ export const STONE = "#b8b2a7";
 export const WHITE = "#f6f3ec";
 export const WOOD = "#7a4a2b";
 export const BRICK = "#a35a45";
-export const SMOKE = "#f1f1f1";
 export const WARM = "#ffe2a0";
-
-export const ROOF_COLORS = ["#b4533a", "#5f7a94", "#8a6a45", "#6f8f60", "#9c5a70"];
-
-/** Stabile Dachfarbe aus einer ID. */
-export function roofColorFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return ROOF_COLORS[h % ROOF_COLORS.length];
-}
 
 export const darken = (hex: string, f: number) => {
   const c = new THREE.Color(hex);
   c.multiplyScalar(f);
-  return `#${c.getHexString()}`;
-};
-
-export const mix = (a: string, b: string, t: number) => {
-  const c = new THREE.Color(a);
-  c.lerp(new THREE.Color(b), t);
   return `#${c.getHexString()}`;
 };
 

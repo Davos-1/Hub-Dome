@@ -32,14 +32,20 @@ export async function loadLabelFont(): Promise<void> {
 }
 
 export type AtlasEntry = {
-  canvas: HTMLCanvasElement;
   /** Ankerpunkt im Bild (0…1): [0.5, 0] = unten Mitte, [0.5, 0.5] = Mitte. */
   center: [number, number];
+  /** Grösse der Zeichnung in Pixeln. */
+  w: number;
+  h: number;
+  /** Lage im Atlas (Pixel), von `buildAtlas` gesetzt. */
   ax: number;
   ay: number;
   tex: THREE.Texture | null;
   aspect: number;
 };
+
+/** Eine Zeichnung samt ihrem Atlas-Eintrag; die Zeichenfläche wird nur bis zum Bau des Atlas gebraucht. */
+export type Drawing = { canvas: HTMLCanvasElement; entry: AtlasEntry };
 
 const cv = (w: number, h: number) => {
   const c = document.createElement("canvas");
@@ -47,13 +53,17 @@ const cv = (w: number, h: number) => {
   c.height = h;
   return c;
 };
-const entry = (canvas: HTMLCanvasElement, center: [number, number] = [0.5, 0.5]): AtlasEntry => ({
+const drawing = (canvas: HTMLCanvasElement, center: [number, number] = [0.5, 0.5]): Drawing => ({
   canvas,
-  center,
-  ax: 0,
-  ay: 0,
-  tex: null,
-  aspect: canvas.width / canvas.height,
+  entry: {
+    center,
+    w: canvas.width,
+    h: canvas.height,
+    ax: 0,
+    ay: 0,
+    tex: null,
+    aspect: canvas.width / canvas.height,
+  },
 });
 
 function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -127,7 +137,7 @@ function cardShell(
   empty: boolean,
   bar: Partial<Record<ArtifactKind, number>> | null,
   badge: string | null,
-): AtlasEntry {
+): Drawing {
   const pad = 20;
   const tag = 88;
   const bodyH = 128;
@@ -184,10 +194,10 @@ function cardShell(
       x += w + gap;
     }
   }
-  return entry(c, [0.5, 0]);
+  return drawing(c, [0.5, 0]);
 }
 
-export function drawCard(h: HouseInfo): AtlasEntry {
+export function drawCard(h: HouseInfo): Drawing {
   const n = h.items.length;
   const bar: Partial<Record<ArtifactKind, number>> = {};
   for (const i of h.items) bar[i.kind] = (bar[i.kind] ?? 0) + 1;
@@ -202,7 +212,7 @@ export function drawCard(h: HouseInfo): AtlasEntry {
   );
 }
 
-export function drawObjCard(o: ObjInfo, h: HouseInfo): AtlasEntry {
+export function drawObjCard(o: ObjInfo, h: HouseInfo): Drawing {
   return cardShell(
     o.title,
     `${ARTIFACT_KIND_LABELS[o.kind]} · ${h.code}`,
@@ -214,7 +224,7 @@ export function drawObjCard(o: ObjInfo, h: HouseInfo): AtlasEntry {
   );
 }
 
-export function drawChip(h: HouseInfo): AtlasEntry {
+export function drawChip(h: HouseInfo): Drawing {
   const H = 64;
   const tf = `700 26px ${FONT}`;
   const nf = `600 28px ${FONT}`;
@@ -267,11 +277,11 @@ export function drawChip(h: HouseInfo): AtlasEntry {
     ctx.font = bf;
     ctx.fillText(`+${nn}`, bx + 9, H / 2 + 1);
   }
-  return entry(c, [0.5, 0]);
+  return drawing(c, [0.5, 0]);
 }
 
 /** Holzschild am Gartentor: gesperrtes Kürzel, Titel, Anzahl. */
-export function drawBoard(h: HouseInfo): AtlasEntry {
+export function drawBoard(h: HouseInfo): Drawing {
   const W = 512;
   const H = 256;
   const c = cv(W, H);
@@ -306,13 +316,29 @@ export function drawBoard(h: HouseInfo): AtlasEntry {
     210,
     W - 50,
   );
-  return entry(c);
+  return drawing(c);
+}
+
+const NOTICE_W = 1024;
+const NOTICE_H = 640;
+/** Anfang der ersten Zeile des Anschlagbretts und Abstand der Zeilen (Pixel der Zeichnung). */
+const NOTICE_ROW_Y = 130;
+const NOTICE_ROW_STEP = 100;
+/** Abstand der Trennlinie über dem Anfang einer Zeile. */
+const NOTICE_ROW_GAP = 6;
+
+/**
+ * Zeile des Anschlagbretts an der Bildhöhe `v` der Zeichnung (0 = unten, 1 = oben).
+ * Negativ über der ersten Zeile (Kopfband), die Trefferfläche jeder Zeile beginnt an ihrer Trennlinie.
+ */
+export function noticeRowAt(v: number): number {
+  return Math.floor((NOTICE_H * (1 - v) - (NOTICE_ROW_Y - NOTICE_ROW_GAP)) / NOTICE_ROW_STEP);
 }
 
 /** Anschlagbrett am Hauptplatz mit den neuesten Objekten. */
-export function drawNotice(items: { o: ObjInfo; h: HouseInfo }[]): AtlasEntry {
-  const W = 1024;
-  const H = 640;
+export function drawNotice(items: { o: ObjInfo; h: HouseInfo }[]): Drawing {
+  const W = NOTICE_W;
+  const H = NOTICE_H;
   const c = cv(W, H);
   const ctx = c.getContext("2d")!;
   ctx.fillStyle = "#f3ecdc";
@@ -334,10 +360,10 @@ export function drawNotice(items: { o: ObjInfo; h: HouseInfo }[]): AtlasEntry {
     ctx.fillText("Gerade nichts Neues.", 40, 190);
   }
   items.slice(0, 5).forEach(({ o, h }, i) => {
-    const y = 130 + i * 100;
+    const y = NOTICE_ROW_Y + i * NOTICE_ROW_STEP;
     if (i) {
       ctx.fillStyle = "rgba(94,60,34,0.15)";
-      ctx.fillRect(40, y - 6, W - 80, 2);
+      ctx.fillRect(40, y - NOTICE_ROW_GAP, W - 80, 2);
     }
     ctx.fillStyle = KIND_COLORS[o.kind];
     rr(ctx, 40, y + 14, 64, 64, 12);
@@ -364,11 +390,11 @@ export function drawNotice(items: { o: ObjInfo; h: HouseInfo }[]): AtlasEntry {
   ctx.strokeStyle = "#5e3c22";
   ctx.lineWidth = 16;
   ctx.strokeRect(8, 8, W - 16, H - 16);
-  return entry(c);
+  return drawing(c);
 }
 
 /** Gelb-schwarzes Baustellenschild bei leeren Häusern. */
-export function drawConstruction(): AtlasEntry {
+export function drawConstruction(): Drawing {
   const W = 512;
   const H = 320;
   const c = cv(W, H);
@@ -402,11 +428,11 @@ export function drawConstruction(): AtlasEntry {
   ctx.fillStyle = "#facc15";
   ctx.fillRect(W - 96 - 34, 192, 68, 16);
   ctx.fillRect(W - 96 - 8, 166, 16, 68);
-  return entry(c);
+  return drawing(c);
 }
 
 /** Quartiertafel am Nebenplatz: Name, Modulkürzel, Kopfband in Quartierfarbe. */
-export function drawQuarterBoard(q: QuarterLayout, codes: string[]): AtlasEntry {
+export function drawQuarterBoard(q: QuarterLayout, codes: string[]): Drawing {
   const W = 512;
   const H = 256;
   const c = cv(W * 2, H * 2);
@@ -427,11 +453,11 @@ export function drawQuarterBoard(q: QuarterLayout, codes: string[]): AtlasEntry 
   ctx.strokeStyle = "#5e3c22";
   ctx.lineWidth = 12;
   ctx.strokeRect(6, 6, W - 12, H - 12);
-  return entry(c);
+  return drawing(c);
 }
 
 /** Dunkle Pille mit Spitze (Quartiername, Zentrale). */
-export function drawPill(text: string): AtlasEntry {
+export function drawPill(text: string): Drawing {
   const H = 60;
   const f = `600 30px ${FONT}`;
   const W = Math.ceil(measure(f, text) + 44);
@@ -449,11 +475,11 @@ export function drawPill(text: string): AtlasEntry {
   ctx.font = f;
   ctx.textBaseline = "middle";
   ctx.fillText(text, 22, H / 2 + 1);
-  return entry(c, [0.5, 0]);
+  return drawing(c, [0.5, 0]);
 }
 
 /** Grosse Beschriftung für die Kartenansicht. */
-export function drawMapLabel(big: string, small: string | null): AtlasEntry {
+export function drawMapLabel(big: string, small: string | null): Drawing {
   const bf = `700 112px ${FONT}`;
   const sf = `600 54px ${FONT}`;
   const W = Math.ceil(Math.max(measure(bf, big), small ? measure(sf, small) : 0) + 40);
@@ -476,44 +502,44 @@ export function drawMapLabel(big: string, small: string | null): AtlasEntry {
     ctx.fillStyle = "#3a3732";
     ctx.fillText(small, W / 2, 182);
   }
-  return entry(c);
+  return drawing(c);
 }
 
 /** Ordnet alle Zeichnungen in Reihen an, legt eine Textur an und gibt jeder Beschriftung ihren Ausschnitt. */
-export function buildAtlas(entries: AtlasEntry[]): {
+export function buildAtlas(drawings: Drawing[]): {
   base: THREE.CanvasTexture;
   dispose: () => void;
 } {
-  const AW = entries.length > 60 ? 4096 : 2048;
+  // Nur die Einträge bleiben erhalten: so kann der Browser die Zeichenflächen wieder freigeben.
+  const entries = drawings.map((d) => d.entry);
+  const AW = drawings.length > 60 ? 4096 : 2048;
   const pad = 8;
   let x = pad;
   let y = pad;
   let rowH = 0;
   for (const e of entries) {
-    const w = e.canvas.width;
-    const h = e.canvas.height;
-    if (x + w + pad > AW) {
+    if (x + e.w + pad > AW) {
       x = pad;
       y += rowH + pad;
       rowH = 0;
     }
     e.ax = x;
     e.ay = y;
-    x += w + pad;
-    rowH = Math.max(rowH, h);
+    x += e.w + pad;
+    rowH = Math.max(rowH, e.h);
   }
   let AH = 256;
   while (AH < y + rowH + pad) AH *= 2;
   const atlas = cv(AW, AH);
   const ctx = atlas.getContext("2d")!;
-  for (const e of entries) ctx.drawImage(e.canvas, e.ax, e.ay);
+  for (const { canvas, entry: e } of drawings) ctx.drawImage(canvas, e.ax, e.ay);
   const base = new THREE.CanvasTexture(atlas);
   base.colorSpace = THREE.SRGBColorSpace;
   base.anisotropy = 4;
   for (const e of entries) {
     const t = base.clone();
-    t.repeat.set(e.canvas.width / AW, e.canvas.height / AH);
-    t.offset.set(e.ax / AW, 1 - (e.ay + e.canvas.height) / AH);
+    t.repeat.set(e.w / AW, e.h / AH);
+    t.offset.set(e.ax / AW, 1 - (e.ay + e.h) / AH);
     e.tex = t;
   }
   return {

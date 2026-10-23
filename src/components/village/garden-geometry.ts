@@ -1,31 +1,39 @@
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { HouseLayout } from "@/lib/layout";
+import { seededRandom } from "@/lib/random";
 import type { ArtifactKind } from "@/lib/types";
 import type { HouseInfo, VillageModel } from "@/lib/village-model";
-import { seededRandom } from "./colors";
-import { box, cyl, mergeParts, type Part } from "./geo";
+import {
+  box,
+  composeInto,
+  cyl,
+  mergeAll,
+  mergeParts,
+  yawMatrix,
+  type Part,
+  type Vec3,
+} from "./geo";
 import { darken } from "./models/common";
 import { bedParts, objectParts } from "./object-models";
 import { benchParts } from "./plaza-geometry";
 
 /** Halbe Breite der Toröffnung in der Hecke. */
-export const GATE = 0.95;
+const GATE = 0.95;
 const POST_H = 0.72;
 const POST_COLOR = "#b8b2a7";
 
-export type HedgePiece = {
-  pos: [number, number, number];
-  rot: [number, number, number];
-  scale: [number, number, number];
+type HedgePiece = {
+  pos: Vec3;
+  rot: Vec3;
+  scale: Vec3;
   color: string;
 };
 
 /** Ort eines Schilds (lokal zum Haus): Holzschild am Tor oder Baustellenschild. */
-export type BoardPlacement = {
+type BoardPlacement = {
   kind: "holz" | "baustelle";
   houseId: string;
-  pos: [number, number, number];
+  pos: Vec3;
   size: [number, number];
 };
 
@@ -47,23 +55,19 @@ function treeParts(x: number, z: number): Part[] {
   ];
 }
 
-/** Lokale Bauteile des Grundstücks eines Hauses (Rasen, Pfosten, Trittplatten, Beete, Bank, Baum, Schildpfosten). */
-export function gardenOf(h: HouseInfo, l: HouseLayout) {
-  const pl = l.plot!;
-  const rnd = seededRandom(`${h.id}g`);
-  const parts: Part[] = [];
-  const glow: Part[] = [];
-  const hedges: HedgePiece[] = [];
-  const boards: BoardPlacement[] = [];
-  const fp = l.footprint;
-  const lantern = h.newCount > 0;
+type Plot = NonNullable<HouseLayout["plot"]>;
+type Random = () => number;
 
-  // Rasen
+/** Rasenfläche des Grundstücks. */
+function lawnPart(pl: Plot): Part {
   const lawn = new THREE.PlaneGeometry(pl.hw * 2, pl.front + pl.back);
   lawn.rotateX(-Math.PI / 2);
-  const lawnPart: Part = { geo: lawn, color: "#9fcf83", pos: [0, 0.006, (pl.front - pl.back) / 2] };
+  return { geo: lawn, color: "#9fcf83", pos: [0, 0.006, (pl.front - pl.back) / 2] };
+}
 
-  // Formhecke: schmal, kniehoch, Segmente mit leicht wechselnder Höhe und hellerer Schnittkante
+/** Formhecke: schmal, kniehoch, Segmente mit leicht wechselnder Höhe und hellerer Schnittkante. */
+function hedgePieces(pl: Plot, rnd: Random): HedgePiece[] {
+  const hedges: HedgePiece[] = [];
   const edges: [number, number, number, number][] = [
     [-pl.hw, -pl.back, pl.hw, -pl.back],
     [-pl.hw, -pl.back, -pl.hw, pl.front],
@@ -98,8 +102,13 @@ export function gardenOf(h: HouseInfo, l: HouseLayout) {
       });
     }
   }
+  return hedges;
+}
 
-  // Steinpfosten am Tor, bei neuen Objekten mit Laternen
+/** Steinpfosten am Tor, bei neuen Objekten mit Laternen (Leuchtteile in `glow`). */
+function gatePosts(pl: Plot, lantern: boolean): { parts: Part[]; glow: Part[] } {
+  const parts: Part[] = [];
+  const glow: Part[] = [];
   for (const s of [-1, 1]) {
     const px = s * (GATE + 0.05);
     parts.push({
@@ -113,16 +122,9 @@ export function gardenOf(h: HouseInfo, l: HouseLayout) {
       pos: [px, POST_H + 0.03, pl.front],
     });
     if (lantern) {
-      parts.push({
-        geo: box(0.18, 0.04, 0.18),
-        color: "#3f3f46",
-        pos: [px, POST_H + 0.08, pl.front],
-      });
-      parts.push({
-        geo: box(0.18, 0.04, 0.18),
-        color: "#3f3f46",
-        pos: [px, POST_H + 0.34, pl.front],
-      });
+      for (const y of [POST_H + 0.08, POST_H + 0.34]) {
+        parts.push({ geo: box(0.18, 0.04, 0.18), color: "#3f3f46", pos: [px, y, pl.front] });
+      }
       glow.push({
         geo: box(0.14, 0.22, 0.14),
         color: "#ffd479",
@@ -130,8 +132,12 @@ export function gardenOf(h: HouseInfo, l: HouseLayout) {
       });
     }
   }
+  return { parts, glow };
+}
 
-  // Gartenweg: Trittplatten vom Tor zur Tür
+/** Gartenweg: Trittplatten vom Tor zur Tür. */
+function stepStones(fp: number, pl: Plot, rnd: Random): Part[] {
+  const parts: Part[] = [];
   const z0 = fp * 1.05 + 0.55;
   for (let z = pl.front - 0.35; z > z0 - 0.01; z -= 0.78) {
     parts.push({
@@ -141,46 +147,73 @@ export function gardenOf(h: HouseInfo, l: HouseLayout) {
       rot: [0, (rnd() - 0.5) * 0.12, 0],
     });
   }
+  return parts;
+}
 
-  parts.push(...bedParts(pl.slots));
-
-  // Garten wächst: ab Stufe 2 eine Bank, ab Stufe 3 ein Baum hinter dem Haus
+/** Garten wächst: ab Stufe 2 eine Bank, ab Stufe 3 ein Baum hinter dem Haus. */
+function gardenGrowth(l: HouseLayout, pl: Plot): Part[] {
+  const fp = l.footprint;
   const side = -(l.tier === 3 ? pl.hw - 0.95 : (fp * 1.05 + pl.hw) / 2);
+  const parts: Part[] = [];
   if (l.tier >= 2) parts.push(...benchParts(side, l.tier === 3 ? 0.4 : -fp * 0.3, Math.PI / 2));
   if (l.tier === 3) parts.push(...treeParts(side, -(pl.back - 1.0)));
+  return parts;
+}
 
-  // Schilder: Holzschild am Tor (Haus mit Objekten) oder Baustellenschild (leeres Haus)
+/** Schilder: Holzschild am Tor (Haus mit Objekten) oder Baustellenschild (leeres Haus), samt Pfosten. */
+function signBoard(h: HouseInfo, pl: Plot): { posts: Part[]; board: BoardPlacement } {
+  const posts: Part[] = [];
   if (h.items.length > 0) {
     const sx = -(GATE + 0.75);
     const sz = pl.front + 0.4;
     for (const s of [-0.62, 0.62]) {
-      parts.push({ geo: box(0.1, 1.55, 0.1), color: "#5e3c22", pos: [sx + s, 0.78, sz] });
+      posts.push({ geo: box(0.1, 1.55, 0.1), color: "#5e3c22", pos: [sx + s, 0.78, sz] });
     }
-    boards.push({ kind: "holz", houseId: h.id, pos: [sx, 1.12, sz + 0.06], size: [1.6, 0.8] });
-  } else {
-    const sx = 1.7;
-    const sz = pl.front - 1.2;
-    for (const s of [-0.62, 0.62]) {
-      parts.push({ geo: box(0.08, 1.4, 0.08), color: "#3f3f46", pos: [sx + s, 0.7, sz] });
-    }
-    boards.push({
-      kind: "baustelle",
+    const board: BoardPlacement = {
+      kind: "holz",
       houseId: h.id,
-      pos: [sx, 1.05, sz + 0.05],
-      size: [1.5, 0.94],
-    });
+      pos: [sx, 1.12, sz + 0.06],
+      size: [1.6, 0.8],
+    };
+    return { posts, board };
   }
-  return { lawn: lawnPart, parts, glow, hedges, boards };
+  const sx = 1.7;
+  const sz = pl.front - 1.2;
+  for (const s of [-0.62, 0.62]) {
+    posts.push({ geo: box(0.08, 1.4, 0.08), color: "#3f3f46", pos: [sx + s, 0.7, sz] });
+  }
+  const board: BoardPlacement = {
+    kind: "baustelle",
+    houseId: h.id,
+    pos: [sx, 1.05, sz + 0.05],
+    size: [1.5, 0.94],
+  };
+  return { posts, board };
 }
 
+/**
+ * Lokale Bauteile des Grundstücks eines Hauses (Rasen, Pfosten, Trittplatten, Beete, Bank, Baum, Schildpfosten).
+ * Die Zufallszahlen werden in fester Reihenfolge gezogen (erst Hecke, dann Trittplatten): die Gestalt bleibt stabil.
+ */
+function gardenOf(h: HouseInfo, l: HouseLayout) {
+  const pl = l.plot!;
+  const rnd = seededRandom(`${h.id}g`);
+  const hedges = hedgePieces(pl, rnd);
+  const gate = gatePosts(pl, h.newCount > 0);
+  const sign = signBoard(h, pl);
+  const parts: Part[] = [
+    ...gate.parts,
+    ...stepStones(l.footprint, pl, rnd),
+    ...bedParts(pl.slots),
+    ...gardenGrowth(l, pl),
+    ...sign.posts,
+  ];
+  return { lawn: lawnPart(pl), parts, glow: gate.glow, hedges, boards: [sign.board] };
+}
+
+/** Platziert eine Geometrie im Dorf wie das Haus `l` (Drehung um Y, Verschiebung auf den Standort). */
 export function placed(geo: THREE.BufferGeometry, l: Pick<HouseLayout, "x" | "z" | "angle">) {
-  const m = new THREE.Matrix4().compose(
-    new THREE.Vector3(l.x, 0, l.z),
-    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, l.angle, 0)),
-    new THREE.Vector3(1, 1, 1),
-  );
-  geo.applyMatrix4(m);
-  return geo;
+  return geo.applyMatrix4(yawMatrix(l.x, l.z, l.angle));
 }
 
 export type VillageGardens = {
@@ -193,6 +226,8 @@ export type VillageGardens = {
   boards: (BoardPlacement & { world: THREE.Matrix4 })[];
   /** Objekte pro Kategorie, in Weltkoordinaten zusammengeführt. */
   objects: Partial<Record<ArtifactKind, THREE.BufferGeometry>>;
+  /** Gibt alle Geometrien frei. */
+  dispose: () => void;
 };
 
 /** Baut Gärten und Objekte des ganzen Dorfs als wenige zusammengeführte Geometrien (Weltkoordinaten). */
@@ -203,43 +238,26 @@ export function buildVillageGardens(model: VillageModel): VillageGardens {
   const hedges: VillageGardens["hedges"] = [];
   const boards: VillageGardens["boards"] = [];
   const objectGeos: Partial<Record<ArtifactKind, THREE.BufferGeometry[]>> = {};
-
-  const tmp = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const e = new THREE.Euler();
-  const v = new THREE.Vector3();
-  const s = new THREE.Vector3();
+  const local = new THREE.Matrix4();
 
   for (const h of model.houses) {
     const l = model.layout.houses[h.id];
     if (!l || !l.plot) continue;
     const g = gardenOf(h, l);
-    const house = new THREE.Matrix4().compose(
-      v.set(l.x, 0, l.z),
-      q.setFromEuler(e.set(0, l.angle, 0)),
-      s.set(1, 1, 1),
-    );
-    const worldHouse = house.clone();
+    const world = yawMatrix(l.x, l.z, l.angle);
+    const place = (parts: Part[]) => mergeParts(parts).applyMatrix4(world);
 
-    const lawn = mergeParts([g.lawn]);
-    g.lawn.geo.dispose();
-    lawns.push(placed(lawn, l));
-    const body = mergeParts(g.parts);
-    g.parts.forEach((p) => p.geo.dispose());
-    bodies.push(placed(body, l));
-    if (g.glow.length) {
-      const glow = mergeParts(g.glow);
-      g.glow.forEach((p) => p.geo.dispose());
-      glows.push(placed(glow, l));
-    }
+    lawns.push(place([g.lawn]));
+    bodies.push(place(g.parts));
+    if (g.glow.length) glows.push(place(g.glow));
     for (const piece of g.hedges) {
-      tmp.compose(v.set(...piece.pos), q.setFromEuler(e.set(...piece.rot)), s.set(...piece.scale));
+      composeInto(local, piece.pos, piece.rot, piece.scale);
       hedges.push({
-        matrix: new THREE.Matrix4().multiplyMatrices(worldHouse, tmp),
+        matrix: new THREE.Matrix4().multiplyMatrices(world, local),
         color: piece.color,
       });
     }
-    for (const b of g.boards) boards.push({ ...b, world: worldHouse });
+    for (const b of g.boards) boards.push({ ...b, world });
 
     // Objekte nach Kategorie
     const perKind: Partial<Record<ArtifactKind, Part[]>> = {};
@@ -251,26 +269,33 @@ export function buildVillageGardens(model: VillageModel): VillageGardens {
       );
     }
     for (const [kind, parts] of Object.entries(perKind) as [ArtifactKind, Part[]][]) {
-      const geo = mergeParts(parts);
-      parts.forEach((p) => p.geo.dispose());
-      (objectGeos[kind] ??= []).push(placed(geo, l));
+      (objectGeos[kind] ??= []).push(place(parts));
     }
   }
 
-  const merge = (list: THREE.BufferGeometry[]) => {
-    if (list.length === 0) return null;
-    const m = mergeGeometries(list, false);
-    list.forEach((g) => g.dispose());
-    m.computeBoundingSphere();
-    return m;
-  };
   const objects: VillageGardens["objects"] = {};
   for (const [kind, list] of Object.entries(objectGeos) as [
     ArtifactKind,
     THREE.BufferGeometry[],
   ][]) {
-    const m = merge(list);
-    if (m) objects[kind] = m;
+    const merged = mergeAll(list);
+    if (merged) objects[kind] = merged;
   }
-  return { lawns: merge(lawns), body: merge(bodies), glow: merge(glows), hedges, boards, objects };
+  const lawnGeo = mergeAll(lawns);
+  const body = mergeAll(bodies);
+  const glow = mergeAll(glows);
+  return {
+    lawns: lawnGeo,
+    body,
+    glow,
+    hedges,
+    boards,
+    objects,
+    dispose: () => {
+      lawnGeo?.dispose();
+      body?.dispose();
+      glow?.dispose();
+      Object.values(objects).forEach((g) => g.dispose());
+    },
+  };
 }

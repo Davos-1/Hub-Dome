@@ -10,6 +10,7 @@ import {
   drawPill,
   drawQuarterBoard,
   type AtlasEntry,
+  type Drawing,
 } from "./label-atlas";
 import type * as THREE from "three";
 
@@ -32,8 +33,11 @@ export type VillageAtlas = {
 };
 
 export function buildVillageAtlas(model: VillageModel, ownerName: string): VillageAtlas {
-  const all: AtlasEntry[] = [];
-  const reg = <T extends AtlasEntry>(e: T) => (all.push(e), e);
+  const all: Drawing[] = [];
+  const reg = (d: Drawing): AtlasEntry => {
+    all.push(d);
+    return d.entry;
+  };
   const chip: VillageAtlas["chip"] = {};
   const card: VillageAtlas["card"] = {};
   const board: VillageAtlas["board"] = {};

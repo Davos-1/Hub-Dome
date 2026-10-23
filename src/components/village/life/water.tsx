@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Environment } from "@/lib/environment";
-import { seededRandom } from "../colors";
+import { seededRandom } from "@/lib/random";
 import { box, cyl, mergeParts, rbox, type Part } from "../geo";
+import { useDisposable } from "../use-disposable";
 import { T0 } from "./herd";
 
 const dummy = new THREE.Object3D();
@@ -13,7 +14,7 @@ const col = new THREE.Color();
 
 /** Wellen-Textur (Streifen und Glanzlichter), kachelbar in x-Richtung. */
 function useWaterTexture(repeatX: number) {
-  const texture = useMemo(() => {
+  const texture = useDisposable(() => {
     const c = document.createElement("canvas");
     c.width = 256;
     c.height = 128;
@@ -45,7 +46,6 @@ function useWaterTexture(repeatX: number) {
   useLayoutEffect(() => {
     texture.repeat.set(repeatX, 1);
   }, [texture, repeatX]);
-  useEffect(() => () => texture.dispose(), [texture]);
   return texture;
 }
 
@@ -114,7 +114,7 @@ function ribbonUV(curve: THREE.Vector3[], width: number, y: number, uPerMeter: n
   // Normalen nach oben erzwingen (Winkelabhängigkeit vermeiden)
   const n = g.getAttribute("normal") as THREE.BufferAttribute;
   for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);
-  return { geometry: g, length: len };
+  return { geometry: g, length: len, dispose: () => g.dispose() };
 }
 
 /** Instanzen entlang von Punkten (Schilf, Steine). */
@@ -222,14 +222,17 @@ export function River({
     return c.getSpacedPoints(160);
   }, [river.points]);
 
-  const water = useMemo(() => ribbonUV(curve, river.width, 0.05, 1 / 5), [curve, river.width]);
-  const bank = useMemo(() => ribbonUV(curve, river.width + 1.7, 0.025, 1), [curve, river.width]);
+  const water = useDisposable(
+    () => ribbonUV(curve, river.width, 0.05, 1 / 5),
+    [curve, river.width],
+  );
+  const bank = useDisposable(
+    () => ribbonUV(curve, river.width + 1.7, 0.025, 1),
+    [curve, river.width],
+  );
   const texture = useWaterTexture(Math.max(1, Math.round(water.length / 5 / 1)));
-  useEffect(() => () => water.geometry.dispose(), [water]);
-  useEffect(() => () => bank.geometry.dispose(), [bank]);
 
-  const bridge = useMemo(() => mergeParts(bridgeParts(river.width + 3.2)), [river.width]);
-  useEffect(() => () => bridge.dispose(), [bridge]);
+  const bridge = useDisposable(() => mergeParts(bridgeParts(river.width + 3.2)), [river.width]);
 
   const reeds = Math.round(70 * density);
   const stones = Math.round(34 * density);
@@ -312,18 +315,16 @@ export function Pond({
 }) {
   const { x, z, r } = env.pond;
   const texture = useWaterTexture(3);
-  const rim = useMemo(() => {
+  const rim = useDisposable(() => {
     const g = new THREE.RingGeometry(r * 0.96, r + 0.9, 36);
     g.rotateX(-Math.PI / 2);
     return g;
   }, [r]);
-  const surface = useMemo(() => {
+  const surface = useDisposable(() => {
     const g = new THREE.CircleGeometry(r, 36);
     g.rotateX(-Math.PI / 2);
     return g;
   }, [r]);
-  useEffect(() => () => rim.dispose(), [rim]);
-  useEffect(() => () => surface.dispose(), [surface]);
 
   const stones = Math.round(14 * density);
   const lilies = Math.round(7 * density);

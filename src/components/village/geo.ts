@@ -2,13 +2,15 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
+export type Vec3 = [number, number, number];
+
 /** Ein Bauteil eines Modells: Geometrie, Farbe und Platzierung. */
 export type Part = {
   geo: THREE.BufferGeometry;
   color: string;
-  pos?: [number, number, number];
-  rot?: [number, number, number];
-  scale?: [number, number, number];
+  pos?: Vec3;
+  rot?: Vec3;
+  scale?: Vec3;
 };
 
 const m4 = new THREE.Matrix4();
@@ -17,9 +19,20 @@ const e = new THREE.Euler();
 const v = new THREE.Vector3();
 const s = new THREE.Vector3();
 
+/** Setzt `out` aus Position, Euler-Drehung (XYZ) und Skalierung. */
+export function composeInto(out: THREE.Matrix4, pos: Vec3, rot: Vec3, scale: Vec3): THREE.Matrix4 {
+  return out.compose(v.set(...pos), q.setFromEuler(e.set(...rot)), s.set(...scale));
+}
+
+/** Drehung um Y (Bogenmass) und Verschiebung auf (x, 0, z), wie ein Haus im Dorf steht. */
+export function yawMatrix(x: number, z: number, angle: number): THREE.Matrix4 {
+  return composeInto(new THREE.Matrix4(), [x, 0, z], [0, angle, 0], [1, 1, 1]);
+}
+
 /**
  * Fügt viele Bauteile zu einer einzigen Geometrie mit Vertex-Farben zusammen.
  * Ergibt pro Modell nur einen Draw Call und erlaubt viele Details ohne Performance-Verlust.
+ * Die Geometrien der Bauteile werden dabei freigegeben und dürfen danach nicht mehr gezeichnet werden.
  */
 export function mergeParts(parts: Part[]): THREE.BufferGeometry {
   const geos = parts.map((p) => {
@@ -27,11 +40,7 @@ export function mergeParts(parts: Part[]): THREE.BufferGeometry {
     for (const name of Object.keys(g.attributes)) {
       if (name !== "position" && name !== "normal") g.deleteAttribute(name);
     }
-    e.set(...(p.rot ?? [0, 0, 0]));
-    q.setFromEuler(e);
-    v.set(...(p.pos ?? [0, 0, 0]));
-    s.set(...(p.scale ?? [1, 1, 1]));
-    g.applyMatrix4(m4.compose(v, q, s));
+    g.applyMatrix4(composeInto(m4, p.pos ?? [0, 0, 0], p.rot ?? [0, 0, 0], p.scale ?? [1, 1, 1]));
 
     const c = new THREE.Color(p.color);
     const n = g.attributes.position.count;
@@ -46,6 +55,19 @@ export function mergeParts(parts: Part[]): THREE.BufferGeometry {
   });
   const merged = mergeGeometries(geos, false);
   geos.forEach((g) => g.dispose());
+  parts.forEach((p) => p.geo.dispose());
+  merged.computeBoundingSphere();
+  return merged;
+}
+
+/**
+ * Führt fertige Geometrien (gleiche Attribute) zu einer zusammen und gibt die Einzelteile frei.
+ * Bei einer leeren Liste gibt es `null`.
+ */
+export function mergeAll(list: THREE.BufferGeometry[]): THREE.BufferGeometry | null {
+  if (list.length === 0) return null;
+  const merged = mergeGeometries(list, false);
+  list.forEach((g) => g.dispose());
   merged.computeBoundingSphere();
   return merged;
 }
@@ -91,68 +113,6 @@ export const arch = (radius: number, depth: number) => {
   g.rotateX(Math.PI / 2);
   return g;
 };
-
-/** Pfeilförmiges Schild (zeigt nach +x), Dicke entlang z. */
-export function arrowBoard(length: number, height: number, thickness: number) {
-  const shape = new THREE.Shape();
-  const tip = height * 0.55;
-  shape.moveTo(-length / 2, -height / 2);
-  shape.lineTo(length / 2 - tip, -height / 2);
-  shape.lineTo(length / 2, 0);
-  shape.lineTo(length / 2 - tip, height / 2);
-  shape.lineTo(-length / 2, height / 2);
-  shape.closePath();
-  const g = new THREE.ExtrudeGeometry(shape, {
-    depth: thickness,
-    bevelEnabled: true,
-    bevelThickness: 0.01,
-    bevelSize: 0.01,
-    bevelSegments: 1,
-  });
-  g.translate(0, 0, -thickness / 2);
-  return g;
-}
-
-/** Zahnrad mit Loch (Achse entlang z). */
-export function gearGeometry(
-  teeth: number,
-  rInner: number,
-  rOuter: number,
-  hole: number,
-  depth: number,
-) {
-  const shape = new THREE.Shape();
-  const step = (Math.PI * 2) / teeth;
-  for (let i = 0; i < teeth; i++) {
-    const a = i * step;
-    const pts: [number, number][] = [
-      [a - step * 0.28, rInner],
-      [a - step * 0.16, rOuter],
-      [a + step * 0.16, rOuter],
-      [a + step * 0.28, rInner],
-    ];
-    pts.forEach(([ang, r], j) => {
-      const x = Math.cos(ang) * r;
-      const y = Math.sin(ang) * r;
-      if (i === 0 && j === 0) shape.moveTo(x, y);
-      else shape.lineTo(x, y);
-    });
-  }
-  shape.closePath();
-  const holePath = new THREE.Path();
-  holePath.absarc(0, 0, hole, 0, Math.PI * 2, true);
-  shape.holes.push(holePath);
-  const g = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: true,
-    bevelThickness: 0.02,
-    bevelSize: 0.02,
-    bevelSegments: 1,
-    curveSegments: 6,
-  });
-  g.translate(0, 0, -depth / 2);
-  return g;
-}
 
 export const sphere = (r: number, seg = 14) =>
   new THREE.SphereGeometry(r, seg, Math.max(6, seg - 4));

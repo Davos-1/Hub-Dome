@@ -4,22 +4,23 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { HouseLayout } from "@/lib/layout";
-import type { HouseInfo, VillageModel } from "@/lib/village-model";
+import type { VillageModel } from "@/lib/village-model";
 import { KIND_COLORS } from "./colors";
 import { drawObjCard } from "./label-atlas";
 import { chimneyTop } from "./models";
 import { SmokeStack } from "./label-sprite";
 import { useScene, type SceneStore } from "./scene-store";
+import { useDisposable } from "./use-disposable";
 
 /** Weltposition eines lokalen Punkts im Haus (Drehung um Y). */
-export function toWorld(l: Pick<HouseLayout, "x" | "z" | "angle">, lx: number, lz: number) {
+function toWorld(l: Pick<HouseLayout, "x" | "z" | "angle">, lx: number, lz: number) {
   const c = Math.cos(l.angle);
   const s = Math.sin(l.angle);
   return { x: l.x + lx * c + lz * s, z: l.z - lx * s + lz * c };
 }
 
 /** Weltposition eines Objekts (Platz im Grundstück). */
-export function objectWorld(model: VillageModel, objId: string) {
+function objectWorld(model: VillageModel, objId: string) {
   for (const h of model.houses) {
     const l = model.layout.houses[h.id];
     const slot = (l?.plot?.slots ?? l?.ring)?.find((s) => s.id === objId);
@@ -32,22 +33,21 @@ export function objectWorld(model: VillageModel, objId: string) {
 export function ObjectCard({ model, store }: { model: VillageModel; store: SceneStore }) {
   const id = useScene(store, (s) => s.hoverObjId ?? s.pinnedObjId);
   const view = useScene(store, (s) => s.view);
-  const data = useMemo(() => {
+  const data = useDisposable(() => {
     if (!id) return null;
     const at = objectWorld(model, id);
     const obj = at?.house.items.find((o) => o.id === id);
     if (!at || !obj) return null;
-    const entry = drawObjCard(obj, at.house);
-    const texture = new THREE.CanvasTexture(entry.canvas);
+    const { canvas, entry } = drawObjCard(obj, at.house);
+    const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    return { x: at.x, z: at.z, aspect: entry.aspect, texture };
+    return { x: at.x, z: at.z, aspect: entry.aspect, texture, dispose: () => texture.dispose() };
   }, [id, model]);
-  useEffect(() => () => data?.texture.dispose(), [data]);
   if (!data || view !== "3d") return null;
   return (
     <sprite
       position={[data.x, 1.6, data.z]}
-      center={new THREE.Vector2(0.5, 0)}
+      center={[0.5, 0]}
       scale={[0.052 * data.aspect, 0.052, 1]}
       renderOrder={30}
     >
@@ -142,11 +142,11 @@ const WIND = { x: 0.7, z: -0.7 };
 const PUFFS = 6;
 
 /** Kaminrauch bei Häusern mit neuen Objekten: sechs weiche Sprites, die 2.4 m aufsteigen. */
-export function ChimneySmoke({ houses, model }: { houses: HouseInfo[]; model: VillageModel }) {
-  const texture = useMemo(() => smokeTexture(), []);
+export function ChimneySmoke({ model }: { model: VillageModel }) {
+  const texture = useDisposable(smokeTexture, []);
   // Stapel und Gruppe in einem Zug bauen (die Fabrik darf nicht zweimal verschiedene Gruppen füllen)
   const { stacks, group } = useMemo(() => {
-    const list = houses.flatMap((h) => {
+    const list = model.houses.flatMap((h) => {
       const l = model.layout.houses[h.id];
       if (!l || h.items.length === 0 || h.newCount === 0) return [];
       const top = chimneyTop(h.style.type, l.footprint);
@@ -157,10 +157,8 @@ export function ChimneySmoke({ houses, model }: { houses: HouseInfo[]; model: Vi
     const g = new THREE.Group();
     list.forEach((st) => g.add(st.group));
     return { stacks: list, group: g };
-  }, [houses, model, texture]);
-  // Stapel bei jeder Änderung freigeben, die gemeinsame Textur erst beim Abbau
+  }, [model, texture]);
   useEffect(() => () => stacks.forEach((st) => st.dispose()), [stacks]);
-  useEffect(() => () => texture.dispose(), [texture]);
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
