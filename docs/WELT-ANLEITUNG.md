@@ -52,6 +52,8 @@ Alle Regeln sind reine Funktionen in `src/lib/world/` und laufen im Browser und 
 
 Property-Tests (`src/lib/world/*.test.ts`) prüfen über 220 Seeds: keine Überlappung, alles in der Karte und auf zulässigem Gelände, freier Zugang und freie Sicht aufs Schild, Determinismus, neue Häuser verschieben nichts, zufällige Eingaben enden gültig oder abgewiesen.
 
+**Oberfläche:** Fenster, Leisten und Dialoge im Stil «Rauchglas» (dunkles Glas, Bernstein als Hauptton). Farben, Radien und Schatten nur über die Design-Tokens `--hd-*` in `src/app/globals.css` (Tailwind `bg-hd-surface`, `text-hd-ink` …); der Kontrasttest `src/app/theme-contrast.test.ts` prüft alle Text-/Flächenpaare auf WCAG AA.
+
 ## 4. Generator-Version
 
 `GENERATOR_VERSION` in `src/lib/world/seed.ts` (heute 2). Wer die Regeln so ändert, dass bestehende Dörfer anders aussähen, erhöht die Version und lässt alte Dörfer auf ihrer Version (Annahme A4). v1 ist eingefroren: `src/lib/world/v1-golden.test.ts` vergleicht einen Fingerabdruck von sechs Welten. Ein v1-Dorf wechselt nur auf Wunsch des Besitzers: Einstellungen › Dorf › **Auf neue Welt-Version aktualisieren** (Vorschau mit gleichem Seed, Hausplätze werden mitgenommen) oder **Welt neu würfeln** (immer die aktuelle Version). Reine Darstellung (Kamera, Panorama, Wasser, Wege-Optik, Oberfläche) gilt für alle Versionen.

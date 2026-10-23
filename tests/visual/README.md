@@ -17,19 +17,19 @@ Der Dev-Server startet bei Bedarf selbst (`npm run dev`). In Cloud-Umgebungen oh
 
 Jedes Bild ruft `/dev/dorf?seed=…&h=…&o=…&zeit=…&kamera=…&bewegung=0` auf (Bewegung eingefroren), wartet auf `window.__hubDome.ready === true` (höchstens 90 s) plus 300 ms und macht den Screenshot. Seitenfehler (`pageerror`) lassen den Test scheitern.
 
-- **Seeds:** feste Liste von 8 (siehe `STANDARD_SEEDS` in `matrix.spec.ts`).
+- **Seeds:** feste Liste von 16 (siehe `STANDARD_SEEDS` in `matrix.spec.ts`): 8 aus Phase 4f und 8 aus Phase 4g mit allen sieben Landschaftstypen des Generators v2 (Fluss-, See- und Berg-Extreme).
 - **Datenmengen:** `leer` (0 Häuser), `3h` (3 Häuser × 4 Objekte), `10h` (10 × 6), `20h` (20 × 12), `deko` (10 × 6 mit Beispiel-Deko aller Katalog-Typen, `deko=1`, Häuser fixiert).
 - **Tageszeiten:** `mittag`, `abend`, `nacht`.
-- **Kameras:** `uebersicht`, `vogel`, `strasse`, `ufer` (Brücke, See oder Teich aus der Nähe); Nahaufnahme je Haustyp `haus-<typ>` (werkstatt, block, solar, atelier, stadt, haus, turm, digital, baustelle).
+- **Kameras:** `uebersicht`, `vogel`, `strasse`, `ufer` (Brücke, See oder Teich aus der Nähe); Nahaufnahme je Haustyp `haus-<typ>` (werkstatt, block, solar, atelier, stadt, haus, turm, digital, baustelle); seit Phase 4g `panorama` (Blick zum Horizont, jeder Seed, Seed 1 und 2 zu jeder Tageszeit), `weg` (Wegnahaufnahme, jeder Seed) und `zentrale-<stil>` (alle sechs Zentrale-Stile für Seed 1, mit `VISUAL_FULL=1` für alle).
 
-Standard (reduziert, 115 Bilder je Projekt): Seed 1 und 2 mit `leer`, `3h`, `10h`, `20h`, allen Tageszeiten und den drei Kameras, dazu `deko` auf Strassenhöhe zu jeder Tageszeit; die übrigen Seeds nur `uebersicht` und `vogel` bei `mittag` mit `10h`; jeder Seed zusätzlich `deko` bei `mittag` in der Übersicht und am Ufer; Nahaufnahmen aller neun Haustypen nur für Seed 1 mit `20h` bei `mittag` (nur dort kommen alle Typen vor).
+Standard (reduziert, 189 Bilder je Projekt): Seed 1 und 2 mit `leer`, `3h`, `10h`, `20h`, allen Tageszeiten und den drei Kameras, dazu `deko` auf Strassenhöhe zu jeder Tageszeit; die übrigen Seeds nur `uebersicht` und `vogel` bei `mittag` mit `10h`; jeder Seed zusätzlich `deko` bei `mittag` in der Übersicht und am Ufer, `panorama` und `weg` (10h); Zentrale je Stil für Seed 1; Nahaufnahmen aller neun Haustypen nur für Seed 1 mit `20h` bei `mittag` (nur dort kommen alle Typen vor).
 
 ## Umgebungsvariablen
 
 | Variable              | Wirkung                                                                                                                                                              |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `VISUAL_STAGE=<name>` | Etappe, Unterordner der Ausgabe (Standard `aktuell`, z.B. `baseline`, `etappe2`)                                                                                     |
-| `VISUAL_FULL=1`       | alles für alle Seeds: volle Kombination und Nahaufnahmen (20h) bei allen Tageszeiten, 504 Bilder je Projekt                                                          |
+| `VISUAL_FULL=1`       | alles für alle Seeds: volle Kombination und Nahaufnahmen (20h) bei allen Tageszeiten, 1248 Bilder je Projekt                                                         |
 | `VISUAL_SEEDS=a,b`    | ersetzt die Seed-Liste (je 8 Zeichen a-z0-9); die ersten zwei der Liste bekommen die volle Kombination, der erste die Nahaufnahmen                                   |
 | `VISUAL_ONLY=…`       | schränkt die Auswahl ein: Kamera (`uebersicht`, `vogel`, `strasse`, `haus`, `haus-turm` …), Tageszeit, Datenmenge. Innerhalb einer Gruppe ODER, zwischen Gruppen UND |
 

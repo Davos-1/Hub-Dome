@@ -24,6 +24,8 @@ npm run dev                  # http://localhost:3000
 
 `src/app` Seiten · `src/components` UI und 3D · `src/lib` Logik · `src/lib/mcp` MCP-Tools (Route `src/app/api/mcp/[token]`) · `supabase` Migrationen und RLS-Tests · `skill` Claude-Skill · `tests/e2e` Playwright · `docs` Doku.
 
+Oberfläche im Stil «Rauchglas»: alle Farben, Radien und Schatten als Design-Tokens (`--hd-*` in `src/app/globals.css`, Tailwind `bg-hd-surface`, `text-hd-ink` …), Kontrast nach WCAG AA geprüft (`src/app/theme-contrast.test.ts`).
+
 ## MCP-Connector (Phase 5)
 
 - Token im Einstellungen-Dialog, Tab «Claude», erzeugen (höchstens 5 aktive, widerrufbar). Die Connector-URL ist `<SITE_URL>/api/mcp/<token>` (Streamable HTTP, zustandslos).
