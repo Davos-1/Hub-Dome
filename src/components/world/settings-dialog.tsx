@@ -1,6 +1,6 @@
 "use client";
 
-import { signOut } from "@/app/doerfer/actions";
+import { signOut } from "@/app/(auth)/actions";
 import { setTopdorfAll } from "@/app/dorf/actions";
 import { requestAccountDeletion, updateDisplayName } from "@/app/einstellungen/actions";
 import { StyleSettings } from "@/components/settings/style-settings";

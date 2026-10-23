@@ -1,6 +1,6 @@
 "use client";
 
-import { signOut } from "@/app/doerfer/actions";
+import { signOut } from "@/app/(auth)/actions";
 import type { ShellData } from "@/lib/shell-data";
 import { DialogShell, dlgLink } from "./dialog-shell";
 

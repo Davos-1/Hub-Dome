@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { refreshAll } from "@/lib/action-utils";
 import { requireUser } from "@/lib/auth";
+import { insertHouse } from "@/lib/houses";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import type { ActionState } from "@/lib/types";
 import {
@@ -50,20 +51,12 @@ export async function createHouse(_: ActionState, formData: FormData): Promise<A
     title = title || mod.title;
   }
 
-  const { count } = await supabase
-    .from("houses")
-    .select("id", { count: "exact", head: true })
-    .eq("village_id", village.id);
-
-  const { error } = await supabase.from("houses").insert({
-    village_id: village.id,
+  const { error } = await insertHouse(supabase, village.id, {
     kind: parsed.data.kind,
     title: title!,
     module_code: moduleCode,
     color: parsed.data.color,
-    // Spalte `semester` nur schreiben, wenn gesetzt (ältere Datenbanken ohne Migration 5 funktionieren weiter)
-    ...(parsed.data.semester === null ? {} : { semester: parsed.data.semester }),
-    position_index: count ?? 0,
+    semester: parsed.data.semester,
   });
   if (error) return { error: "Das Haus konnte nicht angelegt werden." };
   refreshAll();
@@ -230,21 +223,11 @@ export async function copyArtifact(_: CopyState, formData: FormData): Promise<Co
       houseId = existing.id;
       houseTitle = existing.title;
     } else {
-      const { count } = await supabase
-        .from("houses")
-        .select("id", { count: "exact", head: true })
-        .eq("village_id", village.id);
-      const { data: created, error } = await supabase
-        .from("houses")
-        .insert({
-          village_id: village.id,
-          kind: "modul",
-          title: mod.title,
-          module_code: mod.code,
-          position_index: count ?? 0,
-        })
-        .select("id, title")
-        .single();
+      const { data: created, error } = await insertHouse(supabase, village.id, {
+        kind: "modul",
+        title: mod.title,
+        module_code: mod.code,
+      });
       if (error || !created) return { error: "Das Haus konnte nicht angelegt werden." };
       houseId = created.id;
       houseTitle = created.title;
