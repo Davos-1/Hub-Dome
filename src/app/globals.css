@@ -10,6 +10,39 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Design-Tokens der Oberfläche als Tailwind-Farben (bg-hd-surface, text-hd-ink, border-hd-line …) */
+  --color-hd-surface: var(--hd-surface);
+  --color-hd-raised: var(--hd-raised);
+  --color-hd-sunken: var(--hd-sunken);
+  --color-hd-hover: var(--hd-hover);
+  --color-hd-frame: var(--hd-frame);
+  --color-hd-ink: var(--hd-ink);
+  --color-hd-ink-2: var(--hd-ink-2);
+  --color-hd-muted: var(--hd-muted);
+  --color-hd-line: var(--hd-line);
+  --color-hd-line-strong: var(--hd-line-strong);
+  --color-hd-accent: var(--hd-accent);
+  --color-hd-accent-hover: var(--hd-accent-hover);
+  --color-hd-accent-strong: var(--hd-accent-strong);
+  --color-hd-accent-ink: var(--hd-accent-ink);
+  --color-hd-accent-soft: var(--hd-accent-soft);
+  --color-hd-selected: var(--hd-selected);
+  --color-hd-selected-ink: var(--hd-selected-ink);
+  --color-hd-danger: var(--hd-danger);
+  --color-hd-danger-soft: var(--hd-danger-soft);
+  --color-hd-new: var(--hd-new);
+  --color-hd-new-ink: var(--hd-new-ink);
+  --color-hd-highlight: var(--hd-highlight);
+  --color-hd-info-soft: var(--hd-info-soft);
+  --color-hd-info-ink: var(--hd-info-ink);
+  --color-hd-head: var(--hd-head);
+  --color-hd-head-ink: var(--hd-head-ink);
+  --color-hd-kicker: var(--hd-kicker);
+  --radius-hd-panel: var(--hd-radius-panel);
+  --radius-hd-ctl: var(--hd-radius-ctl);
+  --radius-hd-sm: var(--hd-radius-sm);
+  --shadow-hd-panel: var(--hd-shadow-panel);
+  --shadow-hd-pop: var(--hd-shadow-pop);
 }
 
 /* Die Oberfläche ist (noch) nur hell gestaltet. color-scheme verhindert dunkle Browser-Standardfarben
@@ -161,57 +194,117 @@ body {
   }
 }
 
-/* ===== Hub-Dome-Oberfläche: Holzschild-Kopf, Pergament-Körper, grüne Knöpfe (passend zur 3D-Welt) ===== */
+/* ===== Hub-Dome-Oberfläche: Design-Tokens =====
+   Alle Farben, Radien, Schatten und Effekte der Oberfläche kommen aus diesen Variablen; Komponenten
+   verwenden nur die Tokens (Tailwind: bg-hd-surface, text-hd-ink, border-hd-line, rounded-hd-panel,
+   shadow-hd-panel …). Standard = «Holz» (Holzschild-Kopf, Pergament, Waldgrün); Varianten über
+   data-hd-theme am Wurzelelement der Welt. */
 :root {
-  --hd-wood: #8b5e3c;
-  --hd-wood-dark: #5e3c22;
-  --hd-paper: #fbf6ea;
-  --hd-card: #fffdf8;
-  --hd-line: #e4d9c0;
+  /* Flächen */
+  --hd-surface: #fbf6ea; /* Fensterkörper, Leisten */
+  --hd-raised: #fffdf8; /* Karte, Feld, Chip auf der Fläche */
+  --hd-sunken: #efe6d0; /* Reiter, inaktive Pillen, Nebenflächen */
+  --hd-hover: #f3ead4; /* Hover auf Karten und Geisterknöpfen */
+  --hd-frame: #5e3c22; /* Rahmen der Fenster und Leisten */
+  --hd-frame-width: 3px;
+  /* Schrift */
   --hd-ink: #1c1b19;
+  --hd-ink-2: #3a3732;
   --hd-muted: #6d6a63;
-  --hd-green: #2f5d4a;
-  --hd-green-dark: #1f4132;
-  --hd-cream: #fbf3e4;
+  /* Linien */
+  --hd-line: #e4d9c0;
+  --hd-line-strong: #d9c9a8;
+  /* Hauptton und Auswahl */
+  --hd-accent: #2f5d4a;
+  --hd-accent-hover: #386d57;
+  --hd-accent-strong: #1f4132;
+  --hd-accent-ink: #fbf3e4;
+  --hd-accent-soft: #e6efe9;
+  --hd-selected: #5e3c22; /* aktiver Reiter, gedrückte Pille */
+  --hd-selected-ink: #ffffff;
+  /* Zustände */
+  --hd-danger: #8a2414;
+  --hd-danger-soft: #fde2dd;
+  --hd-new: #fff3cf; /* Aufkleber «neu» */
+  --hd-new-ink: #6b4e00;
+  --hd-highlight: #facc15;
+  --hd-info-soft: #e0f2fe;
+  --hd-info-ink: #0c4a6e;
+  /* Kopf der Fenster */
+  --hd-head: #8b5e3c;
+  --hd-head-ink: #fbf3e4;
+  --hd-kicker: #f3dcb4;
+  --hd-head-grain: rgba(60, 35, 18, 0.35);
+  --hd-head-rule: 4px solid #5e3c22;
+  /* Form und Tiefe */
+  --hd-radius-panel: 16px;
+  --hd-radius-ctl: 10px;
+  --hd-radius-sm: 8px;
+  --hd-shadow-panel: 0 10px 36px rgba(28, 27, 25, 0.3);
+  --hd-shadow-pop: 0 4px 14px rgba(28, 27, 25, 0.25);
+  --hd-blur: 0px;
+  --hd-scrim: rgba(28, 27, 25, 0.35);
+  /* Bewegung */
+  --hd-motion-fast: 120ms;
+  --hd-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  /* Alte Namen (Seiten ausserhalb der Welt) */
+  --hd-wood: var(--hd-head);
+  --hd-wood-dark: var(--hd-frame);
+  --hd-paper: var(--hd-surface);
+  --hd-card: var(--hd-raised);
+  --hd-green: var(--hd-accent);
+  --hd-green-dark: var(--hd-accent-strong);
+  --hd-cream: var(--hd-accent-ink);
 }
 
 /* Kopf wie ein Holzschild in der Welt: Bretter mit dunklen Fugen und Rahmen */
 .hd-plank {
-  background-color: var(--hd-wood);
+  background-color: var(--hd-head);
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
     transparent calc(25% - 1.5px),
-    rgba(60, 35, 18, 0.35) calc(25% - 1.5px),
-    rgba(60, 35, 18, 0.35) 25%
+    var(--hd-head-grain) calc(25% - 1.5px),
+    var(--hd-head-grain) 25%
   );
-  color: var(--hd-cream);
-  border-bottom: 4px solid var(--hd-wood-dark);
+  color: var(--hd-head-ink);
+  border-bottom: var(--hd-head-rule);
 }
 .hd-frame {
-  border: 4px solid var(--hd-wood-dark);
+  border: calc(var(--hd-frame-width) + 1px) solid var(--hd-frame);
+}
+/* Fenster und Leisten über der Szene: Fläche, Rahmen, Schatten, Glas (Unschärfe nur in Glas-Varianten) */
+.hd-panel {
+  background: var(--hd-surface);
+  border: var(--hd-frame-width) solid var(--hd-frame);
+  border-radius: var(--hd-radius-panel);
+  box-shadow: var(--hd-shadow-panel);
+  color: var(--hd-ink);
+  backdrop-filter: blur(var(--hd-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--hd-blur)) saturate(1.2);
 }
 .hd-kicker {
   font-family: var(--font-plex-mono), ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #f3dcb4;
+  color: var(--hd-kicker);
 }
 
 .hd-input {
   width: 100%;
-  border-radius: 10px;
-  border: 1.5px solid #d9c9a8;
-  background: #fff;
+  border-radius: var(--hd-radius-ctl);
+  border: 1.5px solid var(--hd-line-strong);
+  background: var(--hd-raised);
   padding: 9px 12px;
   font-size: 14px;
   color: var(--hd-ink);
 }
 .hd-input:focus-visible {
-  outline: 2px solid var(--hd-green);
+  outline: 2px solid var(--hd-accent);
   outline-offset: 1px;
-  border-color: var(--hd-green);
+  border-color: var(--hd-accent);
 }
 .hd-btn {
   display: inline-flex;
@@ -219,13 +312,14 @@ body {
   justify-content: center;
   gap: 6px;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--hd-radius-ctl);
   padding: 9px 16px;
   font-size: 14px;
   font-weight: 600;
   transition:
     transform 0.08s,
-    background-color 0.15s;
+    background-color var(--hd-motion-fast),
+    border-color var(--hd-motion-fast);
 }
 .hd-btn:disabled {
   opacity: 0.6;
@@ -235,38 +329,38 @@ body {
   transform: translateY(1px);
 }
 .hd-btn-primary {
-  background: var(--hd-green);
-  color: var(--hd-cream);
-  box-shadow: 0 2px 0 var(--hd-green-dark);
+  background: var(--hd-accent);
+  color: var(--hd-accent-ink);
+  box-shadow: 0 2px 0 var(--hd-accent-strong);
 }
 .hd-btn-primary:not(:disabled):hover {
-  background: #386d57;
+  background: var(--hd-accent-hover);
 }
 .hd-btn-ghost {
-  background: var(--hd-card);
+  background: var(--hd-raised);
   color: var(--hd-ink);
-  border: 1.5px solid #d9c9a8;
+  border: 1.5px solid var(--hd-line-strong);
 }
 .hd-btn-ghost:not(:disabled):hover {
-  background: #f3ead4;
+  background: var(--hd-hover);
 }
 .hd-btn-danger {
-  background: #fff;
-  color: #a02a1f;
-  border: 1.5px solid #e6b8b2;
+  background: var(--hd-raised);
+  color: var(--hd-danger);
+  border: 1.5px solid color-mix(in srgb, var(--hd-danger) 35%, transparent);
 }
 .hd-btn-danger:not(:disabled):hover {
-  background: #fdeceb;
+  background: var(--hd-danger-soft);
 }
 .hd-btn-sm {
   padding: 5px 11px;
   font-size: 12.5px;
-  border-radius: 8px;
+  border-radius: var(--hd-radius-sm);
 }
 .hd-card {
-  background: var(--hd-card);
+  background: var(--hd-raised);
   border: 1.5px solid var(--hd-line);
-  border-radius: 14px;
+  border-radius: calc(var(--hd-radius-panel) - 2px);
   padding: 14px 16px;
 }
 .hd-label {
@@ -280,12 +374,148 @@ body {
 }
 .hd-error {
   font-size: 13px;
-  color: #a02a1f;
+  color: var(--hd-danger);
 }
 .hd-ok {
   font-size: 13px;
-  color: var(--hd-green);
+  color: var(--hd-accent);
 }
 .hd-sky {
   background: linear-gradient(to bottom, #6fb1ec 0%, #b9dcf7 55%, #e8f3fb 100%);
+}
+
+/* ===== Stilvarianten «dunkles Glas» (Phase 4g, Etappe 5: zur Wahl) =====
+   Gemeinsam: dunkle, leicht durchscheinende Flächen mit Unschärfe, helle Schrift, feine Linien statt
+   dicker Rahmen, weiche Schatten, Holz nur als feine Linie unter dem Kopf. Kontrast WCAG AA auch über
+   hellem Himmel (Prüfung: docs/PHASE-4G-KONZEPT.md, Abschnitt 6). */
+[data-hd-theme] {
+  --hd-frame-width: 1px;
+  --hd-radius-panel: 18px;
+  --hd-radius-ctl: 12px;
+  --hd-radius-sm: 9px;
+  --hd-blur: 16px;
+  --hd-head-grain: transparent;
+  --hd-shadow-pop: 0 6px 18px rgba(0, 0, 0, 0.28);
+  --hd-motion-fast: 140ms;
+  color-scheme: dark;
+}
+
+/* Nachtglas: Tintenblau, kühles Himmelblau als Hauptton, Bernstein-Aufkleber */
+[data-hd-theme="nachtglas"] {
+  --hd-surface: rgba(16, 23, 38, 0.86);
+  --hd-raised: rgba(255, 255, 255, 0.07);
+  --hd-sunken: rgba(255, 255, 255, 0.05);
+  --hd-hover: rgba(255, 255, 255, 0.12);
+  --hd-frame: rgba(190, 210, 255, 0.16);
+  --hd-ink: #eef2f8;
+  --hd-ink-2: #cdd6e4;
+  --hd-muted: #a9b5c8;
+  --hd-line: rgba(255, 255, 255, 0.12);
+  --hd-line-strong: rgba(255, 255, 255, 0.22);
+  --hd-accent: #8ab4f8;
+  --hd-accent-hover: #a7c7fa;
+  --hd-accent-strong: #5b86cc;
+  --hd-accent-ink: #0c1424;
+  --hd-accent-soft: rgba(138, 180, 248, 0.18);
+  --hd-selected: #e9eef7;
+  --hd-selected-ink: #101726;
+  --hd-danger: #ff9b8f;
+  --hd-danger-soft: rgba(255, 120, 100, 0.16);
+  --hd-new: #f6cf7a;
+  --hd-new-ink: #2e2100;
+  --hd-highlight: #f6cf7a;
+  --hd-info-soft: rgba(138, 180, 248, 0.14);
+  --hd-info-ink: #d3e3ff;
+  --hd-head: rgba(255, 255, 255, 0.04);
+  --hd-head-ink: #f4f7fc;
+  --hd-kicker: #a9bedf;
+  --hd-head-rule: 1px solid rgba(196, 140, 92, 0.55);
+  --hd-shadow-panel: 0 18px 50px rgba(2, 8, 22, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --hd-scrim: rgba(6, 10, 20, 0.45);
+}
+
+/* Waldglas: tiefes Grün, Minze als Hauptton, warmes Gelb für Aufkleber */
+[data-hd-theme="waldglas"] {
+  --hd-surface: rgba(13, 31, 25, 0.86);
+  --hd-raised: rgba(255, 255, 255, 0.07);
+  --hd-sunken: rgba(255, 255, 255, 0.05);
+  --hd-hover: rgba(255, 255, 255, 0.12);
+  --hd-frame: rgba(190, 240, 210, 0.16);
+  --hd-ink: #edf5ef;
+  --hd-ink-2: #cadbcf;
+  --hd-muted: #b0c4b6;
+  --hd-line: rgba(255, 255, 255, 0.12);
+  --hd-line-strong: rgba(255, 255, 255, 0.22);
+  --hd-accent: #8fd6a8;
+  --hd-accent-hover: #a9e2bd;
+  --hd-accent-strong: #5aa979;
+  --hd-accent-ink: #0a1d13;
+  --hd-accent-soft: rgba(143, 214, 168, 0.18);
+  --hd-selected: #e7f1ea;
+  --hd-selected-ink: #0e2019;
+  --hd-danger: #ffa093;
+  --hd-danger-soft: rgba(255, 120, 100, 0.16);
+  --hd-new: #f2d47e;
+  --hd-new-ink: #2f2400;
+  --hd-highlight: #f2d47e;
+  --hd-info-soft: rgba(143, 214, 168, 0.14);
+  --hd-info-ink: #d5f0de;
+  --hd-head: rgba(255, 255, 255, 0.04);
+  --hd-head-ink: #f2f8f4;
+  --hd-kicker: #a9cbb5;
+  --hd-head-rule: 1px solid rgba(196, 140, 92, 0.55);
+  --hd-shadow-panel: 0 18px 50px rgba(2, 14, 8, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --hd-scrim: rgba(4, 12, 8, 0.45);
+}
+
+/* Rauchglas: neutrales Anthrazit, Bernstein als Hauptton, Zitronengelb für Aufkleber */
+[data-hd-theme="rauchglas"] {
+  --hd-surface: rgba(24, 24, 27, 0.86);
+  --hd-raised: rgba(255, 255, 255, 0.07);
+  --hd-sunken: rgba(255, 255, 255, 0.05);
+  --hd-hover: rgba(255, 255, 255, 0.12);
+  --hd-frame: rgba(255, 255, 255, 0.14);
+  --hd-ink: #f4f4f5;
+  --hd-ink-2: #d6d6da;
+  --hd-muted: #bcbcc4;
+  --hd-line: rgba(255, 255, 255, 0.12);
+  --hd-line-strong: rgba(255, 255, 255, 0.22);
+  --hd-accent: #f5b754;
+  --hd-accent-hover: #f8c877;
+  --hd-accent-strong: #c98f2e;
+  --hd-accent-ink: #231600;
+  --hd-accent-soft: rgba(245, 183, 84, 0.18);
+  --hd-selected: #f4f4f5;
+  --hd-selected-ink: #18181b;
+  --hd-danger: #ffa89d;
+  --hd-danger-soft: rgba(255, 120, 100, 0.16);
+  --hd-new: #fde68a;
+  --hd-new-ink: #2f2500;
+  --hd-highlight: #f5b754;
+  --hd-info-soft: rgba(255, 255, 255, 0.1);
+  --hd-info-ink: #e4e4e7;
+  --hd-head: rgba(255, 255, 255, 0.04);
+  --hd-head-ink: #fafafa;
+  --hd-kicker: #d9bd8f;
+  --hd-head-rule: 1px solid rgba(214, 160, 90, 0.6);
+  --hd-shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --hd-scrim: rgba(0, 0, 0, 0.45);
+}
+
+/* Glas-Varianten: Primärknopf ohne harte Kante, Felder dunkel */
+[data-hd-theme] .hd-btn-primary {
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--hd-accent) 35%, transparent);
+}
+[data-hd-theme] .hd-input {
+  background: rgba(0, 0, 0, 0.25);
+}
+[data-hd-theme] input,
+[data-hd-theme] select,
+[data-hd-theme] textarea {
+  background-color: rgba(0, 0, 0, 0.25);
+  color: var(--hd-ink);
+}
+[data-hd-theme] select option {
+  background-color: #1b1f27;
+  color: #eef2f8;
 }

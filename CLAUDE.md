@@ -4,6 +4,7 @@
 - **Fokusregel für Phase 4f und 4g aufgehoben** (Entscheid Gian, 2026-10-23): neue 3D-Gestaltungsfunktionen sind in 4f und 4g erlaubt. Oberste Regel dabei: keine «komische» Welt (nichts durchdringt sich, schwebt, steht schief, auf Wegen/Wasser oder ausserhalb der Karte); Platzierungsregeln liegen in reinen Funktionen (`src/lib/world/`) mit Property-Tests. Layout- und Regeländerungen nur als neue Generator-Version (v1 bleibt eingefroren, Golden-Test). Nach 4g gilt wieder: bis zum Pilot-Feedback nur Fehlerbehebungen, Performance, Barrierefreiheit.
 - **Entscheidungslog: docs/ENTSCHEIDUNGEN.md.** Zu Beginn jeder Sitzung lesen. Wichtige Entscheidungen, Fehler und Lehren sofort dort ergänzen (Datum, Kontext, Entscheidung, Grund).
 - UI-Texte Deutsch, Schweizer Schreibweise (kein ß).
+- UI-Farben, Radien und Schatten nur über die Design-Tokens (`--hd-*` in `src/app/globals.css`, Tailwind `bg-hd-surface`, `text-hd-ink` …); keine harten Farbwerte in Komponenten (Datenfarben wie Quartier- oder Objektfarben ausgenommen). Kontrasttest `src/app/theme-contrast.test.ts`.
 - Jede neue Tabelle braucht RLS und Tests dazu.
 - Service-Role-Key nur serverseitig. Jede Server-Query mit Service Role filtert explizit nach owner_id.
 - Eingaben immer mit Zod validieren.
