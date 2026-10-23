@@ -3,16 +3,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { poseFor, type Pose } from "@/lib/camera-poses";
+import { planFlight, type Flight, type Obstacle } from "@/lib/camera-flight";
+import { poseFor, type Pose, type PoseOpts } from "@/lib/camera-poses";
 import type { VillageLayout } from "@/lib/layout";
+import { freeFrame } from "./hud/insets";
 import { useScene, type SceneStore } from "./scene-store";
-
-const DURATION = 0.9;
-/** Zusatzdauer bei einer halben Umrundung (Drehung um 180°). */
-const EXTRA_PER_HALF_TURN = 0.6;
-/** Fast senkrechter Blick (Karte): kein Schwenk um das Ziel, sonst entsteht eine Spirale. */
-const TOP_DOWN_PHI = 0.2;
-const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 /**
  * Hochformat (Handy): Kamera weiter weg und steiler von oben, damit das runde Dorf das hohe Bild füllt statt
@@ -30,12 +25,6 @@ function fitPortrait(p: Pose, aspect: number, maxK: number): Pose {
   return { position: [v.x, v.y, v.z], target: p.target };
 }
 
-/** Kürzester Drehweg von a nach b (−π…π). */
-const angleDelta = (a: number, b: number) => {
-  const d = (b - a) % (2 * Math.PI);
-  return d > Math.PI ? d - 2 * Math.PI : d < -Math.PI ? d + 2 * Math.PI : d;
-};
-
 type Controls = {
   target: THREE.Vector3;
   update: () => void;
@@ -44,18 +33,31 @@ type Controls = {
 };
 
 /**
- * Fährt die Kamera sanft zur Pose der aktuellen Ebene (Dorf › Quartier › Haus, 3D oder Karte). Übergang
- * im Bogen um das Ziel, 0.9–1.5 s je nach Drehwinkel, ease-in-out; bei `prefers-reduced-motion` sofort. Es wird nur gerendert, solange die Fahrt läuft.
+ * Fährt die Kamera ruhig zur Pose der aktuellen Ebene (Dorf › Quartier › Haus/Zentrale, 3D oder Karte).
+ * Die Fahrt rechnet `planFlight` (Bogen um den Blickpunkt, 2.0–3.2 s je nach Weg und Drehung, weiches Anfahren
+ * und Abbremsen); bei `prefers-reduced-motion` springt sie. Häuser und Zentrale werden nach der Hülle des
+ * tatsächlichen Modells in den freien Bildausschnitt eingepasst (Fenster rechts bzw. Blatt unten ausgespart).
+ * Es wird nur gerendert, solange die Fahrt läuft.
  */
 export function CameraRig({
   layout,
   store,
   reducedMotion,
+  hullOf,
 }: {
   layout: VillageLayout;
   store: SceneStore;
   reducedMotion: boolean;
+  hullOf?: PoseOpts["hullOf"];
 }) {
+  // Hohe Bauten, über die die Fahrt mit Abstand hinwegführt: die Zentrale (Höhe aus der Hülle)
+  const obstacles = useMemo<Obstacle[]>(() => {
+    const z = Object.values(layout.houses).find((h) => !h.plot);
+    const pts = z ? hullOf?.(z.id) : null;
+    if (!z || !pts?.length) return [];
+    const top = Math.max(...pts.map((p) => p[1]));
+    return [{ x: z.x, z: z.z, r: z.footprint * 2, top }];
+  }, [layout, hullOf]);
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as Controls | null;
   const invalidate = useThree((s) => s.invalidate);
@@ -65,62 +67,47 @@ export function CameraRig({
   const intro = useScene(store, (s) => s.intro);
   const devPose = useScene(store, (s) => s.devPose);
   // Hochformat (Handy): weiter zurück und steiler, damit das Dorf das Bild füllt
-  const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
+  const width = useThree((s) => s.size.width);
+  const height = useThree((s) => s.size.height);
+  const aspect = width / Math.max(1, height);
   const pose: Pose = useMemo(() => {
     if (devPose) return fitPortrait(devPose, aspect, 2);
-    const p = fitPortrait(poseFor(layout, nav, view), aspect, nav.level === "haus" ? 1.35 : 2);
+    // Haus, Zentrale und Quartier sind schon für Seitenverhältnis und freien Ausschnitt eingepasst
+    const fitted = nav.level !== "dorf";
+    const raw = poseFor(layout, nav, view, {
+      aspect,
+      frame: freeFrame(width, height, nav.level !== "dorf"),
+      hullOf,
+    });
+    const p = fitted ? raw : fitPortrait(raw, aspect, 2);
     // Einstieg: weit draussen beginnen, nach dem Start-Dialog zur Übersicht einfliegen
     return intro
       ? { position: p.position.map((c) => c * 1.45) as [number, number, number], target: p.target }
       : p;
-  }, [layout, nav, view, intro, devPose, aspect]);
+  }, [layout, nav, view, intro, devPose, aspect, width, height, hullOf]);
 
-  const anim = useRef<{
-    t: number;
-    duration: number;
-    fromTarget: THREE.Vector3;
-    toTarget: THREE.Vector3;
-    /** Versatz Kamera − Ziel in Kugelkoordinaten, am Anfang und am Ende. */
-    fromOff: THREE.Spherical;
-    toOff: THREE.Spherical;
-    turn: number;
-    lift: number;
-  } | null>(null);
+  const anim = useRef<{ t: number; flight: Flight } | null>(null);
   const first = useRef(true);
 
   useEffect(() => {
     if (!controls) return;
-    const to = new THREE.Vector3(...pose.position);
-    const target = new THREE.Vector3(...pose.target);
     if (first.current || reducedMotion) {
       first.current = false;
-      camera.position.copy(to);
-      controls.target.copy(target);
+      camera.position.set(...pose.position);
+      controls.target.set(...pose.target);
       controls.update();
       invalidate();
       return;
     }
-    // Kamera im Bogen um das Ziel führen (Kugelkoordinaten) statt geradeaus: der Blick bleibt
-    // während der ganzen Fahrt auf dem Ziel, am Ende dreht sie nicht mehr ruckartig nach.
-    // Drehpunkt ist das neue Ziel: die Kamera kreist im Anflug um das Haus selbst, nicht um den
-    // wandernden Blickpunkt (sonst kippt der Blick bei Häusern, die von der Kamera wegschauen).
-    const fromTarget = controls.target.clone();
-    const fromOff = new THREE.Spherical().setFromVector3(camera.position.clone().sub(target));
-    const toOff = new THREE.Spherical().setFromVector3(to.clone().sub(target));
-    const topDown = fromOff.phi < TOP_DOWN_PHI || toOff.phi < TOP_DOWN_PHI;
-    const turn = topDown ? 0 : angleDelta(fromOff.theta, toOff.theta);
-    const share = Math.abs(turn) / Math.PI;
-    anim.current = {
-      t: 0,
-      duration: DURATION + EXTRA_PER_HALF_TURN * share,
-      fromTarget,
-      toTarget: target,
-      fromOff,
-      toOff,
-      turn,
-      lift: share * 0.25 * Math.max(fromOff.radius, toOff.radius),
+    // Von der aktuellen Lage aus (auch mitten in einer anderen Fahrt) zur neuen Pose
+    const from: Pose = {
+      position: [camera.position.x, camera.position.y, camera.position.z],
+      target: [controls.target.x, controls.target.y, controls.target.z],
     };
+    anim.current = { t: 0, flight: planFlight(from, pose, obstacles) };
     invalidate();
+    // Nur eine neue Pose startet eine Fahrt (nicht neue Hindernisse)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pose, controls, camera, reducedMotion, invalidate]);
 
   // Schwenken (Pan) auf das Dorf begrenzen (nicht in der Kartenansicht: dort ist die Höhe wichtig).
@@ -143,22 +130,11 @@ export function CameraRig({
   useFrame((_, delta) => {
     const a = anim.current;
     if (!a || !controls) return;
-    a.t = Math.min(1, a.t + delta / a.duration);
-    const k = ease(a.t);
-    // Der Blick erreicht das Ziel früher als die Kamera ihre Endposition: kein Nachdrehen am Ende.
-    controls.target.lerpVectors(a.fromTarget, a.toTarget, ease(Math.min(1, a.t * 1.6)));
-    const theta =
-      a.turn === 0
-        ? THREE.MathUtils.lerp(a.fromOff.theta, a.toOff.theta, k)
-        : a.fromOff.theta + a.turn * k;
-    const off = new THREE.Spherical(
-      THREE.MathUtils.lerp(a.fromOff.radius, a.toOff.radius, k),
-      THREE.MathUtils.lerp(a.fromOff.phi, a.toOff.phi, k),
-      theta,
-    );
-    // In der Mitte des Bogens etwas höher, damit er nicht durch Dächer und Bäume führt.
-    const lift = new THREE.Vector3(0, Math.sin(Math.PI * k) * a.lift, 0);
-    camera.position.setFromSpherical(off).add(a.toTarget).add(lift);
+    // Lange Frames (Tab im Hintergrund) nicht als Sprung übernehmen
+    a.t = Math.min(1, a.t + Math.min(delta, 0.1) / a.flight.duration);
+    const p = a.flight.at(a.t);
+    controls.target.set(...p.target);
+    camera.position.set(...p.position);
     controls.update();
     if (a.t >= 1) anim.current = null;
     else invalidate();

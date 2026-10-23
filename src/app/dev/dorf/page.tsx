@@ -40,7 +40,7 @@ const CODES = [
 ];
 const ZEITEN: TimeKey[] = ["morgen", "mittag", "abend", "nacht"];
 const KAMERAS =
-  /^(uebersicht|vogel|strasse|quartier|ufer|haus-(werkstatt|block|solar|atelier|stadt|haus|turm|digital|baustelle))$/;
+  /^(uebersicht|vogel|strasse|quartier|ufer|zentrale|panorama|weg|haus-(werkstatt|block|solar|atelier|stadt|haus|turm|digital|baustelle))$/;
 
 /**
  * Entwickler-Vorschau mit erfundenen Daten (ohne Datenbank). Parameter: `h` Häuser, `o` Objekte pro Haus,

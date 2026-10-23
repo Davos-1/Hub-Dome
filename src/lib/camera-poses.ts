@@ -4,6 +4,29 @@ import type { VillageLayout } from "./layout";
 /** Kamerapose: Position und Blickziel (Weltkoordinaten). */
 export type Pose = { position: [number, number, number]; target: [number, number, number] };
 export type ViewMode = "3d" | "karte";
+export type Vec3 = [number, number, number];
+
+/**
+ * Freier Bildausschnitt in Normalkoordinaten (−1…1), also ohne die Flächen unter Suche, Leiste und Fenster.
+ * Ein Haus oder die Zentrale wird in diesen Ausschnitt eingepasst.
+ */
+export type Frame = { left: number; right: number; bottom: number; top: number };
+export const FULL_FRAME: Frame = { left: -1, right: 1, bottom: -1, top: 1 };
+
+export type PoseOpts = {
+  /** Seitenverhältnis der Leinwand (Breite/Höhe); Hochformat < 1. */
+  aspect?: number;
+  /** Freier Bildausschnitt (Standard: ganzes Bild). */
+  frame?: Frame;
+  /**
+   * Hüllpunkte (Weltkoordinaten) des tatsächlichen Modells: Haus samt Garten bzw. Zentrale samt Sockel,
+   * Objektring und Figur. Fehlen sie, gilt eine grobe Schätzung aus dem Layout.
+   */
+  hullOf?: (id: string) => Vec3[] | null;
+};
+
+/** Rand um das eingepasste Modell (Anteil des freien Ausschnitts je Seite). */
+export const FIT_MARGIN = 0.12;
 
 export type Nav =
   | { level: "dorf" }
@@ -24,7 +47,12 @@ export const mapPose = (extent: number): Pose => ({
 export const overviewDistance = (extent: number) => Math.hypot(extent + 11, extent * 1.38 + 16);
 
 /** Quartier wie einen Ordner öffnen: Blick auf Nebenplatz und Häuser von der Seite der Zentrale. */
-export function quarterPose(layout: VillageLayout, id: FachbereichId, view: ViewMode): Pose {
+export function quarterPose(
+  layout: VillageLayout,
+  id: FachbereichId,
+  view: ViewMode,
+  opts: PoseOpts = {},
+): Pose {
   const q = layout.quarters.find((x) => x.id === id);
   if (!q) return view === "karte" ? mapPose(layout.extent) : overviewPose(layout.extent);
   let cx = q.x;
@@ -37,10 +65,14 @@ export function quarterPose(layout: VillageLayout, id: FachbereichId, view: View
   cz /= q.houseIds.length + 1;
   const R = q.radius;
   if (view === "karte") return { position: [cx, R * 2.2 + 10, cz + 0.05], target: [cx, 0, cz] };
-  const ux = Math.cos(q.theta);
-  const uz = Math.sin(q.theta);
-  const back = R * 1.25 + 7;
-  return { position: [cx - ux * back, R * 1.05 + 8, cz - uz * back], target: [cx, 0, cz] };
+  // Quartierplatz und alle Grundstücke des Quartiers im freien Ausschnitt, Blick von der Seite der Zentrale
+  const pts: Vec3[] = [
+    [q.x - q.rp, 0, q.z - q.rp],
+    [q.x + q.rp, 4, q.z + q.rp],
+  ];
+  for (const hid of q.houseIds) pts.push(...roughHull(layout, hid));
+  const azimuth = Math.atan2(-Math.cos(q.theta), -Math.sin(q.theta));
+  return fitPose(pts, [cx, 0, cz], unit(azimuth, 0.62), opts.aspect ?? ASPECT, opts.frame, 14);
 }
 
 /** Höhe der Quartiertafeln samt Pfosten (Meter) und Sicherheitsabstand der Blickachse darüber. */
@@ -152,41 +184,193 @@ export function boardClutter(
   return sum;
 }
 
+/** Kamera-Basis für eine Blickrichtung (vorwärts, rechts, oben). */
+function basis(forward: Vec3) {
+  const rl = Math.hypot(forward[2], forward[0]) || 1;
+  const right: Vec3 = [-forward[2] / rl, 0, forward[0] / rl];
+  const up: Vec3 = [
+    right[1] * forward[2] - right[2] * forward[1],
+    right[2] * forward[0] - right[0] * forward[2],
+    right[0] * forward[1] - right[1] * forward[0],
+  ];
+  return { right, up };
+}
+
+/**
+ * Projiziert Punkte für eine Kamera an `cam` mit Blickrichtung `forward` und prüft, ob alle im Ausschnitt
+ * (samt Rand) liegen. Gibt die grösste Überschreitung zurück (≤ 0 = alles sichtbar).
+ */
+export function frameOverflow(
+  points: Vec3[],
+  cam: Vec3,
+  forward: Vec3,
+  aspect: number,
+  frame: Frame,
+  margin = FIT_MARGIN,
+): number {
+  const { right, up } = basis(forward);
+  const ty = Math.tan(FOV_Y / 2);
+  const cx = (frame.left + frame.right) / 2;
+  const cy = (frame.bottom + frame.top) / 2;
+  const hx = ((frame.right - frame.left) / 2) * (1 - margin);
+  const hy = ((frame.top - frame.bottom) / 2) * (1 - margin);
+  let worst = -Infinity;
+  for (const p of points) {
+    const rx = p[0] - cam[0];
+    const ry = p[1] - cam[1];
+    const rz = p[2] - cam[2];
+    const z = rx * forward[0] + ry * forward[1] + rz * forward[2];
+    if (z < NEAR) return Infinity;
+    const x = (rx * right[0] + ry * right[1] + rz * right[2]) / (z * ty * aspect);
+    const y = (rx * up[0] + ry * up[1] + rz * up[2]) / (z * ty);
+    worst = Math.max(worst, Math.abs(x - cx) - hx, Math.abs(y - cy) - hy);
+  }
+  return worst;
+}
+
+/**
+ * Pose, die alle Hüllpunkte mit Rand in den freien Ausschnitt einpasst: Blick aus Richtung `dir` (Einheitsvektor
+ * vom Ziel zur Kamera) auf `center`; der kleinste Abstand ab `minDist` wird gesucht (Bisektion). Liegt der
+ * Ausschnitt nicht mittig (Fenster rechts offen), wird die Kamera seitlich versetzt, damit das Modell in der
+ * Mitte des freien Ausschnitts steht; Blickpunkt (Drehzentrum) ist dann der entsprechend versetzte Punkt.
+ */
+export function fitPose(
+  points: Vec3[],
+  center: Vec3,
+  dir: Vec3,
+  aspect: number,
+  frame: Frame = FULL_FRAME,
+  minDist = 6,
+): Pose {
+  const forward: Vec3 = [-dir[0], -dir[1], -dir[2]];
+  const { right, up } = basis(forward);
+  const ty = Math.tan(FOV_Y / 2);
+  const cx = (frame.left + frame.right) / 2;
+  const cy = (frame.bottom + frame.top) / 2;
+  const camAt = (d: number): Vec3 => {
+    // Mitte des Modells soll bei (cx, cy) erscheinen
+    const sx = cx * d * ty * aspect;
+    const sy = cy * d * ty;
+    return [
+      center[0] + dir[0] * d - right[0] * sx - up[0] * sy,
+      center[1] + dir[1] * d - right[1] * sx - up[1] * sy,
+      center[2] + dir[2] * d - right[2] * sx - up[2] * sy,
+    ];
+  };
+  const ok = (d: number) => frameOverflow(points, camAt(d), forward, aspect, frame) <= 0;
+  let lo = minDist;
+  let hi = Math.max(minDist * 2, 40);
+  while (!ok(hi) && hi < 2000) hi *= 1.6;
+  if (ok(lo)) hi = lo;
+  for (let i = 0; i < 40 && hi - lo > 0.01; i++) {
+    const mid = (lo + hi) / 2;
+    if (ok(mid)) hi = mid;
+    else lo = mid;
+  }
+  const position = camAt(hi);
+  return {
+    position,
+    target: [
+      position[0] + forward[0] * hi,
+      position[1] + forward[1] * hi,
+      position[2] + forward[2] * hi,
+    ],
+  };
+}
+
+/** Grobe Hülle ohne Modell: Grundstück bis Dachhöhe bzw. Terrasse und Turm der Zentrale. */
+function roughHull(layout: VillageLayout, id: string): Vec3[] {
+  const h = layout.houses[id];
+  const pts: Vec3[] = [];
+  if (!h.plot) {
+    const r = Math.max(layout.terrace, h.footprint * 1.6);
+    for (const x of [-r, r])
+      for (const z of [-r, r])
+        for (const y of [0, h.footprint * 6.6]) pts.push([h.x + x, y, h.z + z]);
+    return pts;
+  }
+  const c = Math.cos(h.angle);
+  const s = Math.sin(h.angle);
+  for (const lx of [-h.plot.hw, h.plot.hw])
+    for (const lz of [-h.plot.back, h.plot.front])
+      for (const y of [0, h.footprint * 3.4])
+        pts.push([h.x + lx * c + lz * s, y, h.z - lx * s + lz * c]);
+  return pts;
+}
+
+const unit = (azimuth: number, elevation: number): Vec3 => [
+  Math.sin(azimuth) * Math.cos(elevation),
+  Math.sin(elevation),
+  Math.cos(azimuth) * Math.cos(elevation),
+];
+
+/**
+ * Zentrale ganz im Bild: Blick von vorne (+z, leicht schräg, falls eine Tafel stört) auf die Mitte der
+ * Hüllbox; der Abstand ergibt sich aus Hülle, Öffnungswinkel und Seitenverhältnis (auch Hochformat).
+ */
+export function zentralePose(layout: VillageLayout, id: string, opts: PoseOpts = {}): Pose {
+  const aspect = opts.aspect ?? ASPECT;
+  const frame = opts.frame ?? FULL_FRAME;
+  const pts = opts.hullOf?.(id) ?? roughHull(layout, id);
+  let min: Vec3 = [Infinity, Infinity, Infinity];
+  let max: Vec3 = [-Infinity, -Infinity, -Infinity];
+  for (const p of pts) {
+    min = [Math.min(min[0], p[0]), Math.min(min[1], p[1]), Math.min(min[2], p[2])];
+    max = [Math.max(max[0], p[0]), Math.max(max[1], p[1]), Math.max(max[2], p[2])];
+  }
+  const center: Vec3 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+  let best: { pose: Pose; score: number } | null = null;
+  for (const elev of [0.36, 0.46, 0.56])
+    for (const az of [0, 0.3, -0.3, 0.6, -0.6]) {
+      const pose = fitPose(pts, center, unit(az, elev), aspect, frame, 8);
+      const score =
+        boardClutter(layout, pose.position, pose.target) +
+        (blockedByBoard(layout, pose.position, pose.target) ? 1 : 0) +
+        Math.abs(az) * 0.03 +
+        Math.abs(elev - 0.46) * 0.05;
+      if (!best || score < best.score - 1e-9) best = { pose, score };
+    }
+  return best!.pose;
+}
+
 /**
  * Haus von vorne aus der Vogelperspektive: vor dem Gartentor, etwas weiter draussen und höher. Die
  * Blickachse führt sicher über die Quartiertafeln hinweg, und keine Tafel füllt den Vordergrund (Häuser am
  * Quartierplatz: die Tafel steht vor ihnen, dann leicht seitlich oder näher).
  */
-export function housePose(layout: VillageLayout, id: string, view: ViewMode): Pose {
+export function housePose(
+  layout: VillageLayout,
+  id: string,
+  view: ViewMode,
+  opts: PoseOpts = {},
+): Pose {
   const h = layout.houses[id];
   if (!h) return view === "karte" ? mapPose(layout.extent) : overviewPose(layout.extent);
   if (view === "karte") return { position: [h.x, 30, h.z + 0.01], target: [h.x, 0, h.z] };
-  const gate = h.plot ? h.plot.front : h.footprint * 2;
-  const target: [number, number, number] = [
-    h.x + Math.sin(h.angle) * gate * 0.45,
+  if (!h.plot) return zentralePose(layout, id, opts);
+  const aspect = opts.aspect ?? ASPECT;
+  const frame = opts.frame ?? FULL_FRAME;
+  const pts = opts.hullOf?.(id) ?? roughHull(layout, id);
+  const gate = h.plot.front;
+  const center: Vec3 = [
+    h.x + Math.sin(h.angle) * gate * 0.3,
     1.1,
-    h.z + Math.cos(h.angle) * gate * 0.45,
+    h.z + Math.cos(h.angle) * gate * 0.3,
   ];
-  const at = (off: number, back: number, lift: number): [number, number, number] => [
-    h.x + Math.sin(h.angle + off) * back,
-    6.2 + h.footprint * 1.1 + lift,
-    h.z + Math.cos(h.angle + off) * back,
-  ];
-  // Beste Pose: wenig Tafel im Bild, möglichst von vorne, auf üblicher Höhe und Distanz
-  let best: { p: [number, number, number]; score: number } | null = null;
-  for (const lift of [0, 2.5, 5, 8])
-    for (const back of [gate + 8, gate + 5.5, gate + 11])
-      for (const off of [0, 0.45, -0.45, 0.8, -0.8, 1.15, -1.15]) {
-        const p = at(off, back, lift);
-        const score =
-          boardClutter(layout, p, target) +
-          (blockedByBoard(layout, p, target) ? 1 : 0) +
-          Math.abs(off) * 0.02 +
-          lift * 0.004 +
-          Math.abs(back - gate - 8) * 0.002;
-        if (!best || score < best.score - 1e-9) best = { p, score };
-      }
-  const position = best!.p;
+  // Beste Pose: wenig Tafel im Bild, möglichst von vorne und nicht zu steil; der Abstand ergibt sich aus der
+  // Hülle (Haus samt Garten ganz im freien Ausschnitt)
+  let best: { pose: Pose; score: number } | null = null;
+  for (const elev of [0.53, 0.66, 0.8, 0.93])
+    for (const off of [0, 0.45, -0.45, 0.8, -0.8, 1.15, -1.15]) {
+      const pose = fitPose(pts, center, unit(h.angle + off, elev), aspect, frame, 11);
+      const score =
+        boardClutter(layout, pose.position, pose.target) +
+        (blockedByBoard(layout, pose.position, pose.target) ? 1 : 0) +
+        Math.abs(off) * 0.02 +
+        (elev - 0.53) * 0.03;
+      if (!best || score < best.score - 1e-9) best = { pose, score };
+    }
+  const { position, target } = best!.pose;
   // Notfalls höher gehen, bis die Blickachse frei über jeder Tafel liegt (Obergrenze: 40 m)
   while (position[1] < 40 && blockedByBoard(layout, position, target)) position[1] += 0.5;
   return { position, target };
@@ -211,13 +395,45 @@ export function devPose(layout: VillageLayout, kamera: string, houseId?: string)
     };
   }
   if (kamera === "quartier" && q) return quarterPose(layout, q.id, "3d");
+  if (kamera === "panorama") {
+    // Vom Rand des Dorfplatzes knapp über den Dächern zum Horizont (Hintergrund, Übergang Karte → Ferne)
+    const a = q ? q.mainSide + Math.PI : Math.PI / 2;
+    const r = layout.plazaRadius;
+    return {
+      position: [Math.cos(a) * r, 9, Math.sin(a) * r],
+      target: [Math.cos(a) * (r + 120), 14, Math.sin(a) * (r + 120)],
+    };
+  }
+  if (kamera === "weg") {
+    // Nahaufnahme einer Gasse (sonst eines Zuwegs): knapp über dem Boden, der Weg läuft ins Bild
+    const p =
+      layout.paths.find((x) => x.kind === "gasse" && x.points.length > 30) ??
+      layout.paths.find((x) => x.kind === "haupt");
+    if (p) {
+      const i = Math.min(p.points.length - 1, 12);
+      const a = p.points[Math.max(0, i - 8)];
+      const b = p.points[i];
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const l = Math.hypot(dx, dz) || 1;
+      return {
+        position: [a.x - (dx / l) * 2 + (dz / l) * 1.2, 2.1, a.z - (dz / l) * 2 - (dx / l) * 1.2],
+        target: [b.x + (dx / l) * 3, 0, b.z + (dz / l) * 3],
+      };
+    }
+  }
   if (houseId) return housePose(layout, houseId, "3d");
   return null;
 }
 
-export function poseFor(layout: VillageLayout, nav: Nav, view: ViewMode): Pose {
-  if (nav.level === "quartier") return quarterPose(layout, nav.q, view);
-  if (nav.level === "haus") return housePose(layout, nav.h, view);
+export function poseFor(
+  layout: VillageLayout,
+  nav: Nav,
+  view: ViewMode,
+  opts: PoseOpts = {},
+): Pose {
+  if (nav.level === "quartier") return quarterPose(layout, nav.q, view, opts);
+  if (nav.level === "haus") return housePose(layout, nav.h, view, opts);
   return view === "karte" ? mapPose(layout.extent) : overviewPose(layout.extent);
 }
 

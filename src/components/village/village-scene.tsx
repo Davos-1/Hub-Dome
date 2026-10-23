@@ -10,6 +10,7 @@ import type { VillageModel } from "@/lib/village-model";
 import { Boards } from "./boards";
 import { House3D, modelOfHouse, ZENTRALE_LIFT, Zentrale3D } from "./buildings";
 import { CameraRig } from "./camera-rig";
+import { hullLookup } from "./hull";
 import { Daylight } from "./daylight";
 import { DekoLayer } from "./deko-layer";
 import { BuildLayer } from "./build/build-layer";
@@ -302,6 +303,9 @@ export default function VillageScene(props: SceneProps) {
     };
   }, [pointerCursor]);
 
+  // Hülle der tatsächlichen Modelle: die Kamera passt Häuser und Zentrale vollständig ins Bild
+  const hullOf = useMemo(() => hullLookup(model, zentraleStyle), [model, zentraleStyle]);
+
   const overview = useMemo(
     () => [0, layout.extent * 1.0 + 11, layout.extent * 1.38 + 16] as [number, number, number],
     [layout.extent],
@@ -442,7 +446,7 @@ export default function VillageScene(props: SceneProps) {
         maxPolarAngle={map ? 0.001 : Math.PI / 2.15}
         minPolarAngle={map ? 0 : 0.15}
       />
-      <CameraRig layout={layout} store={store} reducedMotion={reducedMotion} />
+      <CameraRig layout={layout} store={store} reducedMotion={reducedMotion} hullOf={hullOf} />
       <PerfProbe
         houses={model.houses.length}
         artifacts={model.houses.reduce((n, h) => n + h.items.length, 0)}

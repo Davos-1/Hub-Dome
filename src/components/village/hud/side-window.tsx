@@ -61,6 +61,7 @@ export function Segments<T extends string>({
   );
 }
 
+/** Fenster rechts (Desktop) bzw. Blatt in der unteren Hälfte (Handy); Masse wie `HUD` in `insets.ts`. */
 function Shell({
   title,
   subtitle,
@@ -75,7 +76,7 @@ function Shell({
   return (
     <aside
       aria-label={title}
-      className="pointer-events-auto absolute top-16 right-3 bottom-3 z-20 flex w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea] shadow-[0_12px_40px_rgba(28,27,25,.28)]"
+      className="pointer-events-auto absolute right-3 bottom-3 left-3 z-20 flex h-[52%] flex-col md:top-16 md:left-auto md:h-auto md:w-[min(380px,calc(100vw-24px))] overflow-hidden rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea] shadow-[0_12px_40px_rgba(28,27,25,.28)]"
     >
       <div className="hd-plank flex items-center justify-between gap-3 px-[18px] py-3.5">
         <div className="min-w-0">

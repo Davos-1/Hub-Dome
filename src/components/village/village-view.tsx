@@ -261,7 +261,17 @@ export function VillageView(props: Props) {
         return;
       }
     }
-    store.set({ devPose: devPose(model.layout, devKamera, house?.id) });
+    // Zentrale und Häuser wie nach einem Klick (Fenster offen, Kamera eingepasst)
+    const zentrale = model.houses.find((h) => h.kind === "zentrale");
+    const target = devKamera === "zentrale" ? zentrale : house;
+    if (target) {
+      store.set({
+        devPose: null,
+        nav: { level: "haus", q: model.layout.houses[target.id]?.quarterId ?? null, h: target.id },
+      });
+      return;
+    }
+    store.set({ devPose: devPose(model.layout, devKamera) });
   }, [store, devKamera, model]);
 
   // Zurück im Tab (z.B. nach dem Platzieren in claude.ai): Dorfdaten neu laden, höchstens alle 10 s.
