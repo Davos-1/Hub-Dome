@@ -44,6 +44,8 @@ export type SceneProps = {
   reducedMotion: boolean;
   /** Bau-Modus (nur Besitzer). */
   build?: BuildStore;
+  /** Ein Dialog liegt über der Welt: Animation ruht, bis er geschlossen ist. */
+  paused?: boolean;
 };
 
 declare global {
@@ -252,6 +254,7 @@ export default function VillageScene(props: SceneProps) {
     lowDetail,
     reducedMotion,
     build,
+    paused = false,
   } = props;
   const { layout } = model;
 
@@ -339,6 +342,7 @@ export default function VillageScene(props: SceneProps) {
         reducedMotion={reducedMotion}
         mapOnly={map}
         dark={isDark(timeKey)}
+        paused={paused}
       />
 
       <group visible={!map}>

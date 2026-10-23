@@ -15,7 +15,7 @@ npm run dev                  # http://localhost:3000
 | Befehl                                               | Zweck                                                                                                 |
 | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `npm run check`                                      | Lint, Typecheck und Unit-Tests                                                                        |
-| `npm run test:e2e`                                   | Playwright (Smoke, Freigabe, Objekttypen, 3D, Bau-Modus, Landschaft)                                  |
+| `npm run test:e2e`                                   | Playwright (Smoke, Freigabe, Objekttypen, 3D, Bau-Modus, Landschaft); ohne GPU: `PW_SOFTWARE_GL=1`    |
 | `npm run test:rls`                                   | RLS-Tests gegen das Supabase-Projekt                                                                  |
 | `npm run format`                                     | Prettier                                                                                              |
 | `npx playwright test -c playwright.visual.config.ts` | Visuelle Matrix der 3D-Welt (Screenshots nach `test-results/visual/`, siehe `tests/visual/README.md`) |

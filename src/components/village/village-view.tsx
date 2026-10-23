@@ -354,6 +354,7 @@ export function VillageView(props: Props) {
               lowDetail={lowDetail}
               reducedMotion={reducedMotion}
               build={props.isOwner ? build : undefined}
+              paused={active !== null}
             />
           </div>
         ) : null}

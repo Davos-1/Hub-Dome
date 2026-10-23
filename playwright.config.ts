@@ -6,10 +6,11 @@ try {
   // Variablen kommen ggf. aus der Umgebung
 }
 
-// WebGL im Headless-Chromium: ohne GPU rendert die Canvas nur über SwiftShader (CPU). Die Flags erlauben diesen
-// Software-Fallback (`--enable-unsafe-swiftshader`) und verhindern, dass WebGL auf unbekannten Treibern abgeschaltet
-// wird; sonst bleibt die 3D-Szene leer. Cloud-Umgebungen ohne passende Playwright-Browser:
-// PW_CHROMIUM_PATH=/opt/pw-browsers/chromium setzen. Siehe auch playwright.visual.config.ts.
+// WebGL: Standard ist Chromes eigene Wahl (mit Grafikkarte schnell). Nur ohne GPU (Cloud-Umgebung, CI) Software-
+// Rendering über SwiftShader einschalten: PW_SOFTWARE_GL=1 (oder PW_CHROMIUM_PATH gesetzt). Auf einem Rechner mit
+// GPU würde SwiftShader die CPU so auslasten, dass Klicks und Seitenaufbau in Zeitlimits laufen.
+const softwareGl = process.env.PW_SOFTWARE_GL === "1" || Boolean(process.env.PW_CHROMIUM_PATH);
+
 export default defineConfig({
   testDir: "tests/e2e",
   // Eigener Ordner: Playwright leert outputDir bei jedem Lauf, test-results/visual/ bleibt so erhalten
@@ -20,12 +21,16 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     launchOptions: {
       ...(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
-      args: [
-        "--use-gl=angle",
-        "--use-angle=swiftshader",
-        "--enable-unsafe-swiftshader",
-        "--ignore-gpu-blocklist",
-      ],
+      ...(softwareGl
+        ? {
+            args: [
+              "--use-gl=angle",
+              "--use-angle=swiftshader",
+              "--enable-unsafe-swiftshader",
+              "--ignore-gpu-blocklist",
+            ],
+          }
+        : {}),
     },
   },
 });

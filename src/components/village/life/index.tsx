@@ -19,6 +19,8 @@ type Props = {
   mapOnly?: boolean;
   /** Abend oder Nacht: Glühwürmchen. */
   dark?: boolean;
+  /** Ein Dialog liegt über der Welt: keine laufenden Frames (spart CPU und Akku). */
+  paused?: boolean;
 };
 
 /**
@@ -33,6 +35,7 @@ export function Life({
   reducedMotion,
   mapOnly = false,
   dark = false,
+  paused = false,
 }: Props) {
   const frozen = reducedMotion;
   const n = (full: number, low: number) => (lowDetail ? low : full);
@@ -43,7 +46,7 @@ export function Life({
 
   return (
     <>
-      <LiveFrames enabled={!reducedMotion} fps={n(30, 20)} />
+      <LiveFrames enabled={!reducedMotion && !paused} fps={n(30, 20)} />
       {env.river && (
         <River river={env.river} bridges={env.bridges} frozen={frozen} density={n(1, 0.5)} />
       )}

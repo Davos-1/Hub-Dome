@@ -289,3 +289,9 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Lehre (Uferband):** Ein flaches Band mit beliebigem Umlaufsinn wird unsichtbar (Rückseite) oder mit `DoubleSide` dunkel (three.js dreht die Normale der Rückseite). Richtig: Umlaufsinn über die Fläche des Umrisses bestimmen und die Dreiecke nach oben legen.
 - **Lehre (Tests unter Last):** Property-Tests mit vielen Welten brauchen ein eigenes Zeitlimit; neben laufendem Rendering überschreiten sie die 5 s von Vitest.
 - **Ergebnis Matrix (230 Bilder, Desktop und Mobile, ohne Seitenfehler):** Desktop 10 Häuser 112–164 Draw Calls / 312–357k Dreiecke, 20 Häuser 117–185 / 402–472k; Mobile 10 Häuser 50–100 / 143–172k, 20 Häuser 50–104 / 178–220k. Frame-Zeiten aus SwiftShader sind nicht aussagekräftig; echte fps auf einem Rechner mit GPU messen.
+
+## 2026-10-23 – E2E bei Gian: Software-Rendering war erzwungen
+- **Kontext:** Nach dem Einspielen der Migration liefen 19 von 24 E2E-Tests bei Gian durch; 5 scheiterten an Zeitlimits (Klick in Dialogen «wartet auf stabil», Canvas erscheint nicht in 30 s, Dialog schliesst nicht). Der 3D-Test meldete `frameMs` 191 (≈ 5 Bilder/s).
+- **Ursache (Fehler aus 4f):** `playwright.config.ts` erzwang SwiftShader (`--use-angle=swiftshader`), weil die Cloud-Umgebung keine GPU hat. Auf Gians Rechner rendert Chrome damit auf der CPU statt der Grafikkarte; zusammen mit dem Dev-Server ist die CPU ausgelastet.
+- **Entscheidung:** Software-Rendering nur noch auf Wunsch (`PW_SOFTWARE_GL=1` oder `PW_CHROMIUM_PATH` gesetzt, also Cloud/CI). Zusätzlich ruht die Animation der Szene, solange ein Dialog über der Welt liegt (spart CPU und Akku auch für Nutzer).
+- **Lehre:** Umgebungs-Workarounds (Cloud ohne GPU) nie fest in die gemeinsame Konfiguration schreiben, sondern hinter eine Umgebungsvariable.
