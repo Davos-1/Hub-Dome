@@ -6,8 +6,18 @@ import type { HouseInfo, VillageModel } from "@/lib/village-model";
 import { seededRandom } from "./colors";
 import { box, cyl, mergeParts, type Part } from "./geo";
 import { darken } from "./models/common";
+import { archivePos } from "@/lib/world/generate";
 import { bedParts, objectParts } from "./object-models";
 import { benchParts } from "./plaza-geometry";
+import { anbauParts, gartenParts } from "./kit-models";
+import { BAUM_R, kitLayout } from "@/lib/world/kit";
+import type { Palette } from "@/lib/world/map";
+
+/** Bauteil verschieben (lokal im Grundstück). */
+const shift = (p: Part, x: number, z: number): Part => {
+  const [px, py, pz] = p.pos ?? [0, 0, 0];
+  return { ...p, pos: [px + x, py, pz + z] };
+};
 
 /** Halbe Breite der Toröffnung in der Hecke. */
 export const GATE = 0.95;
@@ -29,26 +39,28 @@ export type BoardPlacement = {
   size: [number, number];
 };
 
-function treeParts(x: number, z: number): Part[] {
+/** Gartenbaum mit Kronenradius `r` (Stamm im Grundstück, die Krone liegt über der Hecke). */
+function treeParts(x: number, z: number, r: number): Part[] {
+  const k = r / 0.95;
   return [
-    { geo: cyl(0.12, 0.17, 1.5, 8), color: "#6b4423", pos: [x, 0.75, z] },
+    { geo: cyl(0.1, 0.15, 1.5, 8), color: "#6b4423", pos: [x, 0.75, z] },
     {
-      geo: new THREE.IcosahedronGeometry(0.95, 1),
+      geo: new THREE.IcosahedronGeometry(0.95 * k, 1),
       color: "#5c9b4f",
-      pos: [x, 2.0, z],
+      pos: [x, 1.95, z],
       rot: [0.3, 0.5, 0],
       scale: [1, 0.9, 1],
     },
     {
-      geo: new THREE.IcosahedronGeometry(0.6, 1),
+      geo: new THREE.IcosahedronGeometry(0.55 * k, 1),
       color: "#6aa95a",
-      pos: [x + 0.35, 2.55, z - 0.2],
+      pos: [x + 0.2 * k * Math.sign(-x || 1), 2.45, z - 0.15 * k],
     },
   ];
 }
 
 /** Lokale Bauteile des Grundstücks eines Hauses (Rasen, Pfosten, Trittplatten, Beete, Bank, Baum, Schildpfosten). */
-export function gardenOf(h: HouseInfo, l: HouseLayout) {
+export function gardenOf(h: HouseInfo, l: HouseLayout, palette: Palette) {
   const pl = l.plot!;
   const rnd = seededRandom(`${h.id}g`);
   const parts: Part[] = [];
@@ -144,19 +156,30 @@ export function gardenOf(h: HouseInfo, l: HouseLayout) {
 
   parts.push(...bedParts(pl.slots));
 
-  // Garten wächst: ab Stufe 2 eine Bank, ab Stufe 3 ein Baum hinter dem Haus
-  const side = -(l.tier === 3 ? pl.hw - 0.95 : (fp * 1.05 + pl.hw) / 2);
-  if (l.tier >= 2) parts.push(...benchParts(side, l.tier === 3 ? 0.4 : -fp * 0.3, Math.PI / 2));
-  if (l.tier === 3) parts.push(...treeParts(side, -(pl.back - 1.0)));
+  // Neben dem Haus: Anbau und Gartenfeld (Baukasten des Besitzers), ab Stufe 2 eine Bank, ab Stufe 3 ein
+  // Baum. Die Plätze kommen aus derselben Regel wie die Auswahl im Bau-Modus: nichts ragt ins Haus.
+  const kit = kitLayout(h.style.type, l.tier, h.variante);
+  if (kit.anbau && h.variante?.anbau && h.variante.anbau !== "keiner") {
+    const a = anbauParts(h.variante.anbau, h.style);
+    for (const p of a.body) parts.push(shift(p, kit.anbau.x, kit.anbau.z));
+    for (const p of a.glow) glow.push(shift(p, kit.anbau.x, kit.anbau.z));
+  }
+  if (kit.garten && h.variante?.garten) {
+    for (const p of gartenParts(h.variante.garten, palette))
+      parts.push(shift(p, kit.garten.x, kit.garten.z));
+  }
+  if (kit.bank)
+    parts.push(...benchParts(kit.bank.x, kit.bank.z, (-Math.sign(kit.bank.x) * Math.PI) / 2));
+  if (kit.baum) parts.push(...treeParts(kit.baum.x, kit.baum.z, BAUM_R));
 
-  // Schilder: Holzschild am Tor (Haus mit Objekten) oder Baustellenschild (leeres Haus)
+  // Schilder: Holzschild in der Heckenlinie links vom Tor (Haus mit Objekten) oder Baustellenschild (leeres Haus)
   if (h.items.length > 0) {
-    const sx = -(GATE + 0.75);
-    const sz = pl.front + 0.4;
+    const sx = -(GATE + 0.9);
+    const sz = pl.front;
     for (const s of [-0.62, 0.62]) {
       parts.push({ geo: box(0.1, 1.55, 0.1), color: "#5e3c22", pos: [sx + s, 0.78, sz] });
     }
-    boards.push({ kind: "holz", houseId: h.id, pos: [sx, 1.12, sz + 0.06], size: [1.6, 0.8] });
+    boards.push({ kind: "holz", houseId: h.id, pos: [sx, 1.14, sz + 0.07], size: [1.6, 0.8] });
   } else {
     const sx = 1.7;
     const sz = pl.front - 1.2;
@@ -169,6 +192,19 @@ export function gardenOf(h: HouseInfo, l: HouseLayout) {
       pos: [sx, 1.05, sz + 0.05],
       size: [1.5, 0.94],
     });
+  }
+
+  // Archivschrank «+N» für Objekte, die nicht mehr in den Garten passen
+  if (h.archived > 0) {
+    const a = archivePos(h.items.length);
+    parts.push(
+      { geo: box(0.74, 1.0, 0.46), color: "#7a5233", pos: [a.x, 0.5, a.z] },
+      { geo: box(0.32, 0.86, 0.03), color: "#8f6440", pos: [a.x - 0.17, 0.5, a.z + 0.24] },
+      { geo: box(0.32, 0.86, 0.03), color: "#8f6440", pos: [a.x + 0.17, 0.5, a.z + 0.24] },
+      { geo: box(0.86, 0.08, 0.58), color: "#5e3c22", pos: [a.x, 1.04, a.z] },
+      { geo: box(0.05, 0.12, 0.04), color: "#e0b341", pos: [a.x - 0.03, 0.55, a.z + 0.27] },
+      { geo: box(0.05, 0.12, 0.04), color: "#e0b341", pos: [a.x + 0.03, 0.55, a.z + 0.27] },
+    );
   }
   return { lawn: lawnPart, parts, glow, hedges, boards };
 }
@@ -213,7 +249,7 @@ export function buildVillageGardens(model: VillageModel): VillageGardens {
   for (const h of model.houses) {
     const l = model.layout.houses[h.id];
     if (!l || !l.plot) continue;
-    const g = gardenOf(h, l);
+    const g = gardenOf(h, l, model.world.map.palette);
     const house = new THREE.Matrix4().compose(
       v.set(l.x, 0, l.z),
       q.setFromEuler(e.set(0, l.angle, 0)),

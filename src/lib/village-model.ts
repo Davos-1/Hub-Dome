@@ -1,7 +1,11 @@
 import { fachbereichOf, houseFachStyle, houseShortCode, type FachbereichId } from "./fachbereiche";
 import type { ItemType } from "./item-types";
-import { computeLayout, type VillageLayout } from "./layout";
+import type { VillageLayout } from "./layout";
 import type { Artifact, ArtifactKind, House } from "./types";
+import type { Variante, WorldDoc } from "./world/doc";
+import { generateWorld, PLOT_CAPACITY, type World } from "./world/generate";
+import { withVariante } from "./world/kit";
+import { toLayoutHouses } from "./world/layout-houses";
 
 /** Objekte, die jünger als sieben Tage sind, gelten als «neu». */
 export const NEW_DAYS = 7;
@@ -34,10 +38,19 @@ export type HouseInfo = {
   style: ReturnType<typeof houseFachStyle>;
   items: ObjInfo[];
   newCount: number;
+  /** Objekte, die nicht mehr in den Garten passen (Archivschrank «+N»). */
+  archived: number;
+  /** Baukasten des Besitzers (Farbe, Dach, Anbau, Garten); `undefined` = Automatik. */
+  variante?: Variante;
 };
+
+/** Welt-Parameter eines Dorfs: Seed, Generator-Version und Platzierungen des Besitzers. */
+export type WorldParams = { seed: string; version: number; doc: WorldDoc };
 
 export type VillageModel = {
   layout: VillageLayout;
+  /** Die ganze Welt (Karte, Siedlung, Deko, Pflanzen, Laternen). */
+  world: World;
   /** Alle Häuser inklusive Zentrale, in der Reihenfolge der Eingabe. */
   houses: HouseInfo[];
   byId: Record<string, HouseInfo>;
@@ -50,6 +63,8 @@ export function buildVillageModel(
   houses: House[],
   artifacts: Artifact[],
   now: number,
+  params: WorldParams,
+  opts: { lowDetail?: boolean } = {},
 ): VillageModel {
   const byHouse: Record<string, ObjInfo[]> = {};
   for (const a of artifacts) {
@@ -75,20 +90,27 @@ export function buildVillageModel(
       color: h.color,
       semester: h.semester ?? null,
       fach: fachbereichOf(h),
-      style: houseFachStyle(h),
+      style: withVariante(houseFachStyle(h), params.doc.varianten?.[h.id]),
+      variante: params.doc.varianten?.[h.id],
       items,
       newCount: items.filter((i) => i.isNew).length,
+      archived:
+        h.kind !== "zentrale" && items.length > PLOT_CAPACITY
+          ? items.length - (PLOT_CAPACITY - 1)
+          : 0,
     };
   });
 
-  const layout = computeLayout(
-    infos.map((h) => ({
-      id: h.id,
-      kind: h.kind,
-      fach: h.fach,
-      items: h.items.map((i) => ({ id: i.id, kind: i.kind })),
-    })),
-  );
+  // Gleiche Eingabe wie der Server (Reihenfolge der Entstehung, Objekte nach `sort`): sonst prüft der Server
+  // beim Speichern eine andere Welt als die angezeigte
+  const world = generateWorld({
+    seed: params.seed,
+    version: params.version,
+    doc: params.doc,
+    lowDetail: opts.lowDetail,
+    houses: toLayoutHouses(houses, artifacts),
+  });
+  const layout = world.layout;
 
   const notice = infos
     .flatMap((h) => h.items)
@@ -96,5 +118,11 @@ export function buildVillageModel(
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, 5);
 
-  return { layout, houses: infos, byId: Object.fromEntries(infos.map((h) => [h.id, h])), notice };
+  return {
+    layout,
+    world,
+    houses: infos,
+    byId: Object.fromEntries(infos.map((h) => [h.id, h])),
+    notice,
+  };
 }

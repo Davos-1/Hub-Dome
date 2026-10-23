@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
-import type { Environment } from "@/lib/environment";
 import type { VillageLayout } from "@/lib/layout";
+import type { Environment } from "../world-env";
 import { Birds, Butterflies, Chickens, Ducks, Sheep, Villagers } from "./creatures";
 import { Clouds } from "./clouds";
-import { Pasture, Windmill } from "./farm";
+import { Fireflies } from "./fireflies";
+import { ChickenRun, Pasture, Windmill } from "./farm";
 import { LiveFrames } from "./live-frames";
-import { Pond, River } from "./water";
+import { Bridges, Lake, Pond, River } from "./water";
 
 type Props = {
   layout: VillageLayout;
@@ -15,45 +15,52 @@ type Props = {
   lowDetail: boolean;
   /** `prefers-reduced-motion`: alles steht still, es werden keine Frames erzeugt. */
   reducedMotion: boolean;
-  /** Kartenansicht: nur der Fluss bleibt sichtbar. */
+  /** Kartenansicht: nur Wasser und Brücken bleiben sichtbar. */
   mapOnly?: boolean;
+  /** Abend oder Nacht: Glühwürmchen. */
+  dark?: boolean;
 };
 
 /**
- * Das Leben im Dorf: Fluss mit Brücke, Teich mit Enten, Weide mit Schafen, Hühner, Windmühle,
- * Dorfbewohner auf den Wegen, Vögel, Schmetterlinge und Wolken. Auf Mobile weniger Tiere.
+ * Das Leben im Dorf: Wasser (Fluss mit Brücken, Teich, See), Weide mit Schafen, Hühnerhof, Windmühle,
+ * Dorfbewohner auf den Wegen, Vögel, Schmetterlinge, Wolken und nachts Glühwürmchen. Was die Landschaft nicht hat, fehlt.
+ * Tiere bleiben in ihren Bereichen (Weide, Wasser, Hühnerhof). Auf Mobile weniger Tiere.
  */
-export function Life({ layout, env, lowDetail, reducedMotion, mapOnly = false }: Props) {
+export function Life({
+  layout,
+  env,
+  lowDetail,
+  reducedMotion,
+  mapOnly = false,
+  dark = false,
+}: Props) {
   const frozen = reducedMotion;
   const n = (full: number, low: number) => (lowDetail ? low : full);
-
-  const chickenSpot = useMemo(() => {
-    const h = Object.values(layout.houses).find((x) => x.plot);
-    if (!h) return { x: 0, z: 0, any: false };
-    const len = Math.hypot(h.x, h.z) || 1;
-    const out = h.footprint + 3.4;
-    return { x: h.x + (h.x / len) * out, z: h.z + (h.z / len) * out, any: true };
-  }, [layout.houses]);
-
   const homes = Object.values(layout.houses).filter((h) => h.plot).length;
   const villagers = Math.min(n(10, 5), homes + 2);
+  const duckWater =
+    env.pond ?? (env.lake ? { x: env.lake.x, z: env.lake.z, r: env.lake.r * 0.55 } : null);
 
   return (
     <>
       <LiveFrames enabled={!reducedMotion} fps={n(30, 20)} />
-      <River env={env} frozen={frozen} density={n(1, 0.5)} />
+      {env.river && <River river={env.river} frozen={frozen} density={n(1, 0.5)} />}
+      {env.lake && <Lake lake={env.lake} frozen={frozen} density={n(1, 0.5)} />}
+      <Bridges bridges={env.bridges} />
       {!mapOnly && (
         <>
-          <Pond env={env} frozen={frozen} density={n(1, 0.5)} />
-          <Pasture env={env} />
-          <Windmill env={env} frozen={frozen} />
-          <Sheep env={env} count={n(5, 3)} frozen={frozen} />
-          <Ducks env={env} count={n(3, 2)} frozen={frozen} />
-          {chickenSpot.any && <Chickens center={chickenSpot} count={n(4, 2)} frozen={frozen} />}
+          {env.pond && <Pond pond={env.pond} frozen={frozen} density={n(1, 0.5)} />}
+          {env.pasture && <Pasture pasture={env.pasture} />}
+          {env.pasture && <Sheep pasture={env.pasture} count={n(5, 3)} frozen={frozen} />}
+          {env.windmill && <Windmill windmill={env.windmill} frozen={frozen} />}
+          {duckWater && <Ducks water={duckWater} count={n(3, 2)} frozen={frozen} />}
+          {env.chickens && <ChickenRun run={env.chickens} />}
+          {env.chickens && <Chickens center={env.chickens} count={n(4, 2)} frozen={frozen} />}
           <Villagers paths={layout.paths} count={homes > 0 ? villagers : 0} frozen={frozen} />
           <Birds extent={layout.extent} count={n(7, 3)} frozen={frozen} />
-          <Butterflies extent={layout.extent} count={n(10, 4)} frozen={frozen} seed={homes} />
+          <Butterflies spots={env.flowers} count={n(10, 4)} frozen={frozen} />
           <Clouds extent={layout.extent} count={n(7, 4)} frozen={frozen} />
+          {dark && <Fireflies spots={env.flowers} count={n(60, 24)} frozen={frozen} />}
         </>
       )}
     </>

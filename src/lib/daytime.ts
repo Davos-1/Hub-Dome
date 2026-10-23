@@ -1,12 +1,13 @@
 /** Tageszeit-Presets der 3D-Ansicht (Himmel, Sonne, Licht, Leuchtkraft der Fenster). */
 
-export type TimeKey = "morgen" | "mittag" | "abend";
+export type TimeKey = "morgen" | "mittag" | "abend" | "nacht";
 export type TimeSetting = TimeKey | "auto";
 
 export const TIME_LABELS: Record<TimeSetting, string> = {
   morgen: "Morgen",
   mittag: "Mittag",
   abend: "Abend",
+  nacht: "Nacht",
   auto: "Auto",
 };
 
@@ -15,6 +16,7 @@ export const TIME_DOTS: Record<TimeSetting, string> = {
   morgen: "#f6c48f",
   mittag: "#f8d34a",
   abend: "#7a6190",
+  nacht: "#2b3566",
   auto: "#9aa2aa",
 };
 
@@ -59,14 +61,28 @@ export const TIMES: Record<TimeKey, TimePreset> = {
     glow: 2.6,
     exposure: 1.08,
   },
+  nacht: {
+    sky: ["#08112b", "#1a2a55", "#33457a"],
+    // Mondlicht: kühl, hell genug, dass Häuser und Wege lesbar bleiben
+    sun: "#c4d3ff",
+    sunIntensity: 1.05,
+    sunPosition: [-0.6, 0.9, -0.5],
+    hemi: { sky: "#6f82c8", ground: "#2a3a34", intensity: 0.85 },
+    glow: 3.4,
+    exposure: 1.3,
+  },
 };
 
-/** Auto: Morgen 5–10 Uhr, Mittag 10–18 Uhr, sonst Abend. */
+/** Auto: Morgen 5–10 Uhr, Mittag 10–18 Uhr, Abend 18–22 Uhr, sonst Nacht. */
 export function timeKeyForHour(hour: number): TimeKey {
   if (hour >= 5 && hour < 10) return "morgen";
   if (hour >= 10 && hour < 18) return "mittag";
-  return "abend";
+  if (hour >= 18 && hour < 22) return "abend";
+  return "nacht";
 }
+
+/** Leuchten Laternen und Fenster (Abend, Nacht)? */
+export const isDark = (t: TimeKey) => t === "abend" || t === "nacht";
 
 export function resolveTime(setting: TimeSetting, hour: number): TimeKey {
   return setting === "auto" ? timeKeyForHour(hour) : setting;

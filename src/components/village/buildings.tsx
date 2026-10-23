@@ -115,6 +115,7 @@ export function House3D({
         position={[0, top / 2, 0]}
         visible={false}
         onPointerOver={(e) => {
+          if (store.get().building) return;
           e.stopPropagation();
           store.set({ hoverHouseId: info.id });
           document.body.style.cursor = "pointer";
@@ -124,7 +125,7 @@ export function House3D({
           document.body.style.cursor = "";
         }}
         onClick={(e) => {
-          if (!isClick(e)) return;
+          if (store.get().building || !isClick(e)) return;
           e.stopPropagation();
           actions.openHouse(info.id);
         }}
@@ -154,6 +155,7 @@ function SlotHits({
       position={[s.x, 0.6, s.z]}
       visible={false}
       onPointerOver={(e) => {
+          if (store.get().building) return;
         e.stopPropagation();
         store.set({ hoverObjId: s.id, hoverHouseId: null });
         document.body.style.cursor = "pointer";
@@ -163,7 +165,7 @@ function SlotHits({
         document.body.style.cursor = "";
       }}
       onClick={(e) => {
-        if (!isClick(e)) return;
+        if (store.get().building || !isClick(e)) return;
         e.stopPropagation();
         actions.goToObject(houseId, s.id);
       }}
@@ -221,6 +223,7 @@ export function Zentrale3D({
       <SlotHits slots={l.ring} houseId={info.id} store={store} actions={actions} />
       <group
         onPointerOver={(e) => {
+          if (store.get().building) return;
           e.stopPropagation();
           setHovered(true);
           document.body.style.cursor = "pointer";
@@ -230,7 +233,7 @@ export function Zentrale3D({
           document.body.style.cursor = "";
         }}
         onClick={(e) => {
-          if (!isClick(e)) return;
+          if (store.get().building || !isClick(e)) return;
           e.stopPropagation();
           actions.openHouse(info.id);
         }}

@@ -6,10 +6,13 @@ import { needsRefresh } from "@/lib/item-types";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import { ZENTRALE_STYLES } from "@/lib/styles";
 import type { Artifact, House, Village } from "@/lib/types";
+import { loadVillageWorld } from "@/lib/world/server-data";
 
 /**
  * Lädt ein Dorf für die 3D- und 2D-Ansicht. RLS entscheidet über den Zugriff:
  * ohne Besitz oder Freigabe → 404 (verrät nicht, ob das Dorf existiert).
+ * `world` ist die Welt des Dorfs (Seed, Generator-Version, Platzierungen); `stored: false` = Ersatz ohne
+ * gespeicherte Zeile (Migration fehlt oder Zeile fehlt).
  */
 export async function loadVillage(username: string) {
   const { supabase, profile: me } = await requireProfile();
@@ -27,6 +30,9 @@ export async function loadVillage(username: string) {
     .eq("owner_id", owner.id)
     .maybeSingle<Village>();
   if (!village) notFound();
+
+  // Welt (Seed, Platzierungen) parallel zu den Häusern; wirft nie, fehlt sie, gilt der Ersatz
+  const worldPromise = loadVillageWorld(supabase, village.id);
 
   const { data: houseRows } = await supabase
     .from("houses")
@@ -69,5 +75,7 @@ export async function loadVillage(username: string) {
 
   const extras = await loadItemExtras(supabase, me, artifacts, isOwner);
 
-  return { supabase, me, owner, village, houses, artifacts, isOwner, extras };
+  const world = await worldPromise;
+
+  return { supabase, me, owner, village, houses, artifacts, isOwner, extras, world };
 }

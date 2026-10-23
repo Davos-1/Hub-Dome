@@ -43,7 +43,7 @@ export function Breadcrumb({
   return (
     <nav
       aria-label="Ebene im Dorf"
-      className="pointer-events-auto absolute top-3 left-3 flex max-w-[calc(100vw-24px)] items-center gap-0.5 overflow-hidden rounded-[9px] bg-[#fffdf8]/95 p-1 text-[13px] font-medium shadow-[0_1px_3px_rgba(0,0,0,.15)]"
+      className="pointer-events-auto absolute top-3 left-3 flex max-w-[calc(100vw-172px)] items-center md:max-w-[calc(100vw-300px)] gap-0.5 overflow-hidden rounded-[9px] bg-[#fffdf8]/95 p-1 text-[13px] font-medium shadow-[0_1px_3px_rgba(0,0,0,.15)]"
     >
       {seg("Dorf", nav.level === "dorf" ? null : actions.goHome, nav.level === "dorf")}
       {quarter && (

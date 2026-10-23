@@ -8,7 +8,7 @@ import type { VillageModel } from "@/lib/village-model";
 import type { AtlasEntry } from "./label-atlas";
 import type { VillageGardens } from "./garden-geometry";
 import { mergeParts, type Part } from "./geo";
-import { NOTICE_ANGLE, noticePos, noticePostParts, quarterPostParts } from "./plaza-geometry";
+import { noticePostParts, quarterPostParts } from "./plaza-geometry";
 import type { VillageAtlas } from "./village-atlas";
 
 type Spec = {
@@ -73,6 +73,19 @@ function buildBoards(specs: Spec[], atlas: VillageAtlas) {
   return { body, face };
 }
 
+/** Quartiere mit eigenem Quartierplatz (dort steht die Tafel). */
+function boardQuarters(model: VillageModel) {
+  const withNode = new Set(model.world.settlement.nodes.map((n) => n.quarterId));
+  return model.layout.quarters.filter((q) => withNode.has(q.id));
+}
+
+/** Tafel in der Mitte des Quartierplatzes, leicht nach aussen versetzt, Vorderseite zum Dorfplatz. */
+function quarterBoardMatrix(q: { x: number; z: number; entrySide: number }) {
+  const ex = Math.cos(q.entrySide);
+  const ez = Math.sin(q.entrySide);
+  return compose([q.x - ex * 0.4, 0, q.z - ez * 0.4], Math.atan2(ex, ez));
+}
+
 /** Pfosten der Schilder (Quartiertafeln, Anschlagbrett) in Weltkoordinaten. */
 function buildPosts(model: VillageModel) {
   const geos: THREE.BufferGeometry[] = [];
@@ -82,19 +95,9 @@ function buildPosts(model: VillageModel) {
     g.applyMatrix4(m);
     geos.push(g);
   };
-  const notice = noticePos(model.layout.plazaRadius);
-  for (const q of model.layout.quarters) {
-    const ux = Math.cos(q.theta);
-    const uz = Math.sin(q.theta);
-    add(quarterPostParts(), compose([q.x + ux * 0.4, 0, q.z + uz * 0.4], Math.atan2(-ux, -uz)));
-  }
-  add(
-    noticePostParts(),
-    compose(
-      [notice.x, 0, notice.z],
-      Math.atan2(Math.cos(NOTICE_ANGLE), Math.sin(NOTICE_ANGLE)),
-    ),
-  );
+  const notice = model.world.plazaDeco.notice;
+  for (const q of boardQuarters(model)) add(quarterPostParts(), quarterBoardMatrix(q));
+  add(noticePostParts(), compose([notice.x, 0, notice.z], notice.angle));
   const merged = geos.length ? mergeGeometries(geos, false) : null;
   geos.forEach((g) => g.dispose());
   return merged;
@@ -112,6 +115,8 @@ export function Boards({
   onConstruction,
   onNotice,
   onHoverPointer,
+  lit = false,
+  disabled = false,
 }: {
   model: VillageModel;
   atlas: VillageAtlas;
@@ -122,6 +127,10 @@ export function Boards({
   /** Klick auf eine Zeile des Anschlagbretts. */
   onNotice: (index: number) => void;
   onHoverPointer: (pointer: boolean) => void;
+  /** Abend und Nacht: die Schrift leuchtet leicht (Schilder bleiben lesbar). */
+  lit?: boolean;
+  /** Bau-Modus: Schilder sind nicht anklickbar. */
+  disabled?: boolean;
 }) {
   const built = useMemo(() => {
     const specs: Spec[] = [];
@@ -140,10 +149,8 @@ export function Boards({
         houseId: b.houseId,
       });
     }
-    for (const q of model.layout.quarters) {
-      const ux = Math.cos(q.theta);
-      const uz = Math.sin(q.theta);
-      const parent = compose([q.x + ux * 0.4, 0, q.z + uz * 0.4], Math.atan2(-ux, -uz));
+    for (const q of boardQuarters(model)) {
+      const parent = quarterBoardMatrix(q);
       specs.push({
         entry: atlas.quarterBoard[q.id],
         w: 4.8,
@@ -152,20 +159,12 @@ export function Boards({
         kind: "quartier",
       });
     }
-    const notice = noticePos(model.layout.plazaRadius);
+    const notice = model.world.plazaDeco.notice;
     specs.push({
       entry: atlas.notice,
       w: 2.3,
       h: 1.44,
-      matrix: compose(
-        [0, 1.38, 0.08],
-        0,
-        0,
-        compose(
-          [notice.x, 0, notice.z],
-          Math.atan2(Math.cos(NOTICE_ANGLE), Math.sin(NOTICE_ANGLE)),
-        ),
-      ),
+      matrix: compose([0, 1.38, 0.08], 0, 0, compose([notice.x, 0, notice.z], notice.angle)),
       kind: "anschlag",
     });
     return { specs, ...buildBoards(specs, atlas), posts: buildPosts(model) };
@@ -201,11 +200,11 @@ export function Boards({
         <mesh
           geometry={built.face}
           onPointerMove={(e) => {
-            onHoverPointer(clickable(specAt(e)));
+            onHoverPointer(!disabled && clickable(specAt(e)));
           }}
           onPointerOut={() => onHoverPointer(false)}
           onClick={(e) => {
-            if (e.delta > 5) return;
+            if (e.delta > 5 || disabled) return;
             const s = specAt(e);
             if (!s) return;
             if (s.kind === "anschlag" && e.uv) {
@@ -224,7 +223,13 @@ export function Boards({
             }
           }}
         >
-          <meshStandardMaterial map={atlas.base} roughness={0.85} />
+          <meshStandardMaterial
+            map={atlas.base}
+            roughness={0.85}
+            emissiveMap={atlas.base}
+            emissive="#ffffff"
+            emissiveIntensity={lit ? 0.42 : 0}
+          />
         </mesh>
       )}
     </group>

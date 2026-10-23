@@ -56,15 +56,17 @@ export function SearchBox({ model, actions }: { model: VillageModel; actions: Sc
   const choose = (h: Hit) => {
     setOpen(false);
     setQuery("");
+    // Fokus abgeben: auf dem Handy schrumpft das Suchfeld wieder und gibt die Brotkrumen frei
+    (document.activeElement as HTMLElement | null)?.blur();
     actions.goToObject(h.houseId, h.objId);
   };
 
   return (
-    <div className="pointer-events-auto absolute top-3 right-3 z-30 flex w-[260px] max-w-[calc(100vw-24px)] flex-col gap-1">
+    <div className="pointer-events-auto absolute top-3 right-3 z-30 flex w-[148px] max-w-[calc(100vw-24px)] flex-col gap-1 transition-[width] duration-200 focus-within:w-[calc(100vw-24px)] md:w-[260px] md:focus-within:w-[260px]">
       <input
         type="search"
         value={query}
-        placeholder="Haus oder Objekt suchen…"
+        placeholder="Suchen …"
         aria-label="Haus oder Objekt suchen"
         onChange={(e) => {
           setQuery(e.target.value);

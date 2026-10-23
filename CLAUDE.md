@@ -1,7 +1,7 @@
 # Hub Dome – Regeln für Claude Code
 
-- **Reihenfolge und Stand: docs/PHASENPLAN.md (verbindlich).** Als Nächstes: 4e (Lücken aus 4d schliessen: Migrationen, Freundschaftslink, Listen-Dialog, Commit), dann 5 → 5b Übernehmen → 6 Pilot → 6b Topdorf. Phase 5 startet erst, wenn der Link-Test aus Phase 0 (macht Gian) erledigt ist. Details: PLAN.md, PLAN-ERWEITERUNG.md (8 und 9 erst nach dem Pilot), PLAN-ERWEITERUNG-2.md. Phasen der Reihe nach, nach jeder Phase stoppen und zusammenfassen.
-- **Fokus bis zum Pilot:** keine neuen 3D-Gestaltungsfunktionen. Erlaubt sind Fehlerbehebungen, Performance, Barrierefreiheit und funktionale Kennzeichnungen, die eine Phase verlangt.
+- **Reihenfolge und Stand: docs/PHASENPLAN.md (verbindlich).** Fertig: 4e, 5, 5b und der Code von 6. Aktuell: **4f** (Welt auf das nächste Level, Konzept `docs/PHASE-4F-KONZEPT.md`, Anleitung `docs/WELT-ANLEITUNG.md`; Code fertig, offen: Migration `village_worlds` einspielen und RLS-/DB-Tests bei Gian), danach 6 Pilot (Deploy, Dashboards) → 6b Topdorf. Details: PLAN.md, PLAN-ERWEITERUNG.md (8 und 9 erst nach dem Pilot), PLAN-ERWEITERUNG-2.md. Phasen der Reihe nach, nach jeder Phase stoppen und zusammenfassen.
+- **Fokusregel für Phase 4f aufgehoben** (Entscheid Gian, 2026-10-23): neue 3D-Gestaltungsfunktionen sind in 4f erlaubt. Oberste Regel dabei: keine «komische» Welt (nichts durchdringt sich, schwebt, steht schief, auf Wegen/Wasser oder ausserhalb der Karte); Platzierungsregeln liegen in reinen Funktionen (`src/lib/world/`) mit Property-Tests. Nach 4f gilt wieder: bis zum Pilot-Feedback nur Fehlerbehebungen, Performance, Barrierefreiheit.
 - **Entscheidungslog: docs/ENTSCHEIDUNGEN.md.** Zu Beginn jeder Sitzung lesen. Wichtige Entscheidungen, Fehler und Lehren sofort dort ergänzen (Datum, Kontext, Entscheidung, Grund).
 - UI-Texte Deutsch, Schweizer Schreibweise (kein ß).
 - Jede neue Tabelle braucht RLS und Tests dazu.

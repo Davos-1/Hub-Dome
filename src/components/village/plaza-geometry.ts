@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { isInPlot, polar, type PlazaPoly, type VillageLayout } from "@/lib/layout";
-import { distanceToPolyline } from "@/lib/paths";
+import type { PlazaPoly } from "@/lib/layout";
+import type { World } from "@/lib/world/generate";
 import { box, cyl, gable, mergeParts, type Part } from "./geo";
 import { darken, STONE, WOOD } from "./models/common";
 
@@ -150,11 +150,6 @@ export function fountainParts(x: number, z: number): Part[] {
   ];
 }
 
-/** Position des Brunnens und des Anschlagbretts am Hauptplatz (rücken mit grösserem Platz nach aussen). */
-export const fountainPos = (plaza: number) => polar(Math.PI / 2 + 0.78, plaza - 2.2);
-export const NOTICE_ANGLE = Math.PI / 2 - 0.78;
-export const noticePos = (plaza: number) => polar(NOTICE_ANGLE, plaza - 2.1);
-
 /** Pfosten und Dach des Anschlagbretts (lokal; Brett selbst kommt aus dem Atlas). */
 export function noticePostParts(): Part[] {
   const parts: Part[] = [];
@@ -180,76 +175,34 @@ export function quarterPostParts(): Part[] {
   return parts;
 }
 
-const jit = (i: number, s: number) => {
-  const v = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453;
-  return v - Math.floor(v);
-};
-
-/** Ausstattung des Hauptplatzes (Terrasse, Bänke, Pflanzkübel, Brunnen) und Laubbäume im Ring. */
-export function mainPlazaDeco(layout: VillageLayout): {
-  parts: Part[];
-  trees: { x: number; z: number; s: number }[];
-} {
-  const main = layout.polys.find((p) => p.main);
-  if (!main) return { parts: [], trees: [] };
-  const fountain = fountainPos(layout.plazaRadius);
-  const parts: Part[] = [
-    ...terraceParts(main, layout.terrace),
-    ...fountainParts(fountain.x, fountain.z),
-  ];
-  const trees: { x: number; z: number; s: number }[] = [];
-  const { n } = main;
-  const R = main.a / Math.cos(Math.PI / n);
-  for (let k = 0; k < n; k++) {
-    const a = main.rot + (TAU * k) / n;
-    const used = main.used.some((u) => angDiff(u, a) < 0.02);
-    if (!used) {
-      const bd = main.a - 1.5;
-      parts.push(
-        ...benchParts(
-          Math.cos(a) * bd,
-          Math.sin(a) * bd,
-          Math.atan2(-Math.cos(a), -Math.sin(a)) + Math.PI,
-        ),
-      );
-    }
-    // Pflanzkübel mit Baum in jeder Ecke
-    const b = main.rot + Math.PI / n + (TAU * k) / n;
-    const pr = R - 1.25;
-    const px = Math.cos(b) * pr;
-    const pz = Math.sin(b) * pr;
+/** Ausstattung des Dorfplatzes: Terrasse, Brunnen, Bänke an freien Ausgängen, Pflanzkübel mit Bäumchen. */
+export function plazaDecoParts(world: World): Part[] {
+  const main = world.layout.polys.find((p) => p.main);
+  if (!main) return [];
+  const parts: Part[] = [...terraceParts(main, world.layout.terrace)];
+  const f = world.plazaDeco.fountain;
+  parts.push(...fountainParts(f.x, f.z));
+  for (const b of world.plazaProps.benches) parts.push(...benchParts(b.x, b.z, b.angle));
+  // Aussichtsbank am Wanderweg, Blick auf Fluss und Brücke
+  const vb = world.map.viewBench;
+  if (vb) parts.push(...benchParts(vb.x, vb.z, vb.angle));
+  world.plazaProps.planters.forEach((p, k) => {
     parts.push(
-      { geo: cyl(0.6, 0.52, 0.5, 14), color: "#b9b1a0", pos: [px, 0.25, pz] },
-      { geo: cyl(0.5, 0.5, 0.04, 14), color: "#6b5240", pos: [px, 0.5, pz] },
-      { geo: cyl(0.07, 0.1, 1.2, 6), color: "#6b4423", pos: [px, 1.1, pz] },
+      { geo: cyl(0.6, 0.52, 0.5, 14), color: "#b9b1a0", pos: [p.x, 0.25, p.z] },
+      { geo: cyl(0.5, 0.5, 0.04, 14), color: "#6b5240", pos: [p.x, 0.5, p.z] },
+      { geo: cyl(0.07, 0.1, 1.2, 6), color: "#6b4423", pos: [p.x, 1.1, p.z] },
       {
         geo: new THREE.IcosahedronGeometry(0.75, 1),
-        color: "#5c9b4f",
-        pos: [px, 2.0, pz],
+        color: world.map.palette.leaves[k % world.map.palette.leaves.length],
+        pos: [p.x, 2.0, p.z],
         rot: [0.4, k, 0],
       },
       {
         geo: new THREE.IcosahedronGeometry(0.5, 1),
-        color: "#6aa95a",
-        pos: [px + 0.25, 2.45, pz - 0.15],
+        color: world.map.palette.leaves[(k + 1) % world.map.palette.leaves.length],
+        pos: [p.x + 0.25, 2.45, p.z - 0.15],
       },
     );
-    // Laubbaum-Ring ausserhalb, frei von Wegen, Gärten und Nebenplätzen
-    for (const [ang, rr] of [
-      [b, R + 3.0],
-      [a, main.a + 3.2],
-    ]) {
-      const tx = Math.cos(ang) * rr;
-      const tz = Math.sin(ang) * rr;
-      if (
-        layout.paths.some((q) => distanceToPolyline(tx, tz, q.points) < 2.6) ||
-        isInPlot(layout, tx, tz, 1) ||
-        layout.quarters.some((q) => Math.hypot(q.x - tx, q.z - tz) < q.rp + 2)
-      ) {
-        continue;
-      }
-      trees.push({ x: tx, z: tz, s: 1.0 + jit(k, ang) * 0.25 });
-    }
-  }
-  return { parts, trees };
+  });
+  return parts;
 }

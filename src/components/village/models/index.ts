@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Tier } from "@/lib/layout";
+import { TIER_FOOTPRINT, type Tier } from "@/lib/layout";
 import type { FachType } from "@/lib/fachbereiche";
 import type { ZentraleStyle } from "@/lib/styles";
 import { mergeParts, sphere, type Part } from "../geo";
@@ -10,6 +10,7 @@ import {
   digitalModel,
   solarModel,
   stadtModel,
+  stadtWallHeight,
   turmModel,
   werkstattModel,
 } from "./house-fach";
@@ -85,11 +86,36 @@ export function constructionModel(fp: number): Model {
   return model;
 }
 
-/** Position der Kaminöffnung (lokal) für den Rauch; `null` bei Typen ohne Kamin. */
+/** Stufe aus der Grundmass (die Stufen haben feste, verschiedene Grundmasse). */
+const tierOfFootprint = (fp: number): Tier =>
+  fp >= TIER_FOOTPRINT[3] ? 3 : fp >= TIER_FOOTPRINT[2] ? 2 : 1;
+
+/**
+ * Position der Kaminöffnung (lokal, Oberkante der Abdeckung) für den Rauch; `null` bei Typen ohne Kamin.
+ * Muss zu den Kaminen in `house-haus.ts` und `house-fach.ts` passen (Test `house-models.test.ts`).
+ */
 export function chimneyTop(type: FachType, fp: number): [number, number, number] | null {
-  if (type === "haus") return [fp * 0.55, 0.18 + fp * 1.5 + fp * 0.9, -fp * 2.1 * 0.18];
-  if (type === "block") return [fp * 0.9, 0.18 + fp * 2.02, -fp * 0.4];
-  return null;
+  const base = 0.18;
+  switch (type) {
+    case "haus":
+      return [fp * 0.55, base + fp * 1.5 + fp * 0.9 + 0.01, -fp * 2.1 * 0.18];
+    case "block":
+      return [fp * 0.9, base + fp * 2.02 + 0.01, -fp * 0.4];
+    case "werkstatt":
+      return [-fp * 2.3 * 0.28, base + fp * 2.0 + 0.01, -fp * 0.4];
+    case "stadt":
+      return [
+        fp * 0.36,
+        base + stadtWallHeight(fp, tierOfFootprint(fp)) + 0.06 + fp * 0.9 + 0.12 + 0.01,
+        -fp * 0.36,
+      ];
+    case "turm":
+      return [-fp * 0.75, base + fp * 1.5 + fp * 1.15 + 0.01, -fp * 0.57];
+    case "atelier":
+      return [0, base + fp * 1.1 + 0.865 + 0.01, -fp * 1.9 * 0.25];
+    default:
+      return null;
+  }
 }
 
 /** Modell der Zentrale im gewählten Stil (unbekannte Werte aus älteren Daten zeigen das Rathaus). */

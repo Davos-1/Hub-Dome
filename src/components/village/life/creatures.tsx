@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import * as THREE from "three";
-import type { Environment } from "@/lib/environment";
+import type { Pasture } from "@/lib/world/map";
 import type { VillagePath } from "@/lib/paths";
 import { box, cyl, sphere, type Part } from "../geo";
 import { Herd, useMerged } from "./herd";
@@ -106,16 +106,16 @@ function personParts(shirt: string, hair: string): Part[] {
 
 /** Schafe auf der Weide: langsames Umherwandern innerhalb der Koppel. */
 export function Sheep({
-  env,
+  pasture,
   count,
   frozen,
 }: {
-  env: Environment;
+  pasture: Pasture;
   count: number;
   frozen: boolean;
 }) {
   const geometry = useMerged(sheepParts);
-  const { x: px, z: pz, w, d, angle } = env.pasture;
+  const { x: px, z: pz, w, d, angle } = pasture;
   const step = useCallback(
     (i: number, t: number, o: THREE.Object3D) => {
       const hw = w / 2 - 1.2;
@@ -148,17 +148,24 @@ export function Chickens({
   count,
   frozen,
 }: {
-  center: { x: number; z: number };
+  /** Hühnerhof (Mitte, Radius des Zauns): die Hühner bleiben sicher innerhalb. */
+  center: { x: number; z: number; r: number };
   count: number;
   frozen: boolean;
 }) {
   const geometry = useMerged(chickenParts);
+  const reach = Math.max(0.3, center.r - 0.55);
   const step = useCallback(
     (i: number, t: number, o: THREE.Object3D) => {
       const f = 0.7 + (i % 2) * 0.25;
+      // Höchstens 0.75 + 0.25 = 1.0 × reach vom Mittelpunkt entfernt
       const p = (tt: number) => ({
-        x: center.x + 1.4 * Math.sin(tt * f * 0.6 + i * 1.7) + 0.4 * Math.sin(tt * 2.3 + i),
-        z: center.z + 1.2 * Math.cos(tt * f * 0.5 + i * 2.3) + 0.3 * Math.cos(tt * 2.9 + i),
+        x:
+          center.x +
+          reach * (0.75 * Math.sin(tt * f * 0.6 + i * 1.7) + 0.25 * Math.sin(tt * 2.3 + i)) * 0.7,
+        z:
+          center.z +
+          reach * (0.75 * Math.cos(tt * f * 0.5 + i * 2.3) + 0.25 * Math.cos(tt * 2.9 + i)) * 0.7,
       });
       const a = p(t);
       const b = p(t + 0.2);
@@ -166,23 +173,24 @@ export function Chickens({
       o.rotation.y = heading(b.x - a.x, b.z - a.z);
       o.rotation.x = 0.25 * Math.max(0, Math.sin(t * 1.3 + i * 2)); // pickt am Boden
     },
-    [center.x, center.z],
+    [center.x, center.z, reach],
   );
   return <Herd geometry={geometry} count={count} step={step} frozen={frozen} />;
 }
 
 /** Enten ziehen ihre Kreise auf dem Teich. */
 export function Ducks({
-  env,
+  water,
   count,
   frozen,
 }: {
-  env: Environment;
+  /** Teich oder See (Mitte und Radius); die Enten bleiben innerhalb. */
+  water: { x: number; z: number; r: number };
   count: number;
   frozen: boolean;
 }) {
   const geometry = useMerged(duckParts);
-  const { x, z, r } = env.pond;
+  const { x, z, r } = water;
   const step = useCallback(
     (i: number, t: number, o: THREE.Object3D) => {
       const rho = Math.min(r - 0.9, 0.9 + i * 0.7);
@@ -230,21 +238,20 @@ export function Birds({
   return <Herd geometry={geometry} count={count} step={step} frozen={frozen} shadows={false} />;
 }
 
-/** Schmetterlinge über den Blumenwiesen. */
+/** Schmetterlinge über den Blumeninseln (bleiben nahe an ihrer Insel, also ausserhalb der Gärten). */
 export function Butterflies({
-  extent,
+  spots,
   count,
   frozen,
-  seed,
 }: {
-  extent: number;
+  spots: { x: number; z: number }[];
   count: number;
   frozen: boolean;
-  seed: number;
 }) {
   const colors = ["#f59e0b", "#60a5fa", "#f472b6", "#fde047"];
   // Eine Herde pro Farbe, damit jede Farbe ihre eigene Geometrie hat.
-  const per = Math.ceil(count / colors.length);
+  const n = spots.length ? count : 0;
+  const per = Math.ceil(n / colors.length);
   return (
     <>
       {colors.map((c, k) => (
@@ -252,10 +259,9 @@ export function Butterflies({
           key={c}
           color={c}
           index={k}
-          count={Math.min(per, Math.max(0, count - k * per))}
-          extent={extent}
+          count={Math.min(per, Math.max(0, n - k * per))}
+          spots={spots}
           frozen={frozen}
-          seed={seed}
         />
       ))}
     </>
@@ -266,32 +272,28 @@ function ButterflyGroup({
   color,
   index,
   count,
-  extent,
+  spots,
   frozen,
-  seed,
 }: {
   color: string;
   index: number;
   count: number;
-  extent: number;
+  spots: { x: number; z: number }[];
   frozen: boolean;
-  seed: number;
 }) {
   const geometry = useMerged(() => butterflyParts(color));
   const step = useCallback(
     (i: number, t: number, o: THREE.Object3D) => {
-      const k = index * 7 + i + seed;
-      const a = (k * 2.399) % (Math.PI * 2);
-      const rad = extent * (0.62 + ((k * 13) % 10) / 60);
-      const cx = Math.cos(a) * rad;
-      const cz = Math.sin(a) * rad;
-      const px = (tt: number) => cx + 1.6 * Math.sin(tt * 0.7 + k) + 0.5 * Math.sin(tt * 2.1 + k);
-      const pz = (tt: number) => cz + 1.6 * Math.cos(tt * 0.6 + k * 1.3);
+      const k = index * 7 + i;
+      const spot = spots[(k * 5) % spots.length];
+      const px = (tt: number) =>
+        spot.x + 0.8 * Math.sin(tt * 0.7 + k) + 0.3 * Math.sin(tt * 2.1 + k);
+      const pz = (tt: number) => spot.z + 0.9 * Math.cos(tt * 0.6 + k * 1.3);
       o.position.set(px(t), 0.8 + 0.35 * Math.sin(t * 1.7 + k), pz(t));
       o.rotation.y = heading(px(t + 0.2) - px(t), pz(t + 0.2) - pz(t));
       o.scale.set(0.5 + 0.5 * Math.abs(Math.sin(t * 14 + k)), 1, 1);
     },
-    [index, extent, seed],
+    [index, spots],
   );
   return <Herd geometry={geometry} count={count} step={step} frozen={frozen} shadows={false} />;
 }

@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useActionState, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useActionState,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { copyArtifact, type CopyState } from "@/app/dorf/actions";
 import { FACHBEREICHE, FACH_ORDER, fachbereichOf } from "@/lib/fachbereiche";
 import { EMPTY_EXTRAS, type ItemExtras } from "@/lib/item-extras";
@@ -10,13 +17,7 @@ type Ctx = ItemExtras & { isOwner: boolean; houses: Record<string, House> };
 
 const ExtrasContext = createContext<Ctx>({ ...EMPTY_EXTRAS, isOwner: false, houses: {} });
 
-export function ItemExtrasProvider({
-  value,
-  children,
-}: {
-  value: Ctx;
-  children: ReactNode;
-}) {
+export function ItemExtrasProvider({ value, children }: { value: Ctx; children: ReactNode }) {
   return <ExtrasContext.Provider value={value}>{children}</ExtrasContext.Provider>;
 }
 
@@ -67,7 +68,13 @@ export function ItemMeta({ artifact }: { artifact: Artifact }) {
  * «In mein Dorf» für fremde Objekte: Popover mit Hausauswahl. Mit `hotkey` öffnet auch die Taste K
  * das Popover (nur wenn kein Eingabefeld und kein Dialog den Fokus hat).
  */
-export function CopyControl({ artifact, hotkey = false }: { artifact: Artifact; hotkey?: boolean }) {
+export function CopyControl({
+  artifact,
+  hotkey = false,
+}: {
+  artifact: Artifact;
+  hotkey?: boolean;
+}) {
   const x = useContext(ExtrasContext);
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState<CopyState, FormData>(copyArtifact, {});
@@ -148,7 +155,9 @@ export function CopyControl({ artifact, hotkey = false }: { artifact: Artifact; 
         >
           <input type="hidden" name="source" value={artifact.id} />
           {match && option(match.id, <>Vorschlag: {match.title}</>, true)}
-          {!match && code && srcHouse &&
+          {!match &&
+            code &&
+            srcHouse &&
             option(`neu:${code}`, <>Haus «{srcHouse.title}» anlegen und übernehmen</>, true)}
           {groups.map((g) => (
             <div key={g.f} className="mt-1">

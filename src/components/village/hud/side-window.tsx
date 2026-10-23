@@ -11,7 +11,7 @@ import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
 import { useScene, type SceneStore } from "../scene-store";
 
-export const TIME_ORDER: TimeSetting[] = ["morgen", "mittag", "abend", "auto"];
+export const TIME_ORDER: TimeSetting[] = ["morgen", "mittag", "abend", "nacht", "auto"];
 export const FILTER_KINDS: ArtifactKind[] = [
   "rechner",
   "quiz",

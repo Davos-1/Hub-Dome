@@ -1,10 +1,12 @@
 # Hub Dome – Phasenplan (aktueller Stand, Reihenfolge verbindlich)
 
-Dieses Dokument fasst `PLAN.md`, `PLAN-ERWEITERUNG.md` und `PLAN-ERWEITERUNG-2.md` zu **einer** Reihenfolge zusammen. Details stehen in den jeweiligen Plänen, Entscheidungen in `docs/ENTSCHEIDUNGEN.md`. Stand: 2026-10-22, bereinigt nach Phase 4c.
+Dieses Dokument fasst `PLAN.md`, `PLAN-ERWEITERUNG.md` und `PLAN-ERWEITERUNG-2.md` zu **einer** Reihenfolge zusammen. Details stehen in den jeweiligen Plänen, Entscheidungen in `docs/ENTSCHEIDUNGEN.md`. Stand: 2026-10-23 (Phase 4f eingefügt).
 
 ## Fokusregel bis zum Pilot
 
 Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** (Tiere, Modelle, Effekte, neue Stile). Erlaubt sind Fehlerbehebungen, Performance und Barrierefreiheit. Vorrang hat, was den Alltagsnutzen bringt: Freunde verbinden, Objekte aus Claude platzieren, Objekte öffnen. Funktionale Kennzeichnungen, die eine Phase verlangt (z.B. das Übernahme-Band in 5b), gelten nicht als Gestaltung.
+
+**Ausnahme Phase 4f (Entscheid Gian, 2026-10-23):** Für 4f ist die Fokusregel aufgehoben (Begründung im Entscheidungslog). Nach 4f gilt sie wieder bis zum Pilot-Feedback.
 
 
 ## Reihenfolge
@@ -21,6 +23,7 @@ Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** 
 | **4e** | **Lücken aus 4d schliessen:** Migrationen einspielen, Freundschaftslink, Listen-Dialog, aufräumen, committen | dieses Dokument | **fertig** (Migration 3 eingespielt, RLS 34/34, E2E grün; nur der Link-Test aus Phase 0 steht vor Phase 5 aus) |
 | 5 | MCP-Connector + Skill `hub-dome-platzieren` + MCP-Anteil aus 3b (`objekt_typ`, `objekt_platzieren`) + Zusatz C (`im_topdorf_zeigen`, erst ab 5b aktiv) | PLAN.md, PLAN-ERWEITERUNG.md, PLAN-ERWEITERUNG-2.md Teil C | **umgesetzt 2026-10-22** (Tests grün; offen: Abnahme mit MCP Inspector lokal und in claude.ai nach dem Deployment) |
 | 5b | Übernehmen + Nutzungsdaten (`/o/<id>`, `copy_artifact`, `item_events`) | PLAN-ERWEITERUNG-2.md Teil A | **fertig 2026-10-22** (Migration eingespielt, RLS 71/71, E2E grün) |
+| **4f** | **Die Welt auf das nächste Level:** Regelwerk mit Footprints und Property-Tests, Seed pro Dorf («Welt neu würfeln»), stabile Slots (neue Häuser verschieben nichts), Bau-Modus mit Live-Prüfung, mehr Detail, Nacht, Baukasten pro Haus, Deko-Katalog | docs/PHASE-4F-KONZEPT.md, docs/WELT-ANLEITUNG.md | **Code fertig 2026-10-23**, offen: Freigabe/Commit, Migration `village_worlds` einspielen, `npm run test:rls` und DB-E2E bei Gian |
 | 6 | Deployment, Pilot (vorher: eigener Mailversand, Google-Freigabe, nDSG-Hinweis, Konto löschen) | PLAN.md, docs/DEPLOYMENT.md | **Code fertig 2026-10-22** (Datenschutz, Konto löschen, RLS 74/74); offen: Dashboards (Gian), Deploy, Pilot |
 | 6b | Topdorf (erst ab ca. 10 aktiven Nutzern, bis dahin hinter `NEXT_PUBLIC_TOPDORF=true`) | PLAN-ERWEITERUNG-2.md Teil B | offen |
 | 7 | OAuth, Gruppendörfer, Likes, Saison-Bestenliste, Haus-Freigabe, eigene Modelle nur mit Prüfung | PLAN.md, PLAN-ERWEITERUNG-2.md Teil D | später |

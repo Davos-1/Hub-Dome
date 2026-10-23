@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import type { Environment } from "@/lib/environment";
+import type { Pasture as PastureSpot, Windmill as WindmillSpot } from "@/lib/world/map";
 import { box, cyl, mergeParts, rbox, sphere, type Part } from "../geo";
 import { T0 } from "./herd";
 
@@ -71,8 +71,8 @@ function pastureParts(w: number, d: number): Part[] {
 }
 
 /** Weide mit Zaun, Heu und Trog; die Schafe laufen innerhalb. */
-export function Pasture({ env }: { env: Environment }) {
-  const { x, z, w, d, angle } = env.pasture;
+export function Pasture({ pasture }: { pasture: PastureSpot }) {
+  const { x, z, w, d, angle } = pasture;
   const geometry = useMemo(() => mergeParts(pastureParts(w, d)), [w, d]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   return (
@@ -108,8 +108,8 @@ function windmillBody(): Part[] {
 }
 
 /** Windmühle am Dorfrand; die Flügel drehen sich langsam. */
-export function Windmill({ env, frozen }: { env: Environment; frozen: boolean }) {
-  const { x, z, angle } = env.windmill;
+export function Windmill({ windmill, frozen }: { windmill: WindmillSpot; frozen: boolean }) {
+  const { x, z, angle } = windmill;
   const body = useMemo(() => mergeParts(windmillBody()), []);
   const blades = useMemo(() => {
     const parts: Part[] = [];
@@ -152,5 +152,54 @@ export function Windmill({ env, frozen }: { env: Environment; frozen: boolean })
         </mesh>
       </group>
     </group>
+  );
+}
+
+/** Hühnerhof: runder Flechtzaun mit Tor und kleinem Stall; die Hühner bleiben darin. */
+export function ChickenRun({ run }: { run: { x: number; z: number; r: number } }) {
+  const geometry = useMemo(() => {
+    const parts: Part[] = [];
+    const n = 22;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      // Lücke als Tor zur Dorfmitte
+      const toCenter = Math.atan2(-run.z, -run.x);
+      if (Math.abs(Math.atan2(Math.sin(a - toCenter), Math.cos(a - toCenter))) < 0.2) continue;
+      const x = Math.cos(a) * run.r;
+      const z = Math.sin(a) * run.r;
+      parts.push({ geo: cyl(0.04, 0.05, 0.75, 5), color: WOOD, pos: [x, 0.37, z] });
+      const b = a + Math.PI / n;
+      parts.push({
+        geo: box(0.05, 0.42, 2 * run.r * Math.sin(Math.PI / n) + 0.05),
+        color: "#b08a5a",
+        pos: [Math.cos(b) * run.r, 0.32, Math.sin(b) * run.r],
+        rot: [0, -b, 0],
+      });
+    }
+    // Stall mit Satteldach
+    parts.push({ geo: rbox(0.9, 0.6, 0.7, 0.04), color: "#c0583e", pos: [0, 0.45, -run.r * 0.45] });
+    parts.push({
+      geo: box(1.05, 0.06, 0.85),
+      color: "#7a4a2b",
+      pos: [0, 0.8, -run.r * 0.45],
+      rot: [0, 0, 0.3],
+    });
+    parts.push({
+      geo: box(0.3, 0.32, 0.05),
+      color: "#3b2a1f",
+      pos: [0, 0.32, -run.r * 0.45 + 0.36],
+    });
+    parts.push({
+      geo: cyl(0.25, 0.22, 0.08, 10),
+      color: "#d9b44a",
+      pos: [run.r * 0.4, 0.04, run.r * 0.2],
+    });
+    return mergeParts(parts);
+  }, [run.r, run.x, run.z]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} position={[run.x, 0, run.z]} castShadow receiveShadow>
+      <meshStandardMaterial vertexColors roughness={0.9} />
+    </mesh>
   );
 }

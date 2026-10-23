@@ -44,12 +44,22 @@ test("Bei reduzierter Bewegung steht die Szene still und bleibt fehlerfrei", asy
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/dev/dorf?h=6&o=4");
   await expect(page.locator("canvas")).toBeVisible({ timeout: 30_000 });
-  await page.waitForFunction(() => window.__hubDome !== undefined, undefined, { timeout: 30_000 });
-
-  // Ohne Frame-Treiber ändert sich die Render-Statistik nicht (keine laufenden Frames)
-  const before = await page.evaluate(() => JSON.stringify(window.__hubDome));
-  await page.waitForTimeout(1200);
-  expect(await page.evaluate(() => JSON.stringify(window.__hubDome))).toBe(before);
+  await page.waitForFunction(() => window.__hubDome?.ready === true, undefined, {
+    timeout: 60_000,
+  });
+  // Nach dem Fertigwerden zeichnet die Szene noch ein paar Frames (mit SwiftShader langsam), dann nichts mehr:
+  // warten, bis der Zähler ruht, danach darf kein weiterer Frame entstehen (keine laufende Animation)
+  const frames = () => page.evaluate(() => window.__hubDome!.frames ?? 0);
+  let before = await frames();
+  for (let i = 0; i < 12; i++) {
+    await page.waitForTimeout(1500);
+    const now = await frames();
+    if (now === before) break;
+    before = now;
+  }
+  expect(before).toBeGreaterThan(0);
+  await page.waitForTimeout(2000);
+  expect(await frames()).toBe(before);
   expect(errors).toEqual([]);
   await ctx.close();
 });

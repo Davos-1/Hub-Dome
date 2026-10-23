@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { Nav, ViewMode } from "@/lib/camera-poses";
+import type { Nav, Pose, ViewMode } from "@/lib/camera-poses";
 import type { FachbereichId } from "@/lib/fachbereiche";
 import type { TimeSetting } from "@/lib/daytime";
 import type { ArtifactKind } from "@/lib/types";
@@ -22,6 +22,10 @@ export type SceneState = {
   panel: null | "anzeige";
   /** Einstiegsbild: die Kamera steht weit weg, bis der Start-Dialog geschlossen wird. */
   intro: boolean;
+  /** Feste Kamerapose (nur Entwickler-Vorschau und Screenshot-Matrix). */
+  devPose: Pose | null;
+  /** Bau-Modus aktiv: Klicks in der Szene wählen und setzen statt zu navigieren. */
+  building: boolean;
 };
 
 export const initialSceneState: SceneState = {
@@ -37,6 +41,8 @@ export const initialSceneState: SceneState = {
   kbdHouse: null,
   panel: null,
   intro: false,
+  devPose: null,
+  building: false,
 };
 
 export type SceneStore = {
@@ -83,7 +89,7 @@ export function loadSettings(): Partial<Pick<SceneState, "view" | "time" | "filt
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
     const out: Partial<Pick<SceneState, "view" | "time" | "filter">> = {};
     if (raw.view === "3d" || raw.view === "karte") out.view = raw.view;
-    if (["morgen", "mittag", "abend", "auto"].includes(raw.time)) out.time = raw.time;
+    if (["morgen", "mittag", "abend", "nacht", "auto"].includes(raw.time)) out.time = raw.time;
     if (typeof raw.filter === "string") out.filter = raw.filter as ArtifactKind | "";
     return out;
   } catch {

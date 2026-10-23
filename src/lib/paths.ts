@@ -1,11 +1,9 @@
-import { fnv } from "./fachbereiche";
-import { HOUSE_PATH_WIDTH, MAIN_PATH_WIDTH, type VillageLayout } from "./layout";
-
-/** Ein Weg als Linienzug: Hauptweg (Hauptplatz → Nebenplatz) oder Hausweg (Nebenplatz → Gartentor). */
+/** Ein Weg als Linienzug: Zuweg (Dorfplatz → Quartierplatz) oder Gasse (Quartierplatz hinaus, Häuser beidseits). */
 export type VillagePath = {
   id: string;
-  kind: "haupt" | "haus";
-  /** Haus (Hausweg) bzw. Quartier-Id (Hauptweg). */
+  /** Hauptweg (Dorfplatz → Quartierplatz), Gasse oder Fusspfad (Wanderweg über die Brücke). */
+  kind: "haupt" | "gasse" | "pfad";
+  /** Quartier-Id. */
   ownerId: string;
   /** Index in der Quartierfarbe, `null` für Wege ohne Quartier. */
   quarterIndex: number | null;
@@ -68,58 +66,6 @@ export function hermite(S: Pt, dS: Pt, G: Pt, dG: Pt, amp: number, sign: number)
     });
   }
   return pts;
-}
-
-const dir = (a: number): Pt => ({ x: Math.cos(a), z: Math.sin(a) });
-
-/** Wege des Dorfs: ein Hauptweg pro Quartier, ein Hausweg pro Haus. */
-export function computePaths(layout: Omit<VillageLayout, "paths">): VillagePath[] {
-  const out: VillagePath[] = [];
-  const plaza = layout.plazaRadius;
-  for (const q of layout.quarters) {
-    const s0 = dir(q.mainSide);
-    const e0 = dir(q.entrySide);
-    out.push({
-      id: `haupt-${q.id}`,
-      kind: "haupt",
-      ownerId: q.id,
-      quarterIndex: q.index,
-      width: MAIN_PATH_WIDTH,
-      seed: 1,
-      points: hermite(
-        { x: s0.x * (plaza - 0.35), z: s0.z * (plaza - 0.35) },
-        s0,
-        { x: q.x + e0.x * (q.rp - 0.35), z: q.z + e0.z * (q.rp - 0.35) },
-        { x: -e0.x, z: -e0.z },
-        0,
-        1,
-      ),
-    });
-    for (const id of q.houseIds) {
-      const h = layout.houses[id];
-      if (!h.plot) continue;
-      const sd = dir(h.side);
-      const f = { x: Math.sin(h.angle), z: Math.cos(h.angle) };
-      const sign = (fnv(h.id) >>> 6) % 2 ? 1 : -1;
-      out.push({
-        id: `haus-${h.id}`,
-        kind: "haus",
-        ownerId: h.id,
-        quarterIndex: q.index,
-        width: HOUSE_PATH_WIDTH,
-        seed: (fnv(h.id) % 100) / 10,
-        points: hermite(
-          { x: q.x + sd.x * (q.rp - 0.35), z: q.z + sd.z * (q.rp - 0.35) },
-          sd,
-          { x: h.x + f.x * h.plot.front, z: h.z + f.z * h.plot.front },
-          { x: -f.x, z: -f.z },
-          0.3,
-          sign,
-        ),
-      });
-    }
-  }
-  return out;
 }
 
 /** Länge des Linienzugs in Metern. */

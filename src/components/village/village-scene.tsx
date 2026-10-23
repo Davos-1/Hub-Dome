@@ -4,15 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { resolveTime } from "@/lib/daytime";
-import { computeEnvironment } from "@/lib/environment";
+import { isDark, resolveTime, TIMES } from "@/lib/daytime";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { VillageModel } from "@/lib/village-model";
 import { Boards } from "./boards";
 import { House3D, modelOfHouse, ZENTRALE_LIFT, Zentrale3D } from "./buildings";
 import { CameraRig } from "./camera-rig";
 import { Daylight } from "./daylight";
-import { Ground, Lamps, makeHeightFn, Nature, Paths, PlazaDeco, Plazas } from "./decor";
+import { DekoLayer } from "./deko-layer";
+import { BuildLayer } from "./build/build-layer";
+import type { BuildStore } from "./build/build-store";
+import { Ground, Lamps, Nature, Paths, PlazaDeco, Plazas } from "./decor";
 import { buildVillageGardens, type VillageGardens } from "./garden-geometry";
 import { loadLabelFont } from "./label-atlas";
 import { Labels } from "./labels";
@@ -24,6 +26,7 @@ import type { SceneActions } from "./scene-actions";
 import { ChimneySmoke, HighlightRing, ObjectCard } from "./scene-extras";
 import { useScene, type SceneStore } from "./scene-store";
 import { buildVillageAtlas, type VillageAtlas } from "./village-atlas";
+import { environmentOf } from "./world-env";
 import { ARTIFACT_KINDS } from "@/lib/types";
 
 export type SceneProps = {
@@ -39,34 +42,79 @@ export type SceneProps = {
   onConstruction: (houseId: string) => void;
   lowDetail: boolean;
   reducedMotion: boolean;
+  /** Bau-Modus (nur Besitzer). */
+  build?: BuildStore;
 };
 
 declare global {
   interface Window {
     /** Render-Statistik der letzten Frame (für Performance-Tests). */
-    __hubDome?: { calls: number; triangles: number; houses: number; artifacts: number };
+    __hubDome?: {
+      calls: number;
+      triangles: number;
+      houses: number;
+      artifacts: number;
+      /** Szene fertig (Schrift, Beschriftungen, mindestens drei Frames): für die Screenshot-Matrix. */
+      ready?: boolean;
+      /** Mittlerer Abstand der letzten Frames (ms), nur aussagekräftig bei laufender Animation. */
+      frameMs?: number;
+      /** Anzahl gezeichneter Frames seit dem Laden. */
+      frames?: number;
+    };
   }
 }
 
-function PerfProbe({ houses, artifacts }: { houses: number; artifacts: number }) {
+function PerfProbe({
+  houses,
+  artifacts,
+  ready,
+}: {
+  houses: number;
+  artifacts: number;
+  ready: boolean;
+}) {
   const gl = useThree((s) => s.gl);
   useEffect(() => {
     const original = gl.render.bind(gl);
+    let after = 0;
+    let frames = window.__hubDome?.frames ?? 0;
+    const times: number[] = [];
     // Bewusst: Render-Aufruf umhüllen, um Statistik zu erfassen (ausserhalb von React-State).
     // eslint-disable-next-line react-hooks/immutability
     gl.render = (scene, camera) => {
       original(scene, camera);
+      if (ready) after++;
+      times.push(performance.now());
+      if (times.length > 61) times.shift();
       window.__hubDome = {
         calls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
         houses,
         artifacts,
+        ready: ready && after >= 3,
+        // Zähler aller gezeichneten Frames (E2E: bei reduzierter Bewegung steht er still)
+        frames: ++frames,
+        frameMs:
+          times.length > 1 ? (times[times.length - 1] - times[0]) / (times.length - 1) : undefined,
       };
     };
     return () => {
       gl.render = original;
     };
-  }, [gl, houses, artifacts]);
+  }, [gl, houses, artifacts, ready]);
+  // Auch ohne laufende Animation (frameloop «demand») ein paar Frames nach dem Fertigwerden zeichnen
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (!ready) return;
+    let n = 0;
+    let id = 0;
+    const tick = () => {
+      invalidate();
+      if (++n < 5) id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [ready, invalidate]);
   return null;
 }
 
@@ -193,7 +241,6 @@ function MapLayer({ model, atlas }: { model: VillageModel; atlas: VillageAtlas |
 
 export default function VillageScene(props: SceneProps) {
   const {
-    villageId,
     ownerName,
     avatarSeed,
     zentraleStyle,
@@ -204,20 +251,19 @@ export default function VillageScene(props: SceneProps) {
     onConstruction,
     lowDetail,
     reducedMotion,
+    build,
   } = props;
   const { layout } = model;
 
   const time = useScene(store, (s) => s.time);
   const view = useScene(store, (s) => s.view);
+  const building = useScene(store, (s) => s.building);
   const map = view === "karte";
   const [hour] = useState(() => new Date().getHours());
   const timeKey = resolveTime(time, hour);
 
-  const env = useMemo(
-    () => computeEnvironment(layout.extent, villageId),
-    [layout.extent, villageId],
-  );
-  const height = useMemo(() => makeHeightFn(layout.extent, env), [layout.extent, env]);
+  const world = model.world;
+  const env = useMemo(() => environmentOf(world), [world]);
   const gardens = useMemo(() => buildVillageGardens(model), [model]);
   useEffect(
     () => () => {
@@ -229,7 +275,7 @@ export default function VillageScene(props: SceneProps) {
     [gardens],
   );
   const atlas = useAtlas(model, ownerName);
-  const glow = timeKey === "abend" ? 2.6 : timeKey === "mittag" ? 0.85 : 0.7;
+  const glow = TIMES[timeKey].glow;
 
   // Oberkante pro Haus für Beschriftung und Trefferfläche
   const tops = useMemo(() => {
@@ -277,9 +323,9 @@ export default function VillageScene(props: SceneProps) {
       <Daylight time={timeKey} extent={layout.extent} map={map} lowDetail={lowDetail} />
 
       {/* Boden, Plätze, Wege und Rasen sind in beiden Ansichten sichtbar */}
-      <Ground extent={layout.extent} height={height} />
-      <Plazas layout={layout} />
-      <Paths layout={layout} />
+      <Ground world={world} />
+      <Plazas layout={layout} paving={world.map.palette.paving} />
+      <Paths layout={layout} grass={world.map.palette.grassIn} />
       {gardens.lawns && (
         <mesh geometry={gardens.lawns} receiveShadow>
           <meshStandardMaterial color="#ffffff" vertexColors roughness={1} />
@@ -292,19 +338,14 @@ export default function VillageScene(props: SceneProps) {
         lowDetail={lowDetail}
         reducedMotion={reducedMotion}
         mapOnly={map}
+        dark={isDark(timeKey)}
       />
 
       <group visible={!map}>
-        <PlazaDeco layout={layout} />
-        <Lamps layout={layout} glow={glow} evening={timeKey === "abend"} lowDetail={lowDetail} />
-        <Nature
-          layout={layout}
-          env={env}
-          height={height}
-          seed={villageId}
-          density={lowDetail ? 0.35 : 1}
-          forest={!lowDetail}
-        />
+        <PlazaDeco world={world} />
+        <Lamps world={world} glow={glow} lit={isDark(timeKey)} lowDetail={lowDetail} />
+        <Nature world={world} />
+        <DekoLayer map={world.map} items={world.deko} glow={glow} />
         {gardens.body && (
           <mesh geometry={gardens.body} castShadow receiveShadow>
             <meshStandardMaterial vertexColors roughness={0.85} />
@@ -329,6 +370,8 @@ export default function VillageScene(props: SceneProps) {
               if (o) actions.goToObject(o.houseId, o.id);
             }}
             onHoverPointer={setPointerCursor}
+            lit={isDark(timeKey)}
+            disabled={building}
           />
         )}
         {!lowDetail && !reducedMotion && <ChimneySmoke houses={model.houses} model={model} />}
@@ -368,12 +411,13 @@ export default function VillageScene(props: SceneProps) {
           position={[q.x, 0.2, q.z]}
           visible={false}
           onPointerOver={(e) => {
+            if (store.get().building) return;
             e.stopPropagation();
             document.body.style.cursor = "pointer";
           }}
           onPointerOut={() => (document.body.style.cursor = "")}
           onClick={(e) => {
-            if (e.delta > 5) return;
+            if (e.delta > 5 || store.get().building) return;
             e.stopPropagation();
             actions.openQuarter(q.id);
           }}
@@ -383,6 +427,7 @@ export default function VillageScene(props: SceneProps) {
       ))}
 
       {map && <MapLayer model={model} atlas={atlas} />}
+      {build && !map && <BuildLayer build={build} map={world.map} />}
 
       <OrbitControls
         makeDefault
@@ -397,6 +442,7 @@ export default function VillageScene(props: SceneProps) {
       <PerfProbe
         houses={model.houses.length}
         artifacts={model.houses.reduce((n, h) => n + h.items.length, 0)}
+        ready={atlas !== null}
       />
     </Canvas>
   );

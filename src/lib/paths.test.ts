@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FACH_ORDER } from "./fachbereiche";
 import { computeLayout, type LayoutHouse } from "./layout";
-import { distanceToPolyline, polylineDistance } from "./paths";
+import { distanceToPolyline, hermite, pathLength, pointAlong, polylineDistance } from "./paths";
 
 function make(n: number, spread: number): LayoutHouse[] {
   return [
@@ -10,82 +10,67 @@ function make(n: number, spread: number): LayoutHouse[] {
       id: `h${i}`,
       kind: "modul" as const,
       fach: FACH_ORDER[i % spread],
-      items: Array.from({ length: i % 4 === 0 ? 5 : 1 }, (_, j) => ({
-        id: `a${i}-${j}`,
-        kind: "quiz" as const,
-      })),
+      items: [{ id: `a${i}`, kind: "quiz" as const }],
     })),
   ];
 }
 
-describe("computePaths", () => {
-  const cases: [number, number][] = [
-    [1, 1],
-    [5, 2],
-    [12, 4],
-    [20, 7],
-    [30, 9],
-    [45, 9],
-  ];
-
-  it("ein Hauptweg pro Quartier und ein Hausweg pro Haus", () => {
-    for (const [n, spread] of cases) {
+describe("Wege", () => {
+  it("ein Zuweg pro Quartier mit Quartierplatz, Gassen nur mit Häusern daran", () => {
+    for (const [n, spread] of [
+      [1, 1],
+      [5, 2],
+      [12, 4],
+      [30, 9],
+    ]) {
       const l = computeLayout(make(n, spread));
       expect(l.paths.filter((p) => p.kind === "haupt")).toHaveLength(l.quarters.length);
-      expect(l.paths.filter((p) => p.kind === "haus")).toHaveLength(n);
+      for (const p of l.paths) expect(p.points.length).toBeGreaterThan(1);
     }
   });
 
-  it("jeder Weg beginnt an einer eigenen Vieleckseite", () => {
-    for (const [n, spread] of cases) {
-      const l = computeLayout(make(n, spread));
-      for (const poly of l.polys) {
-        const sides = poly.used.map((a) => Math.round(((a - poly.rot) / (2 * Math.PI)) * poly.n));
-        const mod = sides.map((s) => ((s % poly.n) + poly.n) % poly.n);
-        expect(new Set(mod).size).toBe(mod.length);
+  it("Wege verschiedener Quartiere berühren sich nicht (ausser am Dorfplatz)", () => {
+    const l = computeLayout(make(30, 9));
+    const away = (pts: { x: number; z: number }[]) =>
+      pts.filter((p) => Math.hypot(p.x, p.z) > l.plazaRadius + 1.5);
+    for (let i = 0; i < l.paths.length; i++) {
+      for (let j = i + 1; j < l.paths.length; j++) {
+        const a = l.paths[i];
+        const b = l.paths[j];
+        if (a.ownerId === b.ownerId) continue;
+        const pa = away(a.points);
+        const pb = away(b.points);
+        if (pa.length < 2 || pb.length < 2) continue;
+        expect(polylineDistance(pa, pb), `${a.id}/${b.id}`).toBeGreaterThan(
+          (a.width + b.width) / 2,
+        );
       }
     }
   });
+});
 
-  it("Hauswege kommen senkrecht am Gartentor an", () => {
-    const l = computeLayout(make(12, 4));
-    for (const p of l.paths.filter((x) => x.kind === "haus")) {
-      const h = l.houses[p.ownerId];
-      const a = p.points[p.points.length - 2];
-      const b = p.points[p.points.length - 1];
-      const len = Math.hypot(b.x - a.x, b.z - a.z);
-      const dir = { x: (b.x - a.x) / len, z: (b.z - a.z) / len };
-      // Richtung am Ende = zum Haus (-Front reversed): zeigt entgegen der Frontrichtung
-      expect(dir.x * -Math.sin(h.angle) + dir.z * -Math.cos(h.angle)).toBeGreaterThan(0.95);
-    }
+describe("Linienzüge", () => {
+  const line = [
+    { x: 0, z: 0 },
+    { x: 10, z: 0 },
+  ];
+  it("distanceToPolyline und polylineDistance", () => {
+    expect(distanceToPolyline(5, 3, line)).toBeCloseTo(3);
+    expect(
+      polylineDistance(line, [
+        { x: 0, z: 2 },
+        { x: 10, z: 2 },
+      ]),
+    ).toBeCloseTo(2);
   });
-
-  it("Hauswege verschiedener Häuser berühren sich nicht", () => {
-    for (const [n, spread] of cases) {
-      const l = computeLayout(make(n, spread));
-      const ps = l.paths.filter((p) => p.kind === "haus");
-      for (let i = 0; i < ps.length; i++) {
-        for (let j = i + 1; j < ps.length; j++) {
-          const d = polylineDistance(ps[i].points, ps[j].points);
-          expect(d, `n=${n} ${ps[i].id} ${ps[j].id}`).toBeGreaterThan(
-            (ps[i].width + ps[j].width) / 2,
-          );
-        }
-      }
-    }
+  it("pathLength und pointAlong", () => {
+    expect(pathLength(line)).toBeCloseTo(10);
+    expect(pointAlong(line, 4)).toMatchObject({ x: 4, z: 0 });
   });
-
-  it("Hauptwege führen nicht durch fremde Grundstücke", () => {
-    for (const [n, spread] of cases) {
-      const l = computeLayout(make(n, spread));
-      for (const p of l.paths.filter((x) => x.kind === "haupt")) {
-        for (const h of Object.values(l.houses)) {
-          if (!h.plot) continue;
-          expect(distanceToPolyline(h.x, h.z, p.points), `n=${n} ${p.id} ${h.id}`).toBeGreaterThan(
-            h.footprint,
-          );
-        }
-      }
-    }
+  it("hermite beginnt und endet an den Punkten", () => {
+    const pts = hermite({ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 10, z: 5 }, { x: 0, z: 1 }, 0, 1);
+    expect(pts[0]).toEqual({ x: 0, z: 0 });
+    expect(pts.at(-1)!.x).toBeCloseTo(10);
+    expect(pts.at(-1)!.z).toBeCloseTo(5);
   });
 });

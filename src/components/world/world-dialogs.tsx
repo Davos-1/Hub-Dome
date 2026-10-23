@@ -27,7 +27,10 @@ export function WorldDialogs({
   lowDetail,
   actions,
   onEnter,
+  onPreviewSeed,
 }: {
+  /** «Welt neu würfeln»: Vorschau mit diesem Seed in der Szene zeigen. */
+  onPreviewSeed: (seed: string) => void;
   active: DialogId | "freund" | null;
   dialog: DialogApi;
   shell: ShellData;
@@ -87,6 +90,14 @@ export function WorldDialogs({
           onTab={(t: SettingsTab) => dialog.setTab(t)}
           lowDetail={lowDetail}
           onClose={dialog.close}
+          world={{
+            model,
+            isOwner,
+            onPreview: (seed) => {
+              dialog.close();
+              onPreviewSeed(seed);
+            },
+          }}
         />
       );
     case "liste":

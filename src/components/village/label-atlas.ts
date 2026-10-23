@@ -423,7 +423,8 @@ export function drawQuarterBoard(q: QuarterLayout, codes: string[]): AtlasEntry 
   ctx.fillText(q.name, W / 2, 128, W - 50);
   ctx.fillStyle = "#6d6a63";
   ctx.font = `500 34px ${FONT}`;
-  ctx.fillText(codes.join(" · "), W / 2, 196, W - 50);
+  // Gleiche Kürzel nur einmal (zwei Häuser zum selben Modul)
+  ctx.fillText([...new Set(codes)].join(" · "), W / 2, 196, W - 50);
   ctx.strokeStyle = "#5e3c22";
   ctx.lineWidth = 12;
   ctx.strokeRect(6, 6, W - 12, H - 12);

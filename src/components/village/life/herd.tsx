@@ -30,12 +30,15 @@ export function Herd({
   step,
   frozen,
   shadows = true,
+  followCamera = false,
 }: {
   geometry: THREE.BufferGeometry;
   count: number;
   step: Step;
   frozen: boolean;
   shadows?: boolean;
+  /** `step` hängt auch von der Kamera ab: auch bei eingefrorener Zeit jedes Bild neu berechnen. */
+  followCamera?: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
 
@@ -59,6 +62,7 @@ export function Herd({
   useLayoutEffect(() => update(T0), [update]);
   useFrame(({ clock }) => {
     if (!frozen) update(T0 + clock.elapsedTime);
+    else if (followCamera) update(T0);
   });
 
   if (count <= 0) return null;

@@ -8,7 +8,7 @@ export const metadata = { title: "Dorf – Hub Dome" };
 
 async function DorfContent({ params }: Pick<PageProps<"/dorf/[username]">, "params">) {
   const { username } = await params;
-  const { supabase, me, owner, village, houses, artifacts, isOwner, extras } =
+  const { supabase, me, owner, village, houses, artifacts, isOwner, extras, world } =
     await loadVillage(username);
   const shell = await loadShell(supabase, me);
 
@@ -32,6 +32,7 @@ async function DorfContent({ params }: Pick<PageProps<"/dorf/[username]">, "para
       artifacts={artifacts}
       previews={previews}
       extras={extras}
+      world={world}
       shell={shell}
     />
   );

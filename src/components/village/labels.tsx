@@ -177,7 +177,7 @@ export function Labels({
       object={group}
       onClick={(e: ThreeEvent<MouseEvent>) => {
         const q = e.object.userData.quarterId as FachbereichId | undefined;
-        if (!q || e.delta > 5) return;
+        if (!q || e.delta > 5 || store.get().building) return;
         e.stopPropagation();
         actions.openQuarter(q);
       }}

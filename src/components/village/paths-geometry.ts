@@ -8,6 +8,8 @@ type Pt = { x: number; z: number };
 
 /** Farben der Dorfwege (Hauptwege zu den Quartieren). */
 const VILLAGE_PATH = { main: "#d3cbb5", edge: "#aaa188" };
+/** Fusspfad: erdiger, schmaler, ohne Quartierfarbe. */
+const TRAIL = { main: "#bfa67f", edge: "#94805e" };
 const GRASS = "#86bf6c";
 
 /** Punkte im festen Abstand `step` entlang des Linienzugs. */
@@ -52,12 +54,12 @@ export function widthAt(width: number, s: number, seed: number): number {
  * Weg als Band mit neun Stützpunkten quer: Gras → Kante → Belag → Kante → Gras. Der Grasübergang
  * blendet an Anfang und Ende aus. UV in Metern für die Kies-Textur, die Vertexfarbe bestimmt den Ton.
  */
-function ribbon(path: VillagePath, main: string, edge: string) {
+function ribbon(path: VillagePath, main: string, edge: string, grass: string) {
   const pts = resample(path.points, 0.3);
   const ns = normals(pts);
   const cMain = new THREE.Color(main);
   const cEdge = new THREE.Color(edge);
-  const cGrass = new THREE.Color(GRASS);
+  const cGrass = new THREE.Color(grass);
   const cEdgeSoft = cEdge.clone().lerp(cGrass, 0.25);
   const total = pts.reduce(
     (s, p, i) => (i ? s + Math.hypot(p.x - pts[i - 1].x, p.z - pts[i - 1].z) : 0),
@@ -124,7 +126,10 @@ function ribbon(path: VillagePath, main: string, edge: string) {
 }
 
 /** Alle Wege des Dorfs als eine Geometrie (ein Draw Call). */
-export function buildPathGeometry(paths: VillagePath[]): THREE.BufferGeometry | null {
+export function buildPathGeometry(
+  paths: VillagePath[],
+  grass = GRASS,
+): THREE.BufferGeometry | null {
   if (paths.length === 0) return null;
   const pos: number[] = [];
   const nor: number[] = [];
@@ -132,10 +137,12 @@ export function buildPathGeometry(paths: VillagePath[]): THREE.BufferGeometry | 
   const uv: number[] = [];
   for (const path of paths) {
     const colors =
-      path.kind === "haus" && path.quarterIndex !== null
-        ? QUARTER_COLORS[path.quarterIndex % QUARTER_COLORS.length]
-        : VILLAGE_PATH;
-    const r = ribbon(path, colors.main, colors.edge);
+      path.kind === "pfad"
+        ? TRAIL
+        : path.kind === "gasse" && path.quarterIndex !== null
+          ? QUARTER_COLORS[path.quarterIndex % QUARTER_COLORS.length]
+          : VILLAGE_PATH;
+    const r = ribbon(path, colors.main, colors.edge, grass);
     for (const k of r.pos) pos.push(k);
     for (const k of r.nor) nor.push(k);
     for (const k of r.col) col.push(k);

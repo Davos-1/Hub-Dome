@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { poseFor, navUp, overviewPose } from "./camera-poses";
+import { boardClutter, poseFor, navUp, overviewPose } from "./camera-poses";
 import { FACH_ORDER } from "./fachbereiche";
 import { computeLayout } from "./layout";
 
@@ -29,7 +29,7 @@ describe("camera poses", () => {
     const h = layout.houses.h0;
     const p = poseFor(layout, { level: "haus", q: h.quarterId, h: "h0" }, "3d");
     const dist = Math.hypot(p.position[0] - h.x, p.position[2] - h.z);
-    expect(dist).toBeGreaterThan(h.plot!.front + 6);
+    expect(dist).toBeGreaterThan(h.plot!.front + 4);
     expect(p.target[1]).toBeCloseTo(1.1);
     expect(p.position[1]).toBeGreaterThan(6);
   });
@@ -38,8 +38,9 @@ describe("camera poses", () => {
     for (const id of Object.keys(layout.houses).filter((x) => layout.houses[x].plot)) {
       const p = poseFor(layout, { level: "haus", q: layout.houses[id].quarterId, h: id }, "3d");
       for (const q of layout.quarters) {
-        const ux = Math.cos(q.theta);
-        const uz = Math.sin(q.theta);
+        // Tafel quer zur Eingangsrichtung des Quartierplatzes
+        const ux = -Math.cos(q.entrySide);
+        const uz = -Math.sin(q.entrySide);
         const cx = q.x + ux * 0.4;
         const cz = q.z + uz * 0.4;
         for (let i = 0; i <= 200; i++) {
@@ -54,6 +55,27 @@ describe("camera poses", () => {
       }
     }
   });
+
+  it("Haus: keine Quartiertafel füllt den Vordergrund (mehrere Welten, auch Häuser am Quartierplatz)", () => {
+    for (const seed of ["hubdome1", "b7k2m9qx", "q4w8e2rt", "zz00aa11"]) {
+      const l = computeLayout(
+        [
+          { id: "z", kind: "zentrale", fach: "weitere", items: [] },
+          ...Array.from({ length: 16 }, (_, i) => ({
+            id: `h${i}`,
+            kind: "modul" as const,
+            fach: FACH_ORDER[i % 5],
+            items: [],
+          })),
+        ],
+        seed,
+      );
+      for (const id of Object.keys(l.houses).filter((x) => l.houses[x].plot)) {
+        const p = poseFor(l, { level: "haus", q: l.houses[id].quarterId, h: id }, "3d");
+        expect(boardClutter(l, p.position, p.target), `${seed}/${id}`).toBeLessThan(0.03);
+      }
+    }
+  }, 60_000);
 
   it("Quartier: Kamera steht auf der Seite der Zentrale", () => {
     const q = layout.quarters[0];

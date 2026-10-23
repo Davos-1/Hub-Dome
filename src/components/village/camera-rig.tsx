@@ -14,6 +14,22 @@ const EXTRA_PER_HALF_TURN = 0.6;
 const TOP_DOWN_PHI = 0.2;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
+/**
+ * Hochformat (Handy): Kamera weiter weg und steiler von oben, damit das runde Dorf das hohe Bild füllt statt
+ * eines breiten Streifens unter viel Himmel. Ansichten auf Augenhöhe bleiben, wie sie sind (sonst stünde die
+ * Kamera in einem Haus).
+ */
+function fitPortrait(p: Pose, aspect: number, maxK: number): Pose {
+  if (aspect >= 1 || p.position[1] < 4) return p;
+  const t = new THREE.Vector3(...p.target);
+  const s = new THREE.Spherical().setFromVector3(new THREE.Vector3(...p.position).sub(t));
+  const narrow = 1 - aspect;
+  s.radius *= Math.min(maxK, 1 + narrow * 1.5);
+  s.phi = Math.max(0.12, s.phi * (1 - narrow * 0.5));
+  const v = new THREE.Vector3().setFromSpherical(s).add(t);
+  return { position: [v.x, v.y, v.z], target: p.target };
+}
+
 /** Kürzester Drehweg von a nach b (−π…π). */
 const angleDelta = (a: number, b: number) => {
   const d = (b - a) % (2 * Math.PI);
@@ -47,13 +63,17 @@ export function CameraRig({
   const nav = useScene(store, (s) => s.nav);
   const view = useScene(store, (s) => s.view);
   const intro = useScene(store, (s) => s.intro);
+  const devPose = useScene(store, (s) => s.devPose);
+  // Hochformat (Handy): weiter zurück und steiler, damit das Dorf das Bild füllt
+  const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const pose: Pose = useMemo(() => {
-    const p = poseFor(layout, nav, view);
+    if (devPose) return fitPortrait(devPose, aspect, 2);
+    const p = fitPortrait(poseFor(layout, nav, view), aspect, nav.level === "haus" ? 1.35 : 2);
     // Einstieg: weit draussen beginnen, nach dem Start-Dialog zur Übersicht einfliegen
     return intro
       ? { position: p.position.map((c) => c * 1.45) as [number, number, number], target: p.target }
       : p;
-  }, [layout, nav, view, intro]);
+  }, [layout, nav, view, intro, devPose, aspect]);
 
   const anim = useRef<{
     t: number;

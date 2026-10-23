@@ -6,8 +6,10 @@ import { requestAccountDeletion, updateDisplayName } from "@/app/einstellungen/a
 import { StyleSettings } from "@/components/settings/style-settings";
 import { ActionForm } from "@/components/ui/action-form";
 import type { ShellData } from "@/lib/shell-data";
+import type { VillageModel } from "@/lib/village-model";
 import { ClaudeTab } from "./claude-tab";
 import { DialogShell } from "./dialog-shell";
+import { WorldSettings } from "./world-settings";
 
 export const SETTINGS_TABS = [
   ["profil", "Profil"],
@@ -78,7 +80,7 @@ function ProfileTab({ shell }: { shell: ShellData }) {
   );
 }
 
-function VillageTab({ shell }: { shell: ShellData }) {
+function VillageTab({ shell, world }: { shell: ShellData; world: WorldProps }) {
   const own = shell.own;
   if (!own) return <p className="hd-note">Dein Dorf wurde noch nicht angelegt.</p>;
   return (
@@ -89,6 +91,7 @@ function VillageTab({ shell }: { shell: ShellData }) {
         desto grösser wird es; ein leeres Haus ist eine Baustelle. Hier wählst du den Stil deiner
         Zentrale.
       </p>
+      <WorldSettings model={world.model} isOwner={world.isOwner} onPreview={world.onPreview} />
       <StyleSettings zentraleStyle={own.zentraleStyle} />
       <section className="hd-card flex flex-col gap-2">
         <h3 className="text-[15px] font-bold">Topdorf</h3>
@@ -122,13 +125,18 @@ function VillageTab({ shell }: { shell: ShellData }) {
 }
 
 /** Einstellungen als Dialog mit den Tabs Profil, Dorf (Zentrale) und Claude (Connector). Anzeige-Optionen sind ein eigenes kleines Fenster. */
+type WorldProps = { model: VillageModel; isOwner: boolean; onPreview: (seed: string) => void };
+
 export function SettingsDialog({
   shell,
   tab,
   onTab,
   lowDetail,
   onClose,
+  world,
 }: {
+  /** Landschaft des angezeigten Dorfs («Welt neu würfeln» als Vorschau). */
+  world: WorldProps;
   shell: ShellData;
   tab: string | null;
   onTab: (t: SettingsTab) => void;
@@ -171,7 +179,7 @@ export function SettingsDialog({
         </div>
         <div role="tabpanel">
           {current === "profil" && <ProfileTab shell={shell} />}
-          {current === "dorf" && <VillageTab shell={shell} />}
+          {current === "dorf" && <VillageTab shell={shell} world={world} />}
           {current === "claude" && <ClaudeTab tokens={shell.tokens} />}
         </div>
       </div>

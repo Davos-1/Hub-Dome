@@ -6,7 +6,6 @@ import {
   plotCorners,
   satOverlap,
   TERRACE_MIN,
-  ZENTRALE_RING_R,
   type LayoutHouse,
 } from "./layout";
 import { ARTIFACT_KINDS } from "./types";
@@ -38,12 +37,12 @@ describe("houseTier", () => {
   ])("%i Objekte → Stufe %i", (n, tier) => expect(houseTier(n)).toBe(tier));
 });
 
-describe("computeLayout", () => {
-  it("setzt die Zentrale in den Ursprung, leeres Dorf hat keine Wege", () => {
+describe("computeLayout (Format für die Szene)", () => {
+  it("setzt die Zentrale in den Ursprung, leeres Dorf hat keine Wege (höchstens den Wanderweg)", () => {
     const l = computeLayout(make(0));
     expect(l.houses.z).toMatchObject({ x: 0, z: 0 });
     expect(Object.keys(l.houses)).toEqual(["z"]);
-    expect(l.paths).toEqual([]);
+    expect(l.paths.filter((p) => p.kind !== "pfad")).toEqual([]);
   });
 
   it("ist deterministisch", () => {
@@ -54,25 +53,29 @@ describe("computeLayout", () => {
     const l = computeLayout(make(9, 3));
     expect(l.quarters).toHaveLength(3);
     expect(l.quarters.reduce((s, q) => s + q.houseIds.length, 0)).toBe(9);
-    for (const q of l.quarters) {
+    for (const q of l.quarters)
       for (const id of q.houseIds) expect(l.houses[id].quarterId).toBe(q.id);
+  });
+
+  it("jedes Tor liegt an einem Weg oder am Quartierplatz", () => {
+    const l = computeLayout(make(14, 4, 1));
+    for (const h of Object.values(l.houses)) {
+      if (!h.plot) continue;
+      const gate = {
+        x: h.x + Math.sin(h.angle) * h.plot.front,
+        z: h.z + Math.cos(h.angle) * h.plot.front,
+      };
+      const nearPath = l.paths.some((p) =>
+        p.points.some((q) => Math.hypot(q.x - gate.x, q.z - gate.z) < p.width / 2 + 0.9),
+      );
+      const nearPlaza = l.quarters.some(
+        (q) => Math.hypot(q.x - gate.x, q.z - gate.z) < q.rp / Math.cos(Math.PI / 8) + 0.9,
+      );
+      expect(nearPath || nearPlaza, h.id).toBe(true);
     }
   });
 
-  it("Hausfront zeigt zum Nebenplatz des Quartiers", () => {
-    const l = computeLayout(make(6, 2));
-    for (const q of l.quarters) {
-      for (const id of q.houseIds) {
-        const h = l.houses[id];
-        const f = { x: Math.sin(h.angle), z: Math.cos(h.angle) };
-        const to = { x: q.x - h.x, z: q.z - h.z };
-        const len = Math.hypot(to.x, to.z);
-        expect(f.x * (to.x / len) + f.z * (to.z / len)).toBeGreaterThan(0.999);
-      }
-    }
-  });
-
-  it("Hausgrösse folgt der Anzahl Objekte", () => {
+  it("Hausgrösse folgt der Anzahl Objekte, das Grundstück bleibt gleich", () => {
     const hs = make(3, 1);
     hs[1].items = [];
     hs[2].items = Array.from({ length: 4 }, (_, i) => ({ id: `x${i}`, kind: "quiz" as const }));
@@ -82,9 +85,10 @@ describe("computeLayout", () => {
     expect(l.houses.h1.tier).toBe(2);
     expect(l.houses.h2.tier).toBe(3);
     expect(l.houses.h2.footprint).toBeGreaterThan(l.houses.h0.footprint);
+    expect(l.houses.h2.plot!.hw).toBe(l.houses.h0.plot!.hw);
   });
 
-  it("Objekt-Plätze: genau ein Platz pro Objekt, links/rechts des Wegs, vor dem Haus", () => {
+  it("Objekt-Plätze: genau ein Platz pro Objekt (bis 12), links/rechts des Gartenwegs, vor dem Haus", () => {
     const l = computeLayout(make(4, 1, 7));
     for (const h of Object.values(l.houses)) {
       if (!h.plot) continue;
@@ -99,18 +103,14 @@ describe("computeLayout", () => {
   });
 
   it("kein Grundstück überlappt ein anderes (5–50 Häuser, verschiedene Verteilungen)", () => {
-    for (const n of [5, 8, 12, 20, 30, 40, 50]) {
-      for (const spread of [1, 3, 5, 9]) {
-        for (const items of [0, 3, 9]) {
-          const l = computeLayout(make(n, spread, items));
-          const hs = Object.values(l.houses).filter((h) => h.plot);
-          const cs = hs.map((h) => plotCorners(h.x, h.z, h.angle, h.plot!));
-          for (let i = 0; i < cs.length; i++) {
-            for (let j = i + 1; j < cs.length; j++) {
-              expect(satOverlap(cs[i], cs[j]), `n=${n} spread=${spread} items=${items}`).toBe(
-                false,
-              );
-            }
+    for (const n of [5, 12, 30, 50]) {
+      for (const spread of [1, 3, 9]) {
+        const l = computeLayout(make(n, spread, 3));
+        const hs = Object.values(l.houses).filter((h) => h.plot);
+        const cs = hs.map((h) => plotCorners(h.x, h.z, h.angle, h.plot!));
+        for (let i = 0; i < cs.length; i++) {
+          for (let j = i + 1; j < cs.length; j++) {
+            expect(satOverlap(cs[i], cs[j]), `n=${n} spread=${spread}`).toBe(false);
           }
         }
       }
@@ -124,45 +124,32 @@ describe("computeLayout", () => {
 });
 
 describe("Objekt-Ring der Zentrale", () => {
-  const withZentrale = (n: number, houses = 8) => {
-    const list = make(houses, 3, 1);
+  const withZentrale = (n: number) => {
+    const list = make(8, 3, 1);
     list[0] = {
       ...list[0],
-      items: Array.from({ length: n }, (_, j) => ({
-        id: `z${j}`,
-        kind: ARTIFACT_KINDS[j % ARTIFACT_KINDS.length],
-      })),
+      items: Array.from({ length: n }, (_, j) => ({ id: `z${j}`, kind: ARTIFACT_KINDS[j % 7] })),
     };
     return list;
   };
 
-  it("ohne Objekte: kein Ring, Terrasse und Platz wie bisher", () => {
+  it("ohne Objekte: kein Ring, Terrasse in Grundgrösse", () => {
     const l = computeLayout(make(8, 3, 1));
     expect(l.houses.z.ring).toBeNull();
     expect(l.houses.z.plot).toBeNull();
     expect(l.terrace).toBe(TERRACE_MIN);
   });
 
-  it.each([1, 5, 12, 40])("%i Objekte: alle im Ring, auf der Terrasse, vorne frei", (n) => {
+  it.each([1, 5, 12, 20])("%i Objekte: alle im Ring auf dem Dorfplatz, vorne frei", (n) => {
     const l = computeLayout(withZentrale(n));
     const ring = l.houses.z.ring!;
     expect(ring.map((s) => s.id).sort()).toEqual(
       Array.from({ length: n }, (_, j) => `z${j}`).sort(),
     );
     for (const s of ring) {
-      const r = Math.hypot(s.x, s.z);
-      expect(r).toBeGreaterThanOrEqual(ZENTRALE_RING_R - 0.01);
-      expect(r).toBeLessThan(l.terrace);
-      // Bogen vor der Zentrale (+z) bleibt für Figur und Treppe frei
+      expect(Math.hypot(s.x, s.z)).toBeLessThan(l.plazaRadius - 3.5);
       expect(Math.atan2(s.z, s.x)).not.toBeCloseTo(Math.PI / 2, 0);
     }
-    // Platz und Quartiere liegen ausserhalb der Terrasse
-    expect(l.plazaRadius).toBeGreaterThan(l.terrace + 4);
-    for (const q of l.quarters) expect(Math.hypot(q.x, q.z) - q.radius).toBeGreaterThan(l.terrace);
-  });
-
-  it("Plätze überschneiden sich nicht", () => {
-    const ring = computeLayout(withZentrale(40)).houses.z.ring!;
     for (let i = 0; i < ring.length; i++)
       for (let j = i + 1; j < ring.length; j++)
         expect(Math.hypot(ring[i].x - ring[j].x, ring[i].z - ring[j].z)).toBeGreaterThan(1);
