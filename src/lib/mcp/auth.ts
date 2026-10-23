@@ -33,22 +33,34 @@ export async function authenticateToken(
   return { tokenId: data.id, userId: data.user_id };
 }
 
-/** Zählt einen Aufruf und sagt, ob das Limit überschritten ist. */
+/**
+ * Zählt `calls` Aufrufe und sagt, ob das Limit überschritten ist. Bricht ab, sobald es erreicht ist,
+ * damit ein grosser Stapel nicht beliebig viele Zählerschritte auslöst.
+ */
 export async function hitRateLimit(
   db: SupabaseClient,
   tokenId: string,
+  calls = 1,
 ): Promise<{ allowed: boolean; calls: number }> {
-  const { data, error } = await db.rpc("mcp_hit", { p_token: tokenId });
-  // Bei einem Fehler im Zähler lieber durchlassen als alle Aufrufe zu blockieren
-  if (error || typeof data !== "number") return { allowed: true, calls: 0 };
-  return { allowed: data <= RATE_LIMIT_PER_HOUR, calls: data };
+  let total = 0;
+  for (let i = 0; i < calls; i++) {
+    const { data, error } = await db.rpc("mcp_hit", { p_token: tokenId });
+    // Bei einem Fehler im Zähler lieber durchlassen als alle Aufrufe zu blockieren
+    if (error || typeof data !== "number") {
+      console.error("mcp_hit fehlgeschlagen", error?.code, error?.message);
+      return { allowed: true, calls: total };
+    }
+    total = data;
+    if (total > RATE_LIMIT_PER_HOUR) return { allowed: false, calls: total };
+  }
+  return { allowed: true, calls: total };
 }
 
-/** Enthält die JSON-RPC-Nachricht (oder der Stapel) einen Werkzeugaufruf? Nur diese zählen fürs Limit. */
-export function countsAsCall(body: unknown): boolean {
+/** Anzahl Werkzeugaufrufe (tools/call) in der JSON-RPC-Nachricht oder im Stapel. Nur diese zählen fürs Limit. */
+export function countCalls(body: unknown): number {
   const messages = Array.isArray(body) ? body : [body];
-  return messages.some(
+  return messages.filter(
     (m) =>
       typeof m === "object" && m !== null && (m as { method?: unknown }).method === "tools/call",
-  );
+  ).length;
 }

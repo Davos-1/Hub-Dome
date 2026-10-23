@@ -148,6 +148,12 @@ export function EditHouseDialog({
     if (!house) onClose();
   }, [house, onClose]);
   if (!house) return null;
+  const deleteNote =
+    objectCount === 0
+      ? "Das leere Haus wird entfernt."
+      : objectCount === 1
+        ? "Das Objekt darin wird ebenfalls gelöscht."
+        : `Alle ${objectCount} Objekte darin werden ebenfalls gelöscht.`;
   return (
     <DialogShell
       title="Haus bearbeiten"
@@ -202,15 +208,11 @@ export function EditHouseDialog({
             />
           </ActionForm>
           <div className="hd-card flex items-center justify-between gap-3">
-            <span className="hd-note">
-              {objectCount === 0
-                ? "Das leere Haus wird entfernt."
-                : `Alle ${objectCount} Objekte darin werden ebenfalls gelöscht.`}
-            </span>
+            <span className="hd-note">{deleteNote}</span>
             <ActionForm
               action={deleteHouse}
               submitLabel="Haus löschen"
-              confirm={`Haus «${house.title}» löschen? Alle ${objectCount} Objekte darin werden ebenfalls gelöscht.`}
+              confirm={`Haus «${house.title}» löschen? ${deleteNote}`}
               buttonClassName={dangerButton}
               className=""
               onSuccess={onClose}

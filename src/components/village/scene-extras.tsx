@@ -158,13 +158,9 @@ export function ChimneySmoke({ houses, model }: { houses: HouseInfo[]; model: Vi
     list.forEach((st) => g.add(st.group));
     return { stacks: list, group: g };
   }, [houses, model, texture]);
-  useEffect(
-    () => () => {
-      stacks.forEach((st) => st.dispose());
-      texture.dispose();
-    },
-    [stacks, texture],
-  );
+  // Stapel bei jeder Änderung freigeben, die gemeinsame Textur erst beim Abbau
+  useEffect(() => () => stacks.forEach((st) => st.dispose()), [stacks]);
+  useEffect(() => () => texture.dispose(), [texture]);
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime();

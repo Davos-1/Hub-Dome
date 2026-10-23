@@ -233,11 +233,9 @@ export function River({
 
   const reeds = Math.round(70 * density);
   const stones = Math.round(34 * density);
-  const rnd = useMemo(
-    () => seededRandom(`fluss${river.points.length}${Math.round(river.points[3].x)}`),
-    [river.points],
-  );
   const bankPts = useMemo(() => {
+    // Generator im selben Memo: jede Neuberechnung liefert dieselben Uferpunkte
+    const rnd = seededRandom(`fluss${river.points.length}${Math.round(river.points[3].x)}`);
     const out: { x: number; z: number; s: number; r: number; c: number }[] = [];
     for (let k = 0; k < 200; k++) {
       const i = 4 + Math.floor(rnd() * (curve.length - 8));
@@ -255,7 +253,7 @@ export function River({
       });
     }
     return out;
-  }, [curve, river.width, rnd]);
+  }, [curve, river.width, river.points]);
 
   const placeReed = useMemo(
     () => (i: number, o: THREE.Object3D, c: THREE.Color) => {

@@ -1,26 +1,33 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
+import { refreshAll } from "@/lib/action-utils";
 import { requireUser } from "@/lib/auth";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import type { ActionState } from "@/lib/types";
-import { artifactSchema, copySchema, houseSchema, houseUpdateSchema } from "@/lib/validation";
-
-const firstError = (e: { issues: { message: string }[] }) => e.issues[0].message;
-
-function refresh() {
-  revalidatePath("/", "layout");
-}
+import {
+  artifactSchema,
+  copySchema,
+  firstIssue,
+  houseSchema,
+  houseUpdateSchema,
+  uuidSchema,
+} from "@/lib/validation";
 
 const fields = (fd: FormData) => Object.fromEntries(fd.entries());
 
-/** Alle Mutationen laufen mit dem RLS-Client des Users; zusätzlich wird explizit nach Besitzer gefiltert. */
+const houseIdSchema = uuidSchema("Ungültiges Haus.");
+const artifactIdSchema = uuidSchema("Ungültiges Objekt.");
+
+/**
+ * Alle Mutationen laufen mit dem RLS-Client des Users. Objekte filtern zusätzlich explizit nach
+ * `owner_id`; Häuser haben keine eigene Besitzerspalte, dort schützt RLS (`is_village_owner`).
+ */
 
 export async function createHouse(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = houseSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
 
   const { data: village } = await supabase
@@ -59,44 +66,46 @@ export async function createHouse(_: ActionState, formData: FormData): Promise<A
     position_index: count ?? 0,
   });
   if (error) return { error: "Das Haus konnte nicht angelegt werden." };
-  refresh();
+  refreshAll();
   return { ok: true };
 }
 
 export async function updateHouse(_: ActionState, formData: FormData): Promise<ActionState> {
-  const id = String(formData.get("id"));
+  const id = houseIdSchema.safeParse(formData.get("id"));
+  if (!id.success) return { error: firstIssue(id.error) };
   const parsed = houseUpdateSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase } = await requireUser();
 
   const { data, error } = await supabase
     .from("houses")
     .update(parsed.data)
-    .eq("id", id)
+    .eq("id", id.data)
     .neq("kind", "zentrale")
     .select("id");
   if (error || !data?.length) return { error: "Das Haus konnte nicht geändert werden." };
-  refresh();
+  refreshAll();
   return { ok: true };
 }
 
 export async function deleteHouse(_: ActionState, formData: FormData): Promise<ActionState> {
-  const id = String(formData.get("id"));
+  const id = houseIdSchema.safeParse(formData.get("id"));
+  if (!id.success) return { error: firstIssue(id.error) };
   const { supabase } = await requireUser();
   const { data, error } = await supabase
     .from("houses")
     .delete()
-    .eq("id", id)
+    .eq("id", id.data)
     .neq("kind", "zentrale")
     .select("id");
   if (error || !data?.length) return { error: "Das Haus konnte nicht gelöscht werden." };
-  refresh();
+  refreshAll();
   return { ok: true };
 }
 
 export async function createArtifact(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = artifactSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
 
   const { houseId, itemType, allowCopy, topdorfOk, ...rest } = parsed.data;
@@ -121,14 +130,16 @@ export async function createArtifact(_: ActionState, formData: FormData): Promis
     };
   }
   after(() => refreshArtifactMeta(created.id, user.id));
-  refresh();
+  refreshAll();
   return { ok: true };
 }
 
 export async function updateArtifact(_: ActionState, formData: FormData): Promise<ActionState> {
-  const id = String(formData.get("id"));
+  const parsedId = artifactIdSchema.safeParse(formData.get("id"));
+  if (!parsedId.success) return { error: firstIssue(parsedId.error) };
+  const id = parsedId.data;
   const parsed = artifactSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
 
   const { houseId, itemType, allowCopy, topdorfOk, ...rest } = parsed.data;
@@ -160,21 +171,22 @@ export async function updateArtifact(_: ActionState, formData: FormData): Promis
     };
   }
   after(() => refreshArtifactMeta(id, user.id));
-  refresh();
+  refreshAll();
   return { ok: true };
 }
 
 export async function deleteArtifact(_: ActionState, formData: FormData): Promise<ActionState> {
-  const id = String(formData.get("id"));
+  const id = artifactIdSchema.safeParse(formData.get("id"));
+  if (!id.success) return { error: firstIssue(id.error) };
   const { supabase, user } = await requireUser();
   const { data, error } = await supabase
     .from("artifacts")
     .delete()
-    .eq("id", id)
+    .eq("id", id.data)
     .eq("owner_id", user.id)
     .select("id");
   if (error || !data?.length) return { error: "Das Objekt konnte nicht gelöscht werden." };
-  refresh();
+  refreshAll();
   return { ok: true };
 }
 
@@ -194,7 +206,7 @@ export type CopyState = ActionState & { houseTitle?: string };
  */
 export async function copyArtifact(_: CopyState, formData: FormData): Promise<CopyState> {
   const parsed = copySchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
   const { source, house } = parsed.data;
 
@@ -254,7 +266,7 @@ export async function copyArtifact(_: CopyState, formData: FormData): Promise<Co
     const code = Object.keys(COPY_ERRORS).find((k) => error.message.includes(k));
     return { error: code ? COPY_ERRORS[code] : "Das Objekt konnte nicht übernommen werden." };
   }
-  refresh();
+  refreshAll();
   return { ok: true, houseTitle };
 }
 
@@ -265,6 +277,6 @@ export async function setTopdorfAll(_: ActionState, formData: FormData): Promise
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("set_topdorf_all", { p_on: on.data === "an" });
   if (error) return { error: "Die Freigabe konnte nicht geändert werden." };
-  refresh();
+  refreshAll();
   return { ok: true };
 }

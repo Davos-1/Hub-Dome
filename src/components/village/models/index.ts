@@ -26,6 +26,18 @@ export { type Model } from "./common";
 
 const HOUSE_CACHE = new Map<string, Model>();
 
+type FachModel = (fp: number, tier: Tier, wall: string, roof: string, accent: string) => Model;
+
+const FACH_MODELS: Record<Exclude<FachType, "haus">, FachModel> = {
+  werkstatt: werkstattModel,
+  block: blockModel,
+  solar: solarModel,
+  atelier: atelierModel,
+  stadt: stadtModel,
+  turm: turmModel,
+  digital: digitalModel,
+};
+
 /**
  * Modell eines Hauses: Typ (aus dem Fachbereich), Grundmass, Stufe und Farben.
  * Modelle werden pro Schlüssel zwischengespeichert und von allen gleichartigen Häusern geteilt
@@ -44,31 +56,10 @@ export function houseModel(
   const key = [type, fp, tier, wall, roof, accent, active].join("|");
   let model = HOUSE_CACHE.get(key);
   if (!model) {
-    switch (type) {
-      case "werkstatt":
-        model = werkstattModel(fp, tier, wall, roof, accent);
-        break;
-      case "block":
-        model = blockModel(fp, tier, wall, roof, accent);
-        break;
-      case "solar":
-        model = solarModel(fp, tier, wall, roof, accent);
-        break;
-      case "atelier":
-        model = atelierModel(fp, tier, wall, roof, accent);
-        break;
-      case "stadt":
-        model = stadtModel(fp, tier, wall, roof, accent);
-        break;
-      case "turm":
-        model = turmModel(fp, tier, wall, roof, accent);
-        break;
-      case "digital":
-        model = digitalModel(fp, tier, wall, roof, accent);
-        break;
-      default:
-        model = hausModel(fp, tier, wall, roof, accent, tier >= 2 || active);
-    }
+    model =
+      type === "haus"
+        ? hausModel(fp, tier, wall, roof, accent, tier >= 2 || active)
+        : FACH_MODELS[type](fp, tier, wall, roof, accent);
     HOUSE_CACHE.set(key, model);
   }
   return model;
@@ -92,22 +83,28 @@ export function chimneyTop(type: FachType, fp: number): [number, number, number]
   return null;
 }
 
-/** Modell der Zentrale im gewählten Stil (unbekannte Werte aus älteren Daten zeigen das Rathaus). */
+const ZENTRALE_MODELS: Record<ZentraleStyle, (fp: number) => Model> = {
+  rathaus: rathausModel,
+  schule: schuleModel,
+  hochhaus: hochhausModel,
+  villa: villaModel,
+  marskuppel: zentraleMarskuppelModel,
+  leuchtturm: leuchtturmModel,
+};
+
+/**
+ * Modell der Zentrale im gewählten Stil (unbekannte Werte aus älteren Daten zeigen das Rathaus).
+ * Wie die Häuser zwischengespeichert, damit ein Stilwechsel keine Geometrie liegen lässt.
+ */
 export function zentraleModel(style: ZentraleStyle, fp: number): Model {
-  switch (style) {
-    case "schule":
-      return schuleModel(fp);
-    case "hochhaus":
-      return hochhausModel(fp);
-    case "villa":
-      return villaModel(fp);
-    case "marskuppel":
-      return zentraleMarskuppelModel(fp);
-    case "leuchtturm":
-      return leuchtturmModel(fp);
-    default:
-      return rathausModel(fp);
+  const build = ZENTRALE_MODELS[style] ?? rathausModel;
+  const key = `zentrale|${build === rathausModel ? "rathaus" : style}|${fp}`;
+  let model = HOUSE_CACHE.get(key);
+  if (!model) {
+    model = build(fp);
+    HOUSE_CACHE.set(key, model);
   }
+  return model;
 }
 
 /** Höhe der Zentrale (in Vielfachen von `fp`), für Beschriftung und Trefferfläche. */

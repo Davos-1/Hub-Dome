@@ -1,31 +1,32 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { raisedMessage, refreshAll } from "@/lib/action-utils";
 import { requireUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/site-url";
 import { FRIEND_LINK_DAYS, friendLinkSchema, friendTokenFrom } from "@/lib/friend-links";
 import { generateToken, hashToken } from "@/lib/tokens";
 import type { ActionState } from "@/lib/types";
+import { firstIssue, USERNAME_RE, uuidSchema } from "@/lib/validation";
 
 const usernameSchema = z
   .string()
   .trim()
   .toLowerCase()
   .transform((s) => s.replace(/^@/, ""))
-  .pipe(z.string().regex(/^[a-z0-9_-]{3,24}$/, "Bitte einen gültigen Benutzernamen eingeben."));
+  .pipe(z.string().regex(USERNAME_RE, "Bitte einen gültigen Benutzernamen eingeben."));
 
-const idSchema = z.uuid({ message: "Ungültige Anfrage." });
+const idSchema = uuidSchema();
 
 /** Freundschaftsanfrage an einen Benutzernamen senden. */
 export async function sendFriendRequest(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = usernameSchema.safeParse(formData.get("username"));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("send_friend_request", { p_username: parsed.data });
-  if (error) return { error: error.message };
-  revalidatePath("/", "layout");
+  if (error) return { error: raisedMessage(error, "Die Anfrage konnte nicht gesendet werden.") };
+  refreshAll();
   return { ok: true };
 }
 
@@ -35,15 +36,15 @@ export async function respondFriendRequest(
   formData: FormData,
 ): Promise<ActionState> {
   const id = idSchema.safeParse(formData.get("id"));
-  if (!id.success) return { error: id.error.issues[0].message };
+  if (!id.success) return { error: firstIssue(id.error) };
   const accept = formData.get("accept") === "1";
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("respond_friend_request", {
     p_id: id.data,
     p_accept: accept,
   });
-  if (error) return { error: error.message };
-  revalidatePath("/", "layout");
+  if (error) return { error: raisedMessage(error, "Die Anfrage konnte nicht beantwortet werden.") };
+  refreshAll();
   return { ok: true };
 }
 
@@ -53,29 +54,29 @@ export async function cancelFriendRequest(
   formData: FormData,
 ): Promise<ActionState> {
   const id = idSchema.safeParse(formData.get("id"));
-  if (!id.success) return { error: id.error.issues[0].message };
+  if (!id.success) return { error: firstIssue(id.error) };
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("cancel_friend_request", { p_id: id.data });
-  if (error) return { error: error.message };
-  revalidatePath("/", "layout");
+  if (error) return { error: raisedMessage(error, "Die Anfrage konnte nicht zurückgezogen werden.") };
+  refreshAll();
   return { ok: true };
 }
 
 /** Freundschaft beenden: beide verlieren den Zugriff auf das Dorf der anderen Person. */
 export async function removeFriend(_: ActionState, formData: FormData): Promise<ActionState> {
   const other = idSchema.safeParse(formData.get("otherId"));
-  if (!other.success) return { error: other.error.issues[0].message };
+  if (!other.success) return { error: firstIssue(other.error) };
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("remove_friend", { p_other: other.data });
   if (error) return { error: "Die Freundschaft konnte nicht beendet werden." };
-  revalidatePath("/", "layout");
+  refreshAll();
   return { ok: true };
 }
 
 /** Freundschaftslink erzeugen (7 Tage, 1–100 Personen). Der Klartext steht nur in dieser Antwort. */
 export async function createFriendLink(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = friendLinkSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
   const token = generateToken();
   const { error } = await supabase.from("friend_links").insert({
@@ -86,18 +87,24 @@ export async function createFriendLink(_: ActionState, formData: FormData): Prom
   });
   if (error) return { error: "Der Freundschaftslink konnte nicht erstellt werden." };
   const base = await siteUrl();
-  revalidatePath("/", "layout");
+  refreshAll();
   return { ok: true, inviteUrl: `${base}/freund/${token}` };
 }
 
 /** Freundschaftslink widerrufen. */
 export async function deleteFriendLink(_: ActionState, formData: FormData): Promise<ActionState> {
   const id = idSchema.safeParse(formData.get("id"));
-  if (!id.success) return { error: id.error.issues[0].message };
-  const { supabase } = await requireUser();
-  const { error } = await supabase.from("friend_links").delete().eq("id", id.data);
-  if (error) return { error: "Der Freundschaftslink konnte nicht widerrufen werden." };
-  revalidatePath("/", "layout");
+  if (!id.success) return { error: firstIssue(id.error) };
+  const { supabase, user } = await requireUser();
+  const { data, error } = await supabase
+    .from("friend_links")
+    .delete()
+    .eq("id", id.data)
+    .eq("owner_id", user.id)
+    .select("id");
+  if (error || !data?.length)
+    return { error: "Der Freundschaftslink konnte nicht widerrufen werden." };
+  refreshAll();
   return { ok: true };
 }
 
@@ -107,7 +114,7 @@ export async function acceptFriendLink(_: ActionState, formData: FormData): Prom
   if (!token) return { error: "Dieser Freundschaftslink ist ungültig." };
   const { supabase } = await requireUser();
   const { data: username, error } = await supabase.rpc("accept_friend_link", { p_token: token });
-  if (error) return { error: error.message };
-  revalidatePath("/", "layout");
+  if (error) return { error: raisedMessage(error, "Der Freundschaftslink konnte nicht angenommen werden.") };
+  refreshAll();
   redirect(typeof username === "string" ? `/dorf/${username}` : "/start");
 }

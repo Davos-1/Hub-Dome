@@ -26,9 +26,14 @@ const fail = (text: string): ToolResult => ({ ok: false, text });
 export const placeInputShape = {
   url: z
     .string()
+    .max(2048, "Der Link ist zu lang.")
     .describe("Link des Objekts, z.B. https://claude.ai/artifact/… oder eine GitHub-URL."),
-  titel: z.string().describe("Kurzer Titel (max. 120 Zeichen)."),
-  beschreibung: z.string().optional().describe("Beschreibung in einem Satz (max. 500 Zeichen)."),
+  titel: z.string().max(120, "Maximal 120 Zeichen.").describe("Kurzer Titel (max. 120 Zeichen)."),
+  beschreibung: z
+    .string()
+    .max(500, "Maximal 500 Zeichen.")
+    .optional()
+    .describe("Beschreibung in einem Satz (max. 500 Zeichen)."),
   typ: z
     .enum(ARTIFACT_KINDS)
     .optional()
@@ -41,10 +46,14 @@ export const placeInputShape = {
     .describe(
       "Objekttyp: claude_artifact, github_repo, gist, cloud_ordner, link oder auto (Standard: wird aus der URL erkannt).",
     ),
-  tags: z.array(z.string()).max(5).optional().describe("1–3 kurze Tags, höchstens 5."),
-  haus_id: z.string().optional().describe("ID eines Hauses aus dorf_haeuser_auflisten."),
+  tags: z
+    .array(z.string().max(30, "Ein Tag darf höchstens 30 Zeichen haben."))
+    .max(5, "Höchstens 5 Tags.")
+    .optional().describe("1–3 kurze Tags, höchstens 5."),
+  haus_id: z.string().max(64).optional().describe("ID eines Hauses aus dorf_haeuser_auflisten."),
   haus_titel: z
     .string()
+    .max(80, "Maximal 80 Zeichen.")
     .optional()
     .describe("Titel des Hauses (genau wie in dorf_haeuser_auflisten), alternativ zu haus_id."),
   sichtbarkeit: z
@@ -62,9 +71,10 @@ export const placeInput = z.object(placeInputShape);
 export type PlaceInput = z.infer<typeof placeInput>;
 
 export const createHouseInputShape = {
-  titel: z.string().describe("Titel des Hauses (max. 80 Zeichen)."),
+  titel: z.string().max(80, "Maximal 80 Zeichen.").describe("Titel des Hauses (max. 80 Zeichen)."),
   modul_code: z
     .string()
+    .max(40, "Ungültiger Modulcode.")
     .optional()
     .describe(
       "Optionaler Modulcode aus dem Katalog (z.B. TA.BA_BAUSTATIK1). Ohne Code entsteht ein Themenhaus.",
@@ -142,7 +152,11 @@ export async function listHouses(ctx: McpContext): Promise<ToolResult> {
 }
 
 /** `artifact_platzieren` und `objekt_platzieren`: legt ein Objekt an oder aktualisiert es (gleiche URL). */
-export async function placeArtifact(ctx: McpContext, rawInput: unknown): Promise<ToolResult> {
+export async function placeArtifact(
+  ctx: McpContext,
+  rawInput: unknown,
+  retried = false,
+): Promise<ToolResult> {
   const input = placeInput.safeParse(rawInput);
   if (!input.success) return fail(`Ungültige Eingabe: ${input.error.issues[0].message}`);
   const i = input.data;
@@ -228,6 +242,8 @@ export async function placeArtifact(ctx: McpContext, rawInput: unknown): Promise
       .insert({ ...values, url: a.url, owner_id: ctx.userId })
       .select("id")
       .single();
+    // Gleichzeitig dieselbe URL platziert: der andere Aufruf war schneller, also aktualisieren
+    if (error?.code === "23505" && !retried) return placeArtifact(ctx, rawInput, true);
     if (error || !data) return fail("Das Objekt konnte nicht gespeichert werden.");
     id = data.id;
     created = true;

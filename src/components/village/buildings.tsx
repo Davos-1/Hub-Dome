@@ -42,23 +42,13 @@ function ModelMesh({
   glow,
   emphasis = 0,
   tint = "#ffffff",
-  owned = false,
 }: {
   model: Model;
   glow: number;
   emphasis?: number;
   tint?: string;
-  /** Geometrie gehört dieser Komponente (nicht dem gemeinsamen Zwischenspeicher): beim Entfernen freigeben. */
-  owned?: boolean;
 }) {
-  useEffect(
-    () => () => {
-      if (!owned) return;
-      model.body.dispose();
-      model.glow.dispose();
-    },
-    [model, owned],
-  );
+  // Modelle gehören dem gemeinsamen Zwischenspeicher (models/index.ts) und werden nicht freigegeben.
   return (
     <group>
       <mesh geometry={model.body} castShadow receiveShadow>
@@ -235,7 +225,7 @@ export function Zentrale3D({
           actions.openHouse(info.id);
         }}
       >
-        <ModelMesh model={model} glow={glow} emphasis={hovered ? 0.14 : 0} owned />
+        <ModelMesh model={model} glow={glow} emphasis={hovered ? 0.14 : 0} />
         <mesh position={[0, top / 2, 0]} visible={false}>
           <boxGeometry args={[fp * 2.8, top, fp * 2.8]} />
         </mesh>

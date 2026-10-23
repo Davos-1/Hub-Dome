@@ -233,3 +233,23 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - Entscheidung: /auth/callback löst den token_hash nicht mehr per GET ein, sondern leitet auf /bestaetigen; dort löst ein Knopf (POST, Server Action) ihn ein. Fehler werden geloggt.
 - Grund: Mail-Scanner/Link-Vorschauen rufen Links vorab auf und verbrauchen den Einmal-Token; ein POST wird von ihnen nicht ausgelöst.
 
+
+## 2026-10-23 – Code-Review und Vereinfachung, Teil 1: Fehler und Sicherheit
+- **Kontext:** Gian wollte den ganzen Code mit Code-Review und Code-Simplifier optimieren, ohne Funktionen oder Leistung zu verlieren. Vorgehen in Etappen (Fehler, lib, Server Actions/MCP, UI, 3D), je ein Commit, nach `npm run check`, RLS und E2E.
+- **Behoben:**
+  - **Open Redirect:** `safeNextPath` liess `"/\t/evil.com"` durch. Browser entfernen Tab und Zeilenumbruch, daraus wurde `//evil.com`. Steuerzeichen und `\` sind jetzt überall verboten (Tests ergänzt).
+  - **MCP-Rate-Limit:** Ein JSON-RPC-Stapel mit vielen `tools/call` zählte nur einmal. `countCalls` zählt jetzt jeden Aufruf, `hitRateLimit` bricht beim Limit ab. Die Grössengrenze prüft zuerst `Content-Length` und danach Bytes statt Zeichen.
+  - **Token-Widerruf endgültig:** Über die Policy `mcp_tokens_all` liess sich `revoked_at` wieder auf null setzen, damit war der Widerruf bei «Konto löschen» und das 5-Token-Limit umgehbar. Migration `20261023000100_mcp_token_revoke_final.sql` (Trigger, **von Gian einzuspielen**). Sie sperrt auch Änderungen an Besitzer und Hash. RLS-Test ergänzt.
+  - **Server Actions:**
+    - IDs werden mit Zod geprüft (`uuidSchema`).
+    - `deleteFriendLink` filtert nach `owner_id` und meldet einen Fehler, wenn nichts gelöscht wurde. `revokeMcpToken` meldet einen Fehler, wenn nichts geändert wurde.
+    - Der Anzeigename läuft über `displayNameSchema`.
+  - **Fehlermeldungen:** Rohe Postgres-Meldungen gehen nicht mehr an die Oberfläche. `raisedMessage` (`src/lib/action-utils.ts`) reicht nur Meldungen aus `raise exception` (SQLSTATE P0001) durch, alles andere ergibt einen deutschen Ersatztext und wird geloggt.
+  - **MCP-Tools:** Die Eingaben haben Längengrenzen (Claude sieht sie im Schema). Wird dieselbe URL gleichzeitig zweimal platziert, wird beim zweiten Aufruf aktualisiert statt ein Fehler gemeldet (`23505`).
+  - **3D:**
+    - Die Rauch-Textur wurde bei jeder Änderung der Kamine freigegeben.
+    - Zentrale-Modelle werden jetzt wie Häuser zwischengespeichert; die Stilvorschau verlor vorher bei jedem Wechsel Geometrie.
+    - Die Uferpunkte am Fluss sind bei jeder Neuberechnung gleich (Zufallsgenerator im selben `useMemo`).
+  - **Kleinigkeiten:** Löschbestätigung «Alle 0 Objekte» korrigiert. Der Cron loggt fehlgeschlagene Löschungen und arbeitet die ältesten Anträge zuerst ab.
+- **Gewollte Ausnahmen von «Service Role filtert nach owner_id»:** (1) Cron `/api/cron/konto-loeschen` liest `account_deletions` aller Konten (Systemaufgabe). (2) `authenticateToken` sucht das Token über den HMAC-Hash; erst daraus ergibt sich der Besitzer. Ein zeitkonstanter Vergleich ist dort nicht nötig, weil nur nach dem Hash gesucht wird.
+- **Lehre:** `npm run typecheck` braucht die von Next erzeugten Routentypen (`PageProps`, `RouteContext`). In einer frischen Umgebung zuerst `npx next typegen` (oder `next build`/`next dev`) ausführen.

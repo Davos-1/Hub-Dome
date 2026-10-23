@@ -20,19 +20,22 @@ export async function GET(request: Request) {
   if (!authorized(request.headers.get("authorization"))) {
     return new Response("Nicht erlaubt.", { status: 401 });
   }
+  // Systemaufgabe über alle Konten: bewusst ohne owner_id-Filter (siehe docs/ENTSCHEIDUNGEN.md)
   const db = createAdminClient();
   const cutoff = new Date(Date.now() - GRACE_MS).toISOString();
   const { data, error } = await db
     .from("account_deletions")
     .select("user_id")
     .lte("requested_at", cutoff)
+    .order("requested_at")
     .limit(100);
   if (error) return Response.json({ error: "Abfrage fehlgeschlagen." }, { status: 500 });
 
   let deleted = 0;
   for (const row of data ?? []) {
-    const res = await db.auth.admin.deleteUser(row.user_id);
-    if (!res.error) deleted++;
+    const { error: deleteError } = await db.auth.admin.deleteUser(row.user_id);
+    if (deleteError) console.error("Konto löschen fehlgeschlagen", row.user_id, deleteError.message);
+    else deleted++;
   }
   return Response.json({ deleted, pending: (data?.length ?? 0) - deleted });
 }

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { authenticateToken, countsAsCall, hitRateLimit, RATE_LIMIT_PER_HOUR } from "@/lib/mcp/auth";
+import { authenticateToken, countCalls, hitRateLimit, RATE_LIMIT_PER_HOUR } from "@/lib/mcp/auth";
 import { handleMcpRequest } from "@/lib/mcp/server";
 import {
   createHouse,
@@ -124,6 +124,23 @@ describe("Token-Prüfung", () => {
     await makeToken(a);
     expect((await b.client.from("mcp_tokens").select("id")).data).toEqual([]);
   });
+  it("ein widerrufenes Token lässt sich nicht wieder aktivieren, Hash und Besitzer bleiben fest", async () => {
+    const { token, id } = await makeToken(a, true);
+    const undo = await a.client.from("mcp_tokens").update({ revoked_at: null }).eq("id", id);
+    expect(undo.error?.message).toContain("widerrufenes Token");
+    expect(await authenticateToken(admin, token)).toBeNull();
+
+    const active = await makeToken(a);
+    const rehash = await a.client
+      .from("mcp_tokens")
+      .update({ token_hash: hashMcpToken(generateMcpToken()) })
+      .eq("id", active.id);
+    expect(rehash.error).not.toBeNull();
+    // Umbenennen bleibt erlaubt
+    const rename = await a.client.from("mcp_tokens").update({ label: "Neu" }).eq("id", active.id);
+    expect(rename.error).toBeNull();
+  });
+
   it("Nutzer können Tokens nicht für andere anlegen", async () => {
     const { error } = await b.client
       .from("mcp_tokens")
@@ -427,11 +444,13 @@ describe("MCP-Protokoll (Streamable HTTP)", () => {
   });
 
   it("nur tools/call zählt fürs Limit", () => {
-    expect(countsAsCall({ method: "tools/call" })).toBe(true);
-    expect(countsAsCall([{ method: "tools/list" }, { method: "tools/call" }])).toBe(true);
-    expect(countsAsCall({ method: "initialize" })).toBe(false);
-    expect(countsAsCall("x")).toBe(false);
-    expect(countsAsCall(null)).toBe(false);
+    expect(countCalls({ method: "tools/call" })).toBe(1);
+    expect(countCalls([{ method: "tools/list" }, { method: "tools/call" }])).toBe(1);
+    // Ein Stapel zählt jeden Werkzeugaufruf einzeln
+    expect(countCalls([{ method: "tools/call" }, { method: "tools/call" }])).toBe(2);
+    expect(countCalls({ method: "initialize" })).toBe(0);
+    expect(countCalls("x")).toBe(0);
+    expect(countCalls(null)).toBe(0);
   });
 });
 
@@ -444,6 +463,16 @@ describe("Rate-Limit und Token-Grenze", () => {
     // Zähler direkt auf das Limit setzen (schneller als 60 Aufrufe)
     await admin.from("mcp_rate").update({ calls: RATE_LIMIT_PER_HOUR }).eq("token_id", id);
     expect((await hitRateLimit(admin, id)).allowed).toBe(false);
+  });
+
+  it("ein Stapel zählt mehrfach und stoppt beim Limit", async () => {
+    const { id } = await makeToken(b);
+    expect(await hitRateLimit(admin, id, 4)).toEqual({ allowed: true, calls: 4 });
+    await admin.from("mcp_rate").update({ calls: RATE_LIMIT_PER_HOUR - 1 }).eq("token_id", id);
+    expect(await hitRateLimit(admin, id, 50)).toEqual({
+      allowed: false,
+      calls: RATE_LIMIT_PER_HOUR + 1,
+    });
   });
 
   it("Clients können den Zähler weder lesen noch ändern", async () => {

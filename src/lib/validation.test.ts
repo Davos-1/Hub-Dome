@@ -38,7 +38,18 @@ describe("onboardingSchema", () => {
 
 describe("safeNextPath", () => {
   it("lässt interne Pfade zu", () => expect(safeNextPath("/einladung/abc")).toBe("/einladung/abc"));
-  it.each(["https://evil.com", "//evil.com", "/\\evil.com", "evil", null])("blockt %j", (n) =>
+  it("lässt Query und Fragment zu", () => expect(safeNextPath("/freund/x?a=1#b")).toBe("/freund/x?a=1#b"));
+  it.each([
+    "https://evil.com",
+    "//evil.com",
+    "/\\evil.com",
+    "/\t/evil.com",
+    "/\n/evil.com",
+    "/\r/evil.com",
+    "/x\\y",
+    "evil",
+    null,
+  ])("blockt %j", (n) =>
     expect(safeNextPath(n)).toBe("/start"),
   );
 });

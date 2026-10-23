@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { authenticateToken, countsAsCall, hitRateLimit, RATE_LIMIT_PER_HOUR } from "@/lib/mcp/auth";
+import { authenticateToken, countCalls, hitRateLimit, RATE_LIMIT_PER_HOUR } from "@/lib/mcp/auth";
 import { handleMcpRequest } from "@/lib/mcp/server";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -21,8 +21,11 @@ export async function POST(request: Request, { params }: RouteContext<"/api/mcp/
   const identity = await authenticateToken(db, token);
   if (!identity) return rpcError(401, -32001, "Ungültiges oder widerrufenes Token.");
 
+  // Zuerst die angegebene Länge prüfen (liest nichts), danach die tatsächlichen Bytes
+  const tooLarge = () => rpcError(413, -32600, "Anfrage zu gross.");
+  if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) return tooLarge();
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return rpcError(413, -32600, "Anfrage zu gross.");
+  if (Buffer.byteLength(text, "utf8") > MAX_BODY_BYTES) return tooLarge();
   let body: unknown;
   try {
     body = JSON.parse(text);
@@ -30,8 +33,9 @@ export async function POST(request: Request, { params }: RouteContext<"/api/mcp/
     return rpcError(400, -32700, "Ungültiges JSON.");
   }
 
-  if (countsAsCall(body)) {
-    const { allowed } = await hitRateLimit(db, identity.tokenId);
+  const calls = countCalls(body);
+  if (calls > 0) {
+    const { allowed } = await hitRateLimit(db, identity.tokenId, calls);
     if (!allowed) {
       return rpcError(
         429,
@@ -55,10 +59,6 @@ export async function POST(request: Request, { params }: RouteContext<"/api/mcp/
 }
 
 // Zustandsloser Server: kein Server-Stream und keine Sitzungen
-const notAllowed = () =>
-  Response.json(
-    { jsonrpc: "2.0", error: { code: -32000, message: "Nur POST wird unterstützt." }, id: null },
-    { status: 405, headers: { Allow: "POST" } },
-  );
+const notAllowed = () => rpcError(405, -32000, "Nur POST wird unterstützt.", { Allow: "POST" });
 export const GET = notAllowed;
 export const DELETE = notAllowed;

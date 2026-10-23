@@ -13,22 +13,38 @@ export const artifactUrlSchema = z.url().refine(
 
 export const emailSchema = z.email({ message: "Bitte eine gültige E-Mail-Adresse eingeben." });
 
+/** Erste Zod-Fehlermeldung für die Anzeige im Formular. */
+export const firstIssue = (e: { issues: { message: string }[] }) =>
+  e.issues[0]?.message ?? "Ungültige Eingabe.";
+
+/** UUID aus einem Formularfeld (z.B. versteckte `id`). */
+export const uuidSchema = (message = "Ungültige Anfrage.") => z.uuid({ message });
+
+/** Benutzername wie in der Datenbank (Check `profiles.username`). */
+export const USERNAME_RE = /^[a-z0-9_-]{3,24}$/;
+
+export const displayNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Bitte einen Namen angeben.")
+  .max(60, "Maximal 60 Zeichen.");
+
 export const onboardingSchema = z.object({
   username: z
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9_-]{3,24}$/, "3–24 Zeichen: Kleinbuchstaben, Zahlen, _ und -."),
-  displayName: z
-    .string()
-    .trim()
-    .min(1, "Bitte einen Namen angeben.")
-    .max(60, "Maximal 60 Zeichen."),
+    .regex(USERNAME_RE, "3–24 Zeichen: Kleinbuchstaben, Zahlen, _ und -."),
+  displayName: displayNameSchema,
 });
 
-/** Erlaubt nur interne Pfade als Weiterleitungsziel (kein Open Redirect). */
+/**
+ * Erlaubt nur interne Pfade als Weiterleitungsziel (kein Open Redirect).
+ * Steuerzeichen und `\` sind überall verboten: Browser entfernen Tab und Zeilenumbruch,
+ * aus «/\t/evil.com» würde sonst «//evil.com».
+ */
 export function safeNextPath(next: string | null | undefined, fallback = "/start") {
-  return next && /^\/(?![/\\])/.test(next) ? next : fallback;
+  return next && /^\/(?!\/)/.test(next) && !/[\x00-\x1f\x7f\\]/.test(next) ? next : fallback;
 }
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Ungültige Farbe.");
