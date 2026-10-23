@@ -1,19 +1,16 @@
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { ZENTRALE_FOOTPRINT } from "@/lib/layout";
 import type { VillageModel } from "@/lib/village-model";
 import { KIND_COLORS } from "./colors";
 import { placed } from "./garden-geometry";
-import { box, mergeParts, type Part } from "./geo";
+import { box, mergeAll, mergeParts, type Part } from "./geo";
 import { darken } from "./models/common";
 
 /** Kartenansicht: Grundrisse, Objekt-Quadrate und Grundstückskanten als eine Geometrie (Weltkoordinaten). */
 export function buildMapGeometry(model: VillageModel): THREE.BufferGeometry | null {
   const geos: THREE.BufferGeometry[] = [];
   const push = (parts: Part[], l: { x: number; z: number; angle: number }) => {
-    const g = mergeParts(parts);
-    parts.forEach((p) => p.geo.dispose());
-    geos.push(placed(g, l));
+    geos.push(placed(mergeParts(parts), l));
   };
 
   for (const h of model.houses) {
@@ -27,13 +24,11 @@ export function buildMapGeometry(model: VillageModel): THREE.BufferGeometry | nu
             color: "#efe6d4",
             pos: [0, 0.05, 0],
           },
-          ...(l.ring ?? []).map(
-            (s): Part => ({
-              geo: box(0.6, 0.05, 0.6),
-              color: KIND_COLORS[s.kind],
-              pos: [s.x, 0.06, s.z],
-            }),
-          ),
+          ...(l.ring ?? []).map((s): Part => ({
+            geo: box(0.6, 0.05, 0.6),
+            color: KIND_COLORS[s.kind],
+            pos: [s.x, 0.06, s.z],
+          })),
         ],
         l,
       );
@@ -62,9 +57,5 @@ export function buildMapGeometry(model: VillageModel): THREE.BufferGeometry | nu
     }
     push(parts, l);
   }
-  if (geos.length === 0) return null;
-  const merged = mergeGeometries(geos, false);
-  geos.forEach((g) => g.dispose());
-  merged.computeBoundingSphere();
-  return merged;
+  return mergeAll(geos);
 }

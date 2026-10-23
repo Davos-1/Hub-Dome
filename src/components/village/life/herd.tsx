@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { mergeParts, type Part } from "../geo";
+import { useDisposable } from "../use-disposable";
 
 const dummy = new THREE.Object3D();
 /** Startzeit, damit eingefrorene Szenen (reduzierte Bewegung) eine verteilte Anordnung zeigen. */
@@ -13,10 +14,8 @@ export type Step = (i: number, t: number, out: THREE.Object3D) => void;
 
 /** Geometrie aus Bauteilen; wird beim Entfernen der Komponente freigegeben. */
 export function useMerged(build: () => Part[]) {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const geometry = useMemo(() => mergeParts(build()), []);
-  useEffect(() => () => geometry.dispose(), [geometry]);
-  return geometry;
+  // Einmal beim Einbinden gebaut (die Bauteile hängen nur von den Anfangswerten ab).
+  return useDisposable(() => mergeParts(build()), []);
 }
 
 /**

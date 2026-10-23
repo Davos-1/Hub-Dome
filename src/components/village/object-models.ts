@@ -77,10 +77,17 @@ export function objectParts(
       add(cyl(0.26, 0.3, 0.32, 10), STONE, 0, 0.2, 0);
       add(box(0.44, 0.54, 0.08), k, 0, 0.66, 0, [-0.22, 0, 0]);
   }
-  if (isCopy) add(cyl(0.42, 0.42, 0.03, 16), "#0ea5e9", 0, 0.015, 0);
+  out.push(...markerParts(x, z, isNew, isCopy));
+  return out;
+}
+
+/** Fähnchen für neue Objekte und flacher Ring für Übernahmen, am Platz (x, z). */
+export function markerParts(x: number, z: number, isNew: boolean, isCopy: boolean): Part[] {
+  const out: Part[] = [];
+  if (isCopy) out.push({ geo: cyl(0.42, 0.42, 0.03, 16), color: "#0ea5e9", pos: [x, 0.015, z] });
   if (isNew) {
-    add(cyl(0.015, 0.015, 0.8, 5), "#3f3f46", 0.36, 0.9, -0.14);
-    add(box(0.3, 0.18, 0.012), "#facc15", 0.51, 1.2, -0.14);
+    out.push({ geo: cyl(0.015, 0.015, 0.8, 5), color: "#3f3f46", pos: [x + 0.36, 0.9, z - 0.14] });
+    out.push({ geo: box(0.3, 0.18, 0.012), color: "#facc15", pos: [x + 0.51, 1.2, z - 0.14] });
   }
   return out;
 }

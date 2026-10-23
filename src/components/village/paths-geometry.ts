@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { QUARTER_COLORS } from "@/lib/layout";
 import type { VillagePath } from "@/lib/paths";
 import { smooth } from "@/lib/terrain";
-import { seededRandom } from "./colors";
+import { seededRandom } from "@/lib/random";
 
 type Pt = { x: number; z: number };
 
@@ -44,7 +44,7 @@ function normals(pts: Pt[]): Pt[] {
 }
 
 /** Breite des Wegs nach Bogenlänge `s`: am Platz aufgeweitet (Einmündung), leicht schwankend. */
-export function widthAt(width: number, s: number, seed: number): number {
+function widthAt(width: number, s: number, seed: number): number {
   return width * (1 + 0.7 * Math.max(0, 1 - s / 1.6) ** 2 + 0.025 * Math.sin(s * 0.6 + seed));
 }
 

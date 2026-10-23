@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { FachbereichId } from "@/lib/fachbereiche";
 import type { VillageModel } from "@/lib/village-model";
 import { LabelSprite } from "./label-sprite";
+import { isClick } from "./pointer";
 import type { SceneActions } from "./scene-actions";
 import type { SceneStore } from "./scene-store";
 import type { VillageAtlas } from "./village-atlas";
@@ -177,7 +178,7 @@ export function Labels({
       object={group}
       onClick={(e: ThreeEvent<MouseEvent>) => {
         const q = e.object.userData.quarterId as FachbereichId | undefined;
-        if (!q || e.delta > 5) return;
+        if (!q || !isClick(e)) return;
         e.stopPropagation();
         actions.openQuarter(q);
       }}

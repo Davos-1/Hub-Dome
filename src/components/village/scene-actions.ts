@@ -2,7 +2,7 @@ import { navUp } from "@/lib/camera-poses";
 import type { FachbereichId } from "@/lib/fachbereiche";
 import type { ViewMode } from "@/lib/camera-poses";
 import type { VillageModel } from "@/lib/village-model";
-import type { SceneStore } from "./scene-store";
+import type { SceneState, SceneStore } from "./scene-store";
 
 /** Navigation durch das Dorf wie durch eine Ordnerstruktur: Dorf › Quartier › Haus. */
 export function makeActions(store: SceneStore, model: VillageModel) {
@@ -23,14 +23,17 @@ export function makeActions(store: SceneStore, model: VillageModel) {
     });
   };
 
+  /** Zustand beim Öffnen eines Hauses; wird auch von `goToObject` ergänzt. */
+  const houseOpened = (id: string): Partial<SceneState> => ({
+    nav: { level: "haus", q: quarterOf(id), h: id },
+    pinnedObjId: null,
+    highlight: null,
+    hoverObjId: null,
+    kbdHouse: id,
+  });
+
   const openHouse = (id: string) => {
-    store.set({
-      nav: { level: "haus", q: quarterOf(id), h: id },
-      pinnedObjId: null,
-      highlight: null,
-      hoverObjId: null,
-      kbdHouse: id,
-    });
+    store.set(houseOpened(id));
   };
 
   const goHome = () => {
@@ -39,15 +42,11 @@ export function makeActions(store: SceneStore, model: VillageModel) {
 
   /** Haus öffnen und ein Objekt hervorheben (Suche, Anschlagbrett, Klick auf ein Objekt). */
   const goToObject = (houseId: string, objId: string | null) => {
-    openHouse(houseId);
-    if (objId) {
-      store.set({
-        pinnedObjId: objId,
-        highlight: { kind: "obj", id: objId, t0: performance.now() },
-      });
-    } else {
-      store.set({ highlight: { kind: "house", id: houseId, t0: performance.now() } });
-    }
+    const t0 = performance.now();
+    const emphasis: Partial<SceneState> = objId
+      ? { pinnedObjId: objId, highlight: { kind: "obj", id: objId, t0 } }
+      : { highlight: { kind: "house", id: houseId, t0 } };
+    store.set({ ...houseOpened(houseId), ...emphasis });
   };
 
   const up = () => {

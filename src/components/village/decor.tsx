@@ -7,10 +7,11 @@ import { isInPlot, QUARTER_COLORS, type VillageLayout } from "@/lib/layout";
 import { isReserved, type Environment } from "@/lib/environment";
 import { distanceToPolyline } from "@/lib/paths";
 import { smooth, terrainHeight } from "@/lib/terrain";
-import { seededRandom } from "./colors";
+import { seededRandom } from "@/lib/random";
 import { mainPlazaDeco, plazaSurface } from "./plaza-geometry";
 import { mergeParts } from "./geo";
 import { buildPathGeometry, gravelTexture } from "./paths-geometry";
+import { useDisposable } from "./use-disposable";
 
 const dummy = new THREE.Object3D();
 const color = new THREE.Color();
@@ -37,7 +38,7 @@ export function Ground({
   extent: number;
   height: (x: number, z: number) => number;
 }) {
-  const geometry = useMemo(() => {
+  const geometry = useDisposable(() => {
     const size = 2 * (extent + 140);
     const g = new THREE.PlaneGeometry(size, size, 180, 180);
     g.rotateX(-Math.PI / 2);
@@ -62,7 +63,6 @@ export function Ground({
     g.computeVertexNormals();
     return g;
   }, [extent, height]);
-  useEffect(() => () => geometry.dispose(), [geometry]);
   return (
     <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial vertexColors roughness={1} />
@@ -101,8 +101,7 @@ export function Plazas({ layout }: { layout: VillageLayout }) {
 /** Terrasse, Bänke, Pflanzkübel und Brunnen am Hauptplatz; Laubbäume im Ring darum. */
 export function PlazaDeco({ layout }: { layout: VillageLayout }) {
   const deco = useMemo(() => mainPlazaDeco(layout), [layout]);
-  const geometry = useMemo(() => (deco.parts.length ? mergeParts(deco.parts) : null), [deco]);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
+  const geometry = useDisposable(() => (deco.parts.length ? mergeParts(deco.parts) : null), [deco]);
   return (
     <group>
       {geometry && (
@@ -170,10 +169,8 @@ function RoundTrees({ spots }: { spots: { x: number; z: number; s: number }[] })
 
 /** Wege als ein Mesh: Kies-Textur, Quartierfarben, weicher Übergang ins Gras. */
 export function Paths({ layout }: { layout: VillageLayout }) {
-  const geometry = useMemo(() => buildPathGeometry(layout.paths), [layout.paths]);
-  const texture = useMemo(() => gravelTexture(), []);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
-  useEffect(() => () => texture.dispose(), [texture]);
+  const geometry = useDisposable(() => buildPathGeometry(layout.paths), [layout.paths]);
+  const texture = useDisposable(gravelTexture, []);
   if (!geometry) return null;
   return (
     <mesh geometry={geometry} receiveShadow>

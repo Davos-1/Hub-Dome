@@ -17,5 +17,3 @@ export function avatarColor(seed: string): string {
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return `hsl(${h % 360}, 65%, 55%)`;
 }
-
-export { seededRandom } from "@/lib/random";

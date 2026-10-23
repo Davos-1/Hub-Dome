@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { ThreeEvent } from "@react-three/fiber";
+import { useEffect, useMemo, useState } from "react";
 import type { HouseLayout, PlotSlot } from "@/lib/layout";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { HouseInfo } from "@/lib/village-model";
@@ -14,8 +13,10 @@ import {
   zentraleTopFactor,
   type Model,
 } from "./models";
+import { isClick } from "./pointer";
 import type { SceneActions } from "./scene-actions";
 import { useScene, type SceneStore } from "./scene-store";
+import { useDisposable } from "./use-disposable";
 import { zentraleRingGeometry } from "./zentrale-objects";
 
 /** Höhe der Zentrale auf ihrer Terrasse. */
@@ -37,7 +38,7 @@ export function modelOfHouse(info: HouseInfo, l: HouseLayout): Model {
 }
 
 /** Zeichnet ein Modell: farbige Karosserie plus leuchtende Teile (Fenster, Laternen). */
-function ModelMesh({
+export function ModelMesh({
   model,
   glow,
   emphasis = 0,
@@ -76,8 +77,6 @@ function ModelMesh({
     </group>
   );
 }
-
-const isClick = (e: ThreeEvent<MouseEvent>) => e.delta <= 5;
 
 /** Ein Modulhaus: Modell, Trefferflächen für Haus und Objekte. */
 export function House3D({
@@ -182,7 +181,6 @@ export function Zentrale3D({
   glow,
   store,
   actions,
-  children,
 }: {
   info: HouseInfo;
   layout: HouseLayout;
@@ -191,15 +189,13 @@ export function Zentrale3D({
   glow: number;
   store: SceneStore;
   actions: SceneActions;
-  children?: ReactNode;
 }) {
   const [hovered, setHovered] = useState(false);
   const fp = l.footprint;
   const model = useMemo(() => zentraleModel(style, fp), [style, fp]);
   const top = zentraleTopFactor(style) * fp;
-  const figure = useMemo(() => figureModel(avatarColor(avatarSeed)), [avatarSeed]);
-  useEffect(() => () => figure.dispose(), [figure]);
-  const ring = useMemo(
+  const figure = useDisposable(() => figureModel(avatarColor(avatarSeed)), [avatarSeed]);
+  const ring = useDisposable(
     () =>
       zentraleRingGeometry(
         style,
@@ -208,7 +204,6 @@ export function Zentrale3D({
       ),
     [style, l.ring, info.items],
   );
-  useEffect(() => () => ring?.dispose(), [ring]);
 
   return (
     <group position={[l.x, ZENTRALE_LIFT, l.z]}>
@@ -250,7 +245,6 @@ export function Zentrale3D({
       >
         <meshStandardMaterial vertexColors roughness={0.8} />
       </mesh>
-      {children}
     </group>
   );
 }

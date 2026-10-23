@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Environment } from "@/lib/environment";
 import { box, cyl, mergeParts, rbox, sphere, type Part } from "../geo";
+import { useDisposable } from "../use-disposable";
 import { T0 } from "./herd";
 
 const WOOD = "#8a5a2b";
@@ -73,8 +74,7 @@ function pastureParts(w: number, d: number): Part[] {
 /** Weide mit Zaun, Heu und Trog; die Schafe laufen innerhalb. */
 export function Pasture({ env }: { env: Environment }) {
   const { x, z, w, d, angle } = env.pasture;
-  const geometry = useMemo(() => mergeParts(pastureParts(w, d)), [w, d]);
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  const geometry = useDisposable(() => mergeParts(pastureParts(w, d)), [w, d]);
   return (
     <group position={[x, 0, z]} rotation={[0, angle, 0]}>
       <mesh geometry={geometry} castShadow receiveShadow>
@@ -107,36 +107,37 @@ function windmillBody(): Part[] {
   return parts;
 }
 
+/** Vier Flügel mit Arm und Segeltuch (lokal zur Nabe). */
+function windmillBladeParts(): Part[] {
+  const parts: Part[] = [];
+  for (let k = 0; k < 4; k++) {
+    const a = (k * Math.PI) / 2;
+    // Arm
+    parts.push({
+      geo: box(0.14, 3.8, 0.1),
+      color: "#6b4a2e",
+      pos: [-Math.sin(a) * 1.9, Math.cos(a) * 1.9, 0],
+      rot: [0, 0, a],
+    });
+    // Segeltuch (seitlich versetzt)
+    for (let j = 0; j < 3; j++) {
+      const r = 1.0 + j * 0.85;
+      parts.push({
+        geo: box(0.55, 0.7, 0.04),
+        color: "#f5efe0",
+        pos: [-Math.sin(a) * r + Math.cos(a) * 0.38, Math.cos(a) * r + Math.sin(a) * 0.38, 0.02],
+        rot: [0, 0, a],
+      });
+    }
+  }
+  return parts;
+}
+
 /** Windmühle am Dorfrand; die Flügel drehen sich langsam. */
 export function Windmill({ env, frozen }: { env: Environment; frozen: boolean }) {
   const { x, z, angle } = env.windmill;
-  const body = useMemo(() => mergeParts(windmillBody()), []);
-  const blades = useMemo(() => {
-    const parts: Part[] = [];
-    for (let k = 0; k < 4; k++) {
-      const a = (k * Math.PI) / 2;
-      // Arm
-      parts.push({
-        geo: box(0.14, 3.8, 0.1),
-        color: "#6b4a2e",
-        pos: [-Math.sin(a) * 1.9, Math.cos(a) * 1.9, 0],
-        rot: [0, 0, a],
-      });
-      // Segeltuch (seitlich versetzt)
-      for (let j = 0; j < 3; j++) {
-        const r = 1.0 + j * 0.85;
-        parts.push({
-          geo: box(0.55, 0.7, 0.04),
-          color: "#f5efe0",
-          pos: [-Math.sin(a) * r + Math.cos(a) * 0.38, Math.cos(a) * r + Math.sin(a) * 0.38, 0.02],
-          rot: [0, 0, a],
-        });
-      }
-    }
-    return mergeParts(parts);
-  }, []);
-  useEffect(() => () => body.dispose(), [body]);
-  useEffect(() => () => blades.dispose(), [blades]);
+  const body = useDisposable(() => mergeParts(windmillBody()), []);
+  const blades = useDisposable(() => mergeParts(windmillBladeParts()), []);
   const hub = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     if (hub.current && !frozen) hub.current.rotation.z = -(T0 + clock.elapsedTime) * 0.5;

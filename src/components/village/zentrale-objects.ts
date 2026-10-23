@@ -1,12 +1,11 @@
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { PlotSlot } from "@/lib/layout";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { ArtifactKind } from "@/lib/types";
 import { KIND_COLORS } from "./colors";
-import { box, cyl, mergeParts, sphere, type Part } from "./geo";
+import { box, cyl, mergeAll, mergeParts, sphere, type Part } from "./geo";
 import { darken, STONE, WHITE, WOOD } from "./models/common";
-import { objectParts } from "./object-models";
+import { markerParts, objectParts } from "./object-models";
 
 const WATER = "#5ea8d6";
 const MARBLE = "#ece7dc";
@@ -29,14 +28,22 @@ function styledParts(style: ZentraleStyle, kind: ArtifactKind, index: number): P
   switch (style) {
     case "leuchtturm": {
       // Bötli mit Segel in der Kategoriefarbe
-      add(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), "#f8f5ef", [0, 0.1, 0], [Math.PI / 2, 0, 0], [
-        1.2, 1, 0.75,
-      ]);
+      add(
+        new THREE.CapsuleGeometry(0.13, 0.5, 4, 8),
+        "#f8f5ef",
+        [0, 0.1, 0],
+        [Math.PI / 2, 0, 0],
+        [1.2, 1, 0.75],
+      );
       add(box(0.2, 0.03, 0.5), WOOD, [0, 0.19, 0]);
       add(cyl(0.018, 0.018, 0.8, 5), WOOD, [0, 0.58, -0.05]);
-      add(new THREE.ConeGeometry(0.26, 0.6, 3), k, [0, 0.62, 0.08], [0, Math.PI / 2, 0], [
-        0.12, 1, 1,
-      ]);
+      add(
+        new THREE.ConeGeometry(0.26, 0.6, 3),
+        k,
+        [0, 0.62, 0.08],
+        [0, Math.PI / 2, 0],
+        [0.12, 1, 1],
+      );
       break;
     }
     case "villa":
@@ -85,17 +92,6 @@ function styledParts(style: ZentraleStyle, kind: ArtifactKind, index: number): P
   return out;
 }
 
-/** Fähnchen für neue Objekte und Ring für Übernahmen, wie bei den Häusern. */
-function markerParts(isNew: boolean, isCopy: boolean): Part[] {
-  const out: Part[] = [];
-  if (isCopy) out.push({ geo: cyl(0.42, 0.42, 0.03, 16), color: "#0ea5e9", pos: [0, 0.015, 0] });
-  if (isNew) {
-    out.push({ geo: cyl(0.015, 0.015, 0.8, 5), color: "#3f3f46", pos: [0.36, 0.9, -0.14] });
-    out.push({ geo: box(0.3, 0.18, 0.012), color: "#facc15", pos: [0.51, 1.2, -0.14] });
-  }
-  return out;
-}
-
 /**
  * Alle Objekte der Zentrale als eine Geometrie (lokal zur Zentrale, Boden = Terrasse).
  * Beim Leuchtturm liegt unter den Booten ein Wasserring.
@@ -114,31 +110,41 @@ export function zentraleRingGeometry(
     const water: Part[] = [];
     for (const r of rows.values()) {
       water.push(
-        { geo: new THREE.RingGeometry(r - 0.55, r + 0.55, 64), color: WATER, pos: [0, 0.012, 0], rot: [-Math.PI / 2, 0, 0] },
-        { geo: new THREE.TorusGeometry(r - 0.58, 0.05, 4, 64), color: STONE, pos: [0, 0.02, 0], rot: [-Math.PI / 2, 0, 0] },
-        { geo: new THREE.TorusGeometry(r + 0.58, 0.05, 4, 64), color: STONE, pos: [0, 0.02, 0], rot: [-Math.PI / 2, 0, 0] },
+        {
+          geo: new THREE.RingGeometry(r - 0.55, r + 0.55, 64),
+          color: WATER,
+          pos: [0, 0.012, 0],
+          rot: [-Math.PI / 2, 0, 0],
+        },
+        {
+          geo: new THREE.TorusGeometry(r - 0.58, 0.05, 4, 64),
+          color: STONE,
+          pos: [0, 0.02, 0],
+          rot: [-Math.PI / 2, 0, 0],
+        },
+        {
+          geo: new THREE.TorusGeometry(r + 0.58, 0.05, 4, 64),
+          color: STONE,
+          pos: [0, 0.02, 0],
+          rot: [-Math.PI / 2, 0, 0],
+        },
       );
     }
     geos.push(mergeParts(water));
-    water.forEach((p) => p.geo.dispose());
   }
 
   ring.forEach((s, i) => {
     const o = info.get(s.id);
     const parts = [
       ...styledParts(style, s.kind, i),
-      ...markerParts(o?.isNew ?? false, o?.isCopy ?? false),
+      ...markerParts(0, 0, o?.isNew ?? false, o?.isCopy ?? false),
     ];
     const g = mergeParts(parts);
-    parts.forEach((p) => p.geo.dispose());
     // Front (+z) zeigt von der Zentrale weg
     g.rotateY(Math.atan2(s.x, s.z));
     g.translate(s.x, 0, s.z);
     geos.push(g);
   });
 
-  const merged = mergeGeometries(geos, false);
-  geos.forEach((g) => g.dispose());
-  merged.computeBoundingSphere();
-  return merged;
+  return mergeAll(geos);
 }
