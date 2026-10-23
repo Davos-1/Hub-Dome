@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { createHouse } from "@/app/dorf/actions";
 import { ActionForm, inputClass } from "@/components/ui/action-form";
 import type { ModuleOption } from "@/lib/types";
+import { HouseFields } from "./house-fields";
 
 export function HouseCreateForm({
   modules,
@@ -13,6 +14,7 @@ export function HouseCreateForm({
   onSuccess?: () => void;
 }) {
   const [kind, setKind] = useState<"modul" | "thema">("modul");
+  const id = useId();
 
   return (
     <ActionForm
@@ -46,10 +48,16 @@ export function HouseCreateForm({
       </fieldset>
       {kind === "modul" ? (
         <>
-          <label htmlFor="moduleCode" className="hd-label">
+          <label htmlFor={`${id}-module`} className="hd-label">
             Modul
           </label>
-          <select id="moduleCode" name="moduleCode" required className={inputClass} defaultValue="">
+          <select
+            id={`${id}-module`}
+            name="moduleCode"
+            required
+            className={inputClass}
+            defaultValue=""
+          >
             <option value="" disabled>
               Modul wählen…
             </option>
@@ -62,28 +70,13 @@ export function HouseCreateForm({
         </>
       ) : (
         <>
-          <label htmlFor="title" className="hd-label">
+          <label htmlFor={`${id}-title`} className="hd-label">
             Titel
           </label>
-          <input id="title" name="title" required maxLength={80} className={inputClass} />
+          <input id={`${id}-title`} name="title" required maxLength={80} className={inputClass} />
         </>
       )}
-      <label htmlFor="semester" className="hd-label">
-        Semester (optional)
-      </label>
-      <input
-        id="semester"
-        name="semester"
-        type="number"
-        min={1}
-        max={12}
-        inputMode="numeric"
-        className={inputClass}
-      />
-      <label htmlFor="color" className="hd-label">
-        Farbe
-      </label>
-      <input id="color" name="color" type="color" defaultValue="#8fb3ff" className="h-10 w-20" />
+      <HouseFields color="#8fb3ff" />
     </ActionForm>
   );
 }

@@ -7,9 +7,9 @@ import { StyleSettings } from "@/components/settings/style-settings";
 import { ActionForm } from "@/components/ui/action-form";
 import type { ShellData } from "@/lib/shell-data";
 import { ClaudeTab } from "./claude-tab";
-import { DialogShell } from "./dialog-shell";
+import { DialogShell, DialogTabs, resolveTab } from "./dialog-shell";
 
-export const SETTINGS_TABS = [
+const SETTINGS_TABS = [
   ["profil", "Profil"],
   ["dorf", "Dorf"],
   ["claude", "Claude"],
@@ -135,9 +135,7 @@ export function SettingsDialog({
   lowDetail: boolean;
   onClose: () => void;
 }) {
-  const current: SettingsTab = SETTINGS_TABS.some(([id]) => id === tab)
-    ? (tab as SettingsTab)
-    : "profil";
+  const current = resolveTab(SETTINGS_TABS, tab);
   return (
     <DialogShell
       title="Einstellungen"
@@ -148,33 +146,11 @@ export function SettingsDialog({
       size="lg"
       lowDetail={lowDetail}
     >
-      <div className="flex flex-col gap-5">
-        <div
-          role="tablist"
-          aria-label="Einstellungen"
-          className="flex gap-0.5 rounded-xl bg-[#efe6d0] p-[3px]"
-        >
-          {SETTINGS_TABS.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={current === id}
-              onClick={() => onTab(id)}
-              className={`flex-1 cursor-pointer rounded-[9px] px-2 py-2 text-[13px] font-bold ${
-                current === id ? "bg-[#5e3c22] text-[#fbf3e4]" : "text-[#4a3a26] hover:bg-[#e6dbc0]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div role="tabpanel">
-          {current === "profil" && <ProfileTab shell={shell} />}
-          {current === "dorf" && <VillageTab shell={shell} />}
-          {current === "claude" && <ClaudeTab tokens={shell.tokens} />}
-        </div>
-      </div>
+      <DialogTabs label="Einstellungen" tabs={SETTINGS_TABS} current={current} onTab={onTab}>
+        {current === "profil" && <ProfileTab shell={shell} />}
+        {current === "dorf" && <VillageTab shell={shell} />}
+        {current === "claude" && <ClaudeTab tokens={shell.tokens} />}
+      </DialogTabs>
     </DialogShell>
   );
 }

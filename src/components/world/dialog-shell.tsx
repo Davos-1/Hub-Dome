@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export type DialogIcon = "start" | "reise" | "einstellungen" | "haus" | "objekt" | "bearbeiten";
+type DialogIcon = "start" | "reise" | "einstellungen" | "haus" | "objekt" | "bearbeiten";
 
 /** Kleine Symbole für den Schildkopf (cremefarbene Linien, passend zum Holzschild). */
 function Icon({ name }: { name: DialogIcon }) {
@@ -172,7 +172,78 @@ export function DialogShell({
   );
 }
 
-/** Knöpfe und Links der Dialoge (Klassen aus globals.css). */
-export const dlgPrimary = "hd-btn hd-btn-primary";
-export const dlgSecondary = "hd-btn hd-btn-ghost";
+/** Link-Stil in Dialogen. */
 export const dlgLink = "text-[13px] font-medium text-[#2f5d4a] underline underline-offset-2";
+
+type TabList<T extends string> = readonly (readonly [id: T, label: string])[];
+
+/** Der Tab aus der URL, sonst der erste. */
+export function resolveTab<T extends string>(tabs: TabList<T>, value: string | null): T {
+  return tabs.find(([id]) => id === value)?.[0] ?? tabs[0][0];
+}
+
+/** Tab-Leiste mit Fenster darunter (WAI-ARIA Tabs); `badges` zeigt eine Zahl neben dem Tab-Namen. */
+export function DialogTabs<T extends string>({
+  label,
+  tabs,
+  current,
+  onTab,
+  badges = {},
+  busy,
+  children,
+}: {
+  label: string;
+  tabs: TabList<T>;
+  current: T;
+  onTab: (id: T) => void;
+  badges?: Partial<Record<T, number>>;
+  busy?: boolean;
+  children: ReactNode;
+}) {
+  const baseId = useId();
+  const panelId = `${baseId}-panel`;
+  const tabId = (id: T) => `${baseId}-tab-${id}`;
+
+  return (
+    <div className="flex flex-col gap-5" aria-busy={busy}>
+      <div
+        role="tablist"
+        aria-label={label}
+        className="flex gap-0.5 rounded-xl bg-[#efe6d0] p-[3px]"
+      >
+        {tabs.map(([id, tabLabel]) => {
+          const badge = badges[id] ?? 0;
+          return (
+            <button
+              key={id}
+              id={tabId(id)}
+              type="button"
+              role="tab"
+              aria-selected={current === id}
+              aria-controls={panelId}
+              onClick={() => onTab(id)}
+              className={`flex-1 cursor-pointer rounded-[9px] px-2 py-2 text-[13px] font-bold ${
+                current === id ? "bg-[#5e3c22] text-[#fbf3e4]" : "text-[#4a3a26] hover:bg-[#e6dbc0]"
+              }`}
+            >
+              {tabLabel}
+              {badge > 0 && (
+                <span className="ml-1.5 rounded-full bg-[#facc15] px-1.5 py-0.5 text-[11px] text-[#1c1b19]">
+                  {badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={tabId(current)}
+        className="flex flex-col gap-5"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}

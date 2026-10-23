@@ -1,9 +1,8 @@
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { formatDate } from "@/components/ui/date-format";
 import { highlightCode } from "@/lib/highlight";
 import type { Artifact } from "@/lib/types";
-
-const nf = new Intl.DateTimeFormat("de-CH", { dateStyle: "medium", timeZone: "Europe/Zurich" });
 
 /**
  * README als Markdown. Rohes HTML wird nicht gerendert (react-markdown maskiert es),
@@ -46,7 +45,7 @@ export function ObjectPreview({ artifact }: { artifact: Artifact }) {
         <p className="text-xs text-zinc-500">
           {meta.full_name}
           {meta.language && ` · ${meta.language}`} · ★ {meta.stars}
-          {meta.pushed_at && ` · letzter Push ${nf.format(new Date(meta.pushed_at))}`}
+          {meta.pushed_at && ` · letzter Push ${formatDate(meta.pushed_at)}`}
         </p>
         {meta.description && <p className="mt-1">{meta.description}</p>}
         {meta.readme && (

@@ -6,7 +6,7 @@ import { DIALOG_IDS, type DialogId } from "./dialog-ids";
 
 export type { DialogId };
 
-export type DialogState = {
+type DialogState = {
   id: DialogId | null;
   /** Unterseite (Tab) des Dialogs, z.B. `dorf` bei den Einstellungen. */
   tab: string | null;
