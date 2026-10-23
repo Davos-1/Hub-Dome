@@ -205,8 +205,20 @@ export function VillageView(props: Props) {
   const [store] = useState(() => createSceneStore({ intro: dialog.id === "start" }));
   const actions = useMemo(() => makeActions(store, model), [store, model]);
   // Die Live-Prüfung rechnet gegen die aktuelle (Entwurfs-)Welt
-  useEffect(() => build.setWorld(model.world), [build, model]);
-  useEffect(() => store.set({ building }), [store, building]);
+  useEffect(() => build.setWorld(model.world, model.input, model.byId), [build, model]);
+  useEffect(() => store.set({ building, buildFocus: null }), [store, building]);
+  // Bau-Modus: Haus oder Quartier gewählt → Kamera zum Quartier (beim Abwählen bleibt sie dort)
+  useEffect(() => {
+    const off = build.subscribe(() => {
+      const s = build.get();
+      const q =
+        s.quarter ?? (s.house ? (model.world.settlement.houses[s.house]?.quarterId ?? null) : null);
+      if (q && q !== store.get().buildFocus) store.set({ buildFocus: q });
+    });
+    return () => {
+      off();
+    };
+  }, [build, store, model]);
 
   const startBuild = () => {
     store.set({ panel: null, nav: { level: "dorf" } });

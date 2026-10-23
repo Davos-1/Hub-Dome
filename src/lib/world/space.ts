@@ -189,6 +189,8 @@ export class Space {
     skipEnd = 1.0,
     /** Gassen dürfen den Fluss auf einer Brücke queren (fast rechtwinklig, kurz). */
     bridges = false,
+    /** Abstand zu Grundflächen (v2: 0.3 wie Grundstück zu Weg, damit die Prüfung in beide Richtungen gleich ist). */
+    claimClearance = 0.35,
   ): Conflict | null {
     const total = polylineLength(pts);
     let acc = 0;
@@ -206,7 +208,8 @@ export class Space {
       if (!hit(rect, this.claimRects[i], 0.35)) continue;
       // Wege führen durch Bereiche vor Hausfronten hindurch (dort liegt die Gasse)
       if (ignore.has(c.id) || c.kind === "frontzone") continue;
-      if (shapePolylineDist(c.shape, pts) < hw + 0.35) return { grund: c.label, mit: c.id };
+      if (shapePolylineDist(c.shape, pts) < hw + claimClearance)
+        return { grund: c.label, mit: c.id };
     }
     if (inner.length > 1) {
       const innerRect = rectOfPts(inner, hw);

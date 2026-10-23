@@ -11,7 +11,7 @@ import {
   kitFits,
   withVariante,
 } from "@/lib/world/kit";
-import { FACHBEREICHE } from "@/lib/fachbereiche";
+import { FACHBEREICHE, type FachbereichId } from "@/lib/fachbereiche";
 import type { VillageModel } from "@/lib/village-model";
 import { useBuild, type BuildStore } from "./build-store";
 
@@ -50,6 +50,8 @@ function HouseKit({
   const slots = useBuild(build, (s) => s.houseSlots);
   const info = model.byId[houseId];
   if (!info) return null;
+  // Generator v2: frei ziehen; v1: freie Bauplätze zur Auswahl
+  const free = model.world.map.version === 2;
   const fachBase = FACHBEREICHE[info.fach].style;
   const fits = kitFits(fachBase.type);
   return (
@@ -64,7 +66,36 @@ function HouseKit({
           ←
         </button>
         <span className="text-[14px] font-bold">{info.title}</span>
+        {info.kind !== "zentrale" && free && (
+          <>
+            <button
+              type="button"
+              className="hd-btn hd-btn-ghost hd-btn-sm"
+              onClick={() => build.startHouseDrag(houseId)}
+            >
+              Verschieben
+            </button>
+            <button
+              type="button"
+              className="hd-btn hd-btn-ghost hd-btn-sm"
+              onClick={() => build.selectQuarter(info.fach)}
+            >
+              Ganzes Quartier …
+            </button>
+          </>
+        )}
+        {info.kind !== "zentrale" && (
+          <button
+            type="button"
+            className="hd-btn hd-btn-ghost hd-btn-sm"
+            onClick={() => build.unpin()}
+            title="Das Haus bekommt wieder den nächsten freien Platz seines Quartiers."
+          >
+            Zurück auf Automatik
+          </button>
+        )}
         {info.kind !== "zentrale" &&
+          !free &&
           (slots ? (
             <span
               className="flex flex-wrap items-center gap-1.5"
@@ -190,6 +221,98 @@ function HouseKit({
   );
 }
 
+/** Gewähltes Quartier: als Ganzes verschieben (v2) oder alle Häuser zurück auf Automatik. */
+function QuarterKit({
+  build,
+  model,
+  quarterId,
+}: {
+  build: BuildStore;
+  model: VillageModel;
+  quarterId: FachbereichId;
+}) {
+  const free = model.world.map.version === 2;
+  const count = Object.values(model.world.settlement.houses).filter(
+    (h) => h.quarterId === quarterId,
+  ).length;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="hd-btn hd-btn-ghost hd-btn-sm"
+          onClick={() => build.selectQuarter(null)}
+          aria-label="Zurück zum Katalog"
+        >
+          ←
+        </button>
+        <span className="text-[14px] font-bold">Quartier «{FACHBEREICHE[quarterId].name}»</span>
+        <span className="hd-note">
+          {count} {count === 1 ? "Haus" : "Häuser"}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {free && (
+          <button
+            type="button"
+            className="hd-btn hd-btn-ghost hd-btn-sm"
+            disabled={!count}
+            onClick={() => build.startGroupDrag(quarterId)}
+          >
+            Quartier verschieben
+          </button>
+        )}
+        <button
+          type="button"
+          className="hd-btn hd-btn-ghost hd-btn-sm"
+          disabled={!count}
+          onClick={() => build.unpin()}
+          title="Alle Häuser des Quartiers bekommen wieder automatisch einen Platz."
+        >
+          Zurück auf Automatik
+        </button>
+      </div>
+      {free && (
+        <p className="hd-note">
+          Alle Häuser und die eigene Deko des Quartiers bewegen sich gemeinsam. Quartierplatz und
+          Gasse bleiben, die Stichwege passen sich an.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Während des Ziehens: Ablegen oder Abbrechen (auch per Enter und Esc). */
+function DragBar({ build }: { build: BuildStore }) {
+  const drag = useBuild(build, (s) => s.drag);
+  if (!drag) return null;
+  const ok = drag.kind === "haus" ? drag.ghost.ok : drag.ghost.state !== "nein";
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[14px] font-bold">
+        {drag.kind === "haus" ? "Haus verschieben" : "Quartier verschieben"}
+      </span>
+      <button
+        type="button"
+        className="hd-btn hd-btn-primary hd-btn-sm"
+        disabled={!ok}
+        onClick={() => build.enter()}
+        aria-keyshortcuts="Enter"
+      >
+        Hier ablegen
+      </button>
+      <button
+        type="button"
+        className="hd-btn hd-btn-ghost hd-btn-sm"
+        onClick={() => build.escape()}
+        aria-keyshortcuts="Escape"
+      >
+        Abbrechen
+      </button>
+    </div>
+  );
+}
+
 /**
  * Werkzeugleiste des Bau-Modus: Katalog nach Gruppen, Aktionen für das gewählte Element oder Haus,
  * Rückgängig/Wiederholen und Speichern. Tastatur: Pfeile (0.5 m), Q/E (15°), Enter, Entf, Esc,
@@ -219,6 +342,24 @@ export function BuildPanel({
   const canRedo = useBuild(build, (s) => s.history.future.length > 0);
   const count = useBuild(build, (s) => s.history.present.deko.length);
   const ghostBad = useBuild(build, (s) => (s.ghost && !s.ghost.ok ? s.ghost.grund : null));
+  const quarter = useBuild(build, (s) => s.quarter);
+  const dragging = useBuild(build, (s) => s.drag !== null);
+  // Ansage beim Ziehen (Auswahl liefert nur Zeichenketten: stabile Werte für useSyncExternalStore)
+  const dragText = useBuild(build, (s) => {
+    const d = s.drag;
+    if (!d) return null;
+    if (d.kind === "haus")
+      return d.ghost.ok
+        ? d.ghost.snapped
+          ? "Passt (eingerastet)."
+          : "Passt."
+        : `Hier nicht möglich: ${d.ghost.grund}`;
+    if (d.ghost.state === "ok") return "Passt.";
+    return d.ghost.state === "grenze"
+      ? `Nur bis zur Grenze: ${d.ghost.grund}`
+      : `Hier nicht möglich: ${d.ghost.grund}`;
+  });
+  const dragBad = dragText !== null && !dragText.startsWith("Passt");
 
   // Tastatur (vor den Kürzeln der Szene, die im Bau-Modus ruhen)
   useEffect(() => {
@@ -310,12 +451,16 @@ export function BuildPanel({
         role="status"
         aria-live="polite"
         data-testid="bau-ansage"
-        className={`min-h-[20px] text-[13px] ${ghostBad ? "text-[#8a2414]" : "text-[#3a3732]"}`}
+        className={`min-h-[20px] text-[13px] ${(ghostBad && tool) || dragBad ? "text-[#8a2414]" : "text-[#3a3732]"}`}
       >
-        {ghostBad && tool ? `Hier nicht möglich: ${ghostBad}` : message}
+        {dragText ?? (ghostBad && tool ? `Hier nicht möglich: ${ghostBad}` : message)}
       </p>
 
-      {house ? (
+      {dragging ? (
+        <DragBar build={build} />
+      ) : quarter ? (
+        <QuarterKit build={build} model={model} quarterId={quarter} />
+      ) : house ? (
         <HouseKit build={build} model={model} houseId={house} />
       ) : sel ? (
         <div className="flex flex-wrap items-center gap-1.5">

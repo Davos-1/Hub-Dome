@@ -10,7 +10,6 @@ import { groundRadius } from "@/lib/world/panorama";
 import type { Small, Tree } from "@/lib/world/vegetation";
 import { cyl, mergeParts, type Part } from "./geo";
 import { willowParts } from "./seed-object-models";
-import { buildPathGeometry, gravelTexture } from "./paths-geometry";
 import { plazaDecoParts, plazaSurface } from "./plaza-geometry";
 
 const dummy = new THREE.Object3D();
@@ -117,20 +116,6 @@ export function PlazaDeco({ world }: { world: World }) {
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial vertexColors roughness={0.85} />
-    </mesh>
-  );
-}
-
-/** Wege als ein Mesh: Kies-Textur, Quartierfarben, weicher Übergang ins Gras. */
-export function Paths({ layout, grass }: { layout: VillageLayout; grass?: string }) {
-  const geometry = useMemo(() => buildPathGeometry(layout.paths, grass), [layout.paths, grass]);
-  const texture = useMemo(() => gravelTexture(), []);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
-  useEffect(() => () => texture.dispose(), [texture]);
-  if (!geometry) return null;
-  return (
-    <mesh geometry={geometry} receiveShadow>
-      <meshStandardMaterial vertexColors map={texture} roughness={0.97} />
     </mesh>
   );
 }

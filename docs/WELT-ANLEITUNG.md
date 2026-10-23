@@ -29,11 +29,13 @@ Danach: Laternen, Bäume, Büsche, Blumen, Tiere (weichen allem aus)
 | Wo | Was | Hinweis |
 |---|---|---|
 | Leiste › **Bauen** | Deko setzen (14 Elemente in 5 Gruppen), verschieben, drehen, entfernen | Vorschau grün = passt (auch eingerastet), rot = mit Grund. Ungültiges lässt sich nicht setzen. |
-| Bauen › Haus wählen | **Farbe** (4 Sets), **Dach** (Fachbereich, Schiefer, Ziegel), **Anbau** (Laube, Schuppen, Wintergarten), **Garten** (Blumen, Gemüse, Steingarten, Obst), **Umsetzen** auf einen freien Platz im eigenen Quartier | Was neben einem Haustyp keinen Platz hat, ist ausgegraut (mit Grund). |
+| Bauen › Haus wählen | **Farbe** (4 Sets), **Dach** (Fachbereich, Schiefer, Ziegel), **Anbau** (Laube, Schuppen, Wintergarten), **Garten** (Blumen, Gemüse, Steingarten, Obst); **Verschieben** (Welt-Version 2: frei im eigenen Quartier ziehen) bzw. **Umsetzen** auf einen freien Bauplatz (Version 1); **Zurück auf Automatik** | Was neben einem Haustyp keinen Platz hat, ist ausgegraut (mit Grund). Beim Wählen fliegt die Kamera zum Quartier. |
+| Bauen › Haus ziehen (v2) | Haus anklicken und mit gedrückter Maustaste ziehen, oder «Verschieben» und Pfeile/Enter | Grün = passt (rastet auf 0.5 m und an Nachbarn ein), rot = mit Grund («im Nachbarquartier», «auf dem Quartierplatz» …). Das Haus dreht sich selbst zu seinem Weg, der Stichweg passt sich an. |
+| Bauen › Quartier (Griff am Quartierplatz) | **Quartier verschieben**: alle Häuser und die eigene Deko des Quartiers gemeinsam (v2); **Zurück auf Automatik** für alle Häuser des Quartiers | Quartierplatz und Gasse bleiben fix. Geht der Zug nicht ganz, rastet die Gruppe auf die nächste gültige Verschiebung ein (orange, mit Grund); rot = gar nicht. |
 | Bauen › Zurücksetzen auf Automatik | Alles Eigene weg, Häuser wieder automatisch | mit Bestätigung, rückgängig machbar bis zum Speichern |
 | Einstellungen › Dorf › **Welt neu würfeln** | neue Landschaft als Vorschau in der Szene | Übernehmen erst nach zweiter Bestätigung; was in der neuen Landschaft nicht passt, wird vorher genannt |
 
-**Tastatur im Bau-Modus:** Pfeile 0.5 m · Q/E drehen 15° · Enter setzen · Entf entfernen · Esc abbrechen · Strg+Z / Strg+Y. Mit gewähltem Element erscheint die Vorschau an der nächsten freien Stelle beim Blickziel; alles geht ohne Maus.
+**Tastatur im Bau-Modus:** Pfeile 0.5 m · Q/E drehen 15° · Enter setzen bzw. ablegen · Entf entfernen · Esc abbrechen · Strg+Z / Strg+Y. Mit gewähltem Element erscheint die Vorschau an der nächsten freien Stelle beim Blickziel; Haus und Quartier lassen sich über die Hausliste, «Verschieben» bzw. «Ganzes Quartier …» und Pfeile/Enter ebenfalls ohne Maus bewegen.
 
 **Speichern:** Der Server rechnet die Welt mit denselben Regeln neu und speichert nur, wenn alles passt. Beim Speichern werden alle heutigen Hausplätze mitgespeichert (fixiert), damit eine neue Bank nie ein Haus verschiebt.
 
@@ -43,7 +45,9 @@ Alle Regeln sind reine Funktionen in `src/lib/world/` und laufen im Browser und 
 
 - `space.ts` – alles, was steht, hat eine Grundfläche (Kreis oder gedrehtes Rechteck). Neue Grundflächen werden gegen alle bestehenden geprüft, mit Mindestabstand.
 - `rules.ts` – Deko: nicht auf Wegen, Wasser, Plätzen (ausser erlaubten Elementen), nicht schief im Hang (≤ 0.25 m Höhenunterschied), nicht vor Hausfronten (hohe Elemente), Steg nur am Ufer. `snapDeko` rastet bis 3 m ein.
-- `settlement.ts` – Quartiere, Gassen, Bauplätze; `kit.ts` – Plätze für Anbau, Gartenfeld, Bank und Baum neben dem Haus.
+- `settlement.ts` – Quartiere, Gassen, Bauplätze; v2 zusätzlich freie Lagen (Quartierfläche, Stichweg vom Tor zum Rückgrat, Prüfung `checkFreeHouse`/`checkFreeGroup`); `kit.ts` – Plätze für Anbau, Gartenfeld, Bank und Baum neben dem Haus.
+- `free-drag.ts` – Ziehen im Bau-Modus: Prüfwelt ohne die gezogenen Häuser, Einrasten, Gruppenverschiebung mit Grenze.
+- `path-dress.ts` – Wegausstattung (alle Versionen, reine Darstellung): Belag je Wegtyp (Zuweg Kopfsteinpflaster, Gassen je Quartier Kies/Pflaster/Platten, Stichweg Kiesbett mit Trittplatten, Fusspfad Erde), Randsteine an Pflaster und Platten, Randgras und Steinchen; nichts davon liegt auf Wegen, in Gärten, im Wasser oder auf Plätzen.
 - `generate.ts` – setzt alles zusammen (`generateWorld`).
 
 Property-Tests (`src/lib/world/*.test.ts`) prüfen über 220 Seeds: keine Überlappung, alles in der Karte und auf zulässigem Gelände, freier Zugang und freie Sicht aufs Schild, Determinismus, neue Häuser verschieben nichts, zufällige Eingaben enden gültig oder abgewiesen.

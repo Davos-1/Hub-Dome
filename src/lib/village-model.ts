@@ -3,7 +3,7 @@ import type { ItemType } from "./item-types";
 import type { VillageLayout } from "./layout";
 import type { Artifact, ArtifactKind, House } from "./types";
 import type { Variante, WorldDoc } from "./world/doc";
-import { generateWorld, PLOT_CAPACITY, type World } from "./world/generate";
+import { generateWorld, PLOT_CAPACITY, type World, type WorldInput } from "./world/generate";
 import { withVariante } from "./world/kit";
 import { toLayoutHouses } from "./world/layout-houses";
 
@@ -51,6 +51,8 @@ export type VillageModel = {
   layout: VillageLayout;
   /** Die ganze Welt (Karte, Siedlung, Deko, Pflanzen, Laternen). */
   world: World;
+  /** Eingabe des Generators (Bau-Modus: Prüfwelt ohne das gezogene Haus). */
+  input: WorldInput;
   /** Alle Häuser inklusive Zentrale, in der Reihenfolge der Eingabe. */
   houses: HouseInfo[];
   byId: Record<string, HouseInfo>;
@@ -103,13 +105,14 @@ export function buildVillageModel(
 
   // Gleiche Eingabe wie der Server (Reihenfolge der Entstehung, Objekte nach `sort`): sonst prüft der Server
   // beim Speichern eine andere Welt als die angezeigte
-  const world = generateWorld({
+  const input: WorldInput = {
     seed: params.seed,
     version: params.version,
     doc: params.doc,
     lowDetail: opts.lowDetail,
     houses: toLayoutHouses(houses, artifacts),
-  });
+  };
+  const world = generateWorld(input);
   const layout = world.layout;
 
   const notice = infos
@@ -121,6 +124,7 @@ export function buildVillageModel(
   return {
     layout,
     world,
+    input,
     houses: infos,
     byId: Object.fromEntries(infos.map((h) => [h.id, h])),
     notice,

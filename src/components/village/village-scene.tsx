@@ -15,7 +15,8 @@ import { Daylight } from "./daylight";
 import { DekoLayer } from "./deko-layer";
 import { BuildLayer } from "./build/build-layer";
 import type { BuildStore } from "./build/build-store";
-import { Ground, Lamps, Nature, Paths, PlazaDeco, Plazas } from "./decor";
+import { Ground, Lamps, Nature, PlazaDeco, Plazas } from "./decor";
+import { PathLayer } from "./path-layer";
 import { RockOutcrops, SeedObjects } from "./landscape-extras";
 import { PanoramaLayer } from "./panorama";
 import { buildVillageGardens, type VillageGardens } from "./garden-geometry";
@@ -349,7 +350,7 @@ export default function VillageScene(props: SceneProps) {
         />
       )}
       <Plazas layout={layout} paving={world.map.palette.paving} />
-      <Paths layout={layout} grass={world.map.palette.grassIn} />
+      <PathLayer world={world} grass={world.map.palette.grassIn} lowDetail={lowDetail} />
       {gardens.lawns && (
         <mesh geometry={gardens.lawns} receiveShadow>
           <meshStandardMaterial color="#ffffff" vertexColors roughness={1} />
@@ -455,7 +456,7 @@ export default function VillageScene(props: SceneProps) {
       ))}
 
       {map && <MapLayer model={model} atlas={atlas} />}
-      {build && !map && <BuildLayer build={build} map={world.map} />}
+      {build && !map && <BuildLayer build={build} world={world} />}
 
       <OrbitControls
         makeDefault

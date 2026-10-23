@@ -18,7 +18,7 @@ import type { Space } from "./space";
 export type Draft = {
   deko: DekoItem[];
   varianten: Record<string, Variante>;
-  pins: Required<SettlementPins>;
+  pins: Required<Pick<SettlementPins, "quartiere" | "haeuser">>;
 };
 export type BuildHistory = { past: Draft[]; present: Draft; future: Draft[] };
 
@@ -47,6 +47,29 @@ export const draftDoc = (d: Draft): WorldDoc => ({
 /** Haus auf einen anderen Bauplatz setzen (Gasse `r`, Platz `s`). */
 export function pinHouse(d: Draft, houseId: string, pin: HousePin): Draft {
   return { ...d, pins: { ...d.pins, haeuser: { ...d.pins.haeuser, [houseId]: pin } } };
+}
+
+/** Häuser zurück auf Automatik (Fixierung entfernen): Sie bekommen den nächsten freien Bauplatz ihres Quartiers. */
+export function unpinHouses(d: Draft, ids: readonly string[]): Draft {
+  const haeuser = { ...d.pins.haeuser };
+  for (const id of ids) delete haeuser[id];
+  return { ...d, pins: { ...d.pins, haeuser } };
+}
+
+/** Quartier verschieben (v2): alle Häuser auf ihre neue freie Lage, die eigene Deko des Quartiers mit. */
+export function moveGroup(
+  d: Draft,
+  poses: Record<string, { x: number; z: number; dir: number }>,
+  deko: readonly DekoItem[],
+): Draft {
+  const haeuser = { ...d.pins.haeuser };
+  for (const [id, p] of Object.entries(poses)) haeuser[id] = { r: p.dir, x: p.x, z: p.z };
+  const moved = new Map(deko.map((x) => [x.id, x]));
+  return {
+    ...d,
+    pins: { ...d.pins, haeuser },
+    deko: d.deko.map((x) => moved.get(x.id) ?? x),
+  };
 }
 
 /** Alles zurück auf Automatik: keine eigene Deko, keine Varianten, keine Fixierung. */

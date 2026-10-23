@@ -62,7 +62,13 @@ export function CameraRig({
   const controls = useThree((s) => s.controls) as unknown as Controls | null;
   const invalidate = useThree((s) => s.invalidate);
 
-  const nav = useScene(store, (s) => s.nav);
+  const storeNav = useScene(store, (s) => s.nav);
+  const focus = useScene(store, (s) => (s.building ? s.buildFocus : null));
+  // Bau-Modus: Kamera zum gewählten Quartier (die Navigation selbst bleibt beim Dorf)
+  const nav = useMemo<typeof storeNav>(
+    () => (focus && storeNav.level === "dorf" ? { level: "quartier", q: focus } : storeNav),
+    [focus, storeNav],
+  );
   const view = useScene(store, (s) => s.view);
   const intro = useScene(store, (s) => s.intro);
   const devPose = useScene(store, (s) => s.devPose);
