@@ -1,12 +1,9 @@
 import * as THREE from "three";
-import { polar } from "@/lib/geometry";
+import { angleDiff, polar, TAU } from "@/lib/geometry";
 import { isInPlot, type PlazaPoly, type VillageLayout } from "@/lib/layout";
 import { distanceToPolyline } from "@/lib/paths";
 import { box, cyl, gable, mergeParts, type Part } from "./geo";
 import { darken, STONE, WOOD } from "./models/common";
-
-const TAU = Math.PI * 2;
-const angDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 
 /** Vieleck mit Umkreisradius `R` (Shape liegt in XY und wird flach gedreht, daher y = -sin). */
 function polyShape(R: number, n: number, rot: number): THREE.Shape {
@@ -76,7 +73,7 @@ export function plazaSurface(p: PlazaPoly, fill: string, edge: string): THREE.Bu
   const side = 2 * p.a * Math.tan(Math.PI / n);
   for (let k = 0; k < n; k++) {
     const a = p.rot + (TAU * k) / n;
-    const used = p.used.some((u) => angDiff(u, a) < 0.02);
+    const used = p.used.some((u) => angleDiff(u, a) < 0.02);
     const c = { x: Math.cos(a), z: Math.sin(a) };
     const t = { x: -c.z, z: c.x };
     const d = p.a - 0.12;
@@ -201,7 +198,7 @@ export function mainPlazaDeco(layout: VillageLayout): {
   const R = main.a / Math.cos(Math.PI / n);
   for (let k = 0; k < n; k++) {
     const a = main.rot + (TAU * k) / n;
-    const used = main.used.some((u) => angDiff(u, a) < 0.02);
+    const used = main.used.some((u) => angleDiff(u, a) < 0.02);
     if (!used) {
       const bd = main.a - 1.5;
       parts.push(

@@ -1,10 +1,9 @@
 import * as THREE from "three";
+import type { Pt } from "@/lib/geometry";
 import { QUARTER_COLORS } from "@/lib/layout";
 import type { VillagePath } from "@/lib/paths";
 import { smooth } from "@/lib/terrain";
 import { seededRandom } from "@/lib/random";
-
-type Pt = { x: number; z: number };
 
 /** Farben der Dorfwege (Hauptwege zu den Quartieren). */
 const VILLAGE_PATH = { main: "#d3cbb5", edge: "#aaa188" };

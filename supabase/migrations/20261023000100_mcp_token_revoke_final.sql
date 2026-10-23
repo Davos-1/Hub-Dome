@@ -6,7 +6,8 @@
 create function mcp_tokens_guard() returns trigger
 language plpgsql set search_path = public as $$
 begin
-  if old.revoked_at is not null and new.revoked_at is distinct from old.revoked_at then
+  -- Nochmals widerrufen (z.B. aus einem zweiten Tab) bleibt erlaubt, nur das Zurücksetzen nicht.
+  if old.revoked_at is not null and new.revoked_at is null then
     raise exception 'Ein widerrufenes Token kann nicht wieder aktiviert werden.';
   end if;
   if new.user_id <> old.user_id or new.token_hash <> old.token_hash then

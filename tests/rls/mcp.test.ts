@@ -129,6 +129,14 @@ describe("Token-Prüfung", () => {
     const undo = await a.client.from("mcp_tokens").update({ revoked_at: null }).eq("id", id);
     expect(undo.error?.message).toContain("widerrufenes Token");
     expect(await authenticateToken(admin, token)).toBeNull();
+    // Ein zweites Widerrufen (veralteter Tab) ist kein Fehler
+    const again = await a.client
+      .from("mcp_tokens")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("id");
+    expect(again.error).toBeNull();
+    expect(again.data).toHaveLength(1);
 
     const active = await makeToken(a);
     const rehash = await a.client

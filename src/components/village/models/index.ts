@@ -97,7 +97,7 @@ const ZENTRALE_MODELS: Record<ZentraleStyle, (fp: number) => Model> = {
  * Wie die Häuser zwischengespeichert, damit ein Stilwechsel keine Geometrie liegen lässt.
  */
 export function zentraleModel(style: ZentraleStyle, fp: number): Model {
-  const build = ZENTRALE_MODELS[style] ?? rathausModel;
+  const build = Object.hasOwn(ZENTRALE_MODELS, style) ? ZENTRALE_MODELS[style] : rathausModel;
   const key = `zentrale|${build === rathausModel ? "rathaus" : style}|${fp}`;
   let model = HOUSE_CACHE.get(key);
   if (!model) {

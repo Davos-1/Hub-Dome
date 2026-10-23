@@ -239,7 +239,7 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Behoben:**
   - **Open Redirect:** `safeNextPath` liess `"/\t/evil.com"` durch. Browser entfernen Tab und Zeilenumbruch, daraus wurde `//evil.com`. Steuerzeichen und `\` sind jetzt überall verboten (Tests ergänzt).
   - **MCP-Rate-Limit:** Ein JSON-RPC-Stapel mit vielen `tools/call` zählte nur einmal. `countCalls` zählt jetzt jeden Aufruf, `hitRateLimit` bricht beim Limit ab. Die Grössengrenze prüft zuerst `Content-Length` und danach Bytes statt Zeichen.
-  - **Token-Widerruf endgültig:** Über die Policy `mcp_tokens_all` liess sich `revoked_at` wieder auf null setzen, damit war der Widerruf bei «Konto löschen» und das 5-Token-Limit umgehbar. Migration `20261023000100_mcp_token_revoke_final.sql` (Trigger, **von Gian einzuspielen**). Sie sperrt auch Änderungen an Besitzer und Hash. RLS-Test ergänzt.
+  - **Token-Widerruf endgültig:** Über die Policy `mcp_tokens_all` liess sich `revoked_at` wieder auf null setzen, damit war der Widerruf bei «Konto löschen» und das 5-Token-Limit umgehbar. Migration `20261023000100_mcp_token_revoke_final.sql` (Trigger, **von Gian einzuspielen**). Sie sperrt auch Änderungen an Besitzer und Hash; ein zweites Widerrufen (z.B. aus einem veralteten Tab) bleibt erlaubt. RLS-Test ergänzt.
   - **Server Actions:**
     - IDs werden mit Zod geprüft (`uuidSchema`).
     - `deleteFriendLink` filtert nach `owner_id` und meldet einen Fehler, wenn nichts gelöscht wurde. `revokeMcpToken` meldet einen Fehler, wenn nichts geändert wurde.
@@ -253,3 +253,30 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
   - **Kleinigkeiten:** Löschbestätigung «Alle 0 Objekte» korrigiert. Der Cron loggt fehlgeschlagene Löschungen und arbeitet die ältesten Anträge zuerst ab.
 - **Gewollte Ausnahmen von «Service Role filtert nach owner_id»:** (1) Cron `/api/cron/konto-loeschen` liest `account_deletions` aller Konten (Systemaufgabe). (2) `authenticateToken` sucht das Token über den HMAC-Hash; erst daraus ergibt sich der Besitzer. Ein zeitkonstanter Vergleich ist dort nicht nötig, weil nur nach dem Hash gesucht wird.
 - **Lehre:** `npm run typecheck` braucht die von Next erzeugten Routentypen (`PageProps`, `RouteContext`). In einer frischen Umgebung zuerst `npx next typegen` (oder `next build`/`next dev`) ausführen.
+
+## 2026-10-23 – Code-Review und Vereinfachung, Teil 2: Vereinfachung
+- **Vorgehen:** Drei Subagents (Sonnet) haben je einen Bereich vereinfacht (lib, 3D-Welt, Dialoge), jeweils in einem eigenen Worktree. Claude (Opus) hat jeden Diff gelesen, zusammengeführt und geprüft. Danach lief `/code-review` über den ganzen Diff.
+- **lib:**
+  - `src/lib/geometry.ts` ersetzt die Kopien von `Pt`, `polar`, Winkelabstand, Punkt-Strecke-Abstand und FNV-Hash.
+  - `computeLayout` ist in benannte Schritte aufgeteilt; das Ergebnis ist auf 500 Dörfern identisch.
+  - `shell-data` ordnet Zeilen über reine Funktionen zu (mit Tests).
+  - `src/lib/houses.ts` (`insertHouse`) wird für «Haus anlegen» und «Übernehmen in neues Modulhaus» genutzt.
+  - Ungenutzte Exporte sind entfernt. `src/mcp/` gibt es nicht mehr, die MCP-Logik liegt in `src/lib/mcp/` (PLAN.md Abschnitt 4 nachgeführt).
+- **3D:**
+  - `mergeParts` gibt die Geometrien der Bauteile selbst frei. Bauteile dürfen nach dem Zusammenfügen nicht mehr verwendet werden.
+  - Dazu kommen `mergeAll`, `yawMatrix` und `useDisposable` (bauen wie `useMemo`, beim Ersetzen bzw. Abbauen freigeben).
+  - Der Label-Atlas hält nur noch Masse (`AtlasEntry.w/h`) statt der Zeichenflächen; die Zeichenfunktionen liefern `Drawing = { canvas, entry }`.
+  - `noticeRowAt` ersetzt die festen Zahlen der Anschlagbrett-Klicks.
+  - Die Geometrie ist gegenüber vorher bitgleich geprüft. Die Reihenfolge der Zufallszahlen ist unverändert.
+- **Dialoge:**
+  - `ActionForm` hat jetzt `renderResult` und `rowClassName`. Neu sind `DialogTabs`/`resolveTab` (Tabpanel mit `aria-controls`), `HouseFields` mit `useId`, `DeleteCard` und der reine Listenfilter `filterList` (mit Tests, in `useMemo`).
+  - Der Reise-Dialog ist in drei Dateien aufgeteilt.
+  - **Sichtbare Kleinigkeit:** Das Farbfeld in «Haus anlegen» hat jetzt denselben Rahmen wie beim Bearbeiten.
+- **Bewusst nicht geändert (Review-Befunde):**
+  - **Grösse von Chunked-Anfragen an `/api/mcp`:** Sie wird erst nach dem Lesen geprüft. Vercel begrenzt Anfragen auf 4.5 MB; das Lesen in Stücken wäre unverhältnismässig.
+  - **Ein `mcp_hit` pro Aufruf im JSON-RPC-Stapel:** MCP sieht Stapel seit 2025-06-18 nicht mehr vor. Ein Zähler mit Anzahl würde eine Schemaänderung brauchen.
+  - **Doppelte Modulhäuser:** Die drei Regeln (Formular erlaubt sie, Übernehmen nutzt das vorhandene Haus, MCP lehnt sie ab) bleiben, bis Gian entscheidet.
+- **Lehren:**
+  - E2E im Dev-Server scheitern bei langen Läufen zufällig an Timeouts. Stabiler ist `npm run build`, dann `next start`, dann Playwright (`reuseExistingServer`). Die `/dev/*`-Routen (`stile.spec`) gibt es nur im Dev-Modus.
+  - RLS- und E2E-Tests nicht gleichzeitig gegen dieselbe Datenbank laufen lassen. `freigabe.spec` sucht das Haus «Python» per `.single()`, und die RLS-Tests legen ebenfalls eines an.
+  - `objekttypen.spec` braucht Zugriff auf die GitHub-API.

@@ -30,11 +30,17 @@ const noVillage = () =>
 export const placeInputShape = {
   url: z
     .string()
+    .trim()
     .max(2048, "Der Link ist zu lang.")
     .describe("Link des Objekts, z.B. https://claude.ai/artifact/… oder eine GitHub-URL."),
-  titel: z.string().max(120, "Maximal 120 Zeichen.").describe("Kurzer Titel (max. 120 Zeichen)."),
+  titel: z
+    .string()
+    .trim()
+    .max(120, "Maximal 120 Zeichen.")
+    .describe("Kurzer Titel (max. 120 Zeichen)."),
   beschreibung: z
     .string()
+    .trim()
     .max(500, "Maximal 500 Zeichen.")
     .optional()
     .describe("Beschreibung in einem Satz (max. 500 Zeichen)."),
@@ -51,13 +57,19 @@ export const placeInputShape = {
       "Objekttyp: claude_artifact, github_repo, gist, cloud_ordner, link oder auto (Standard: wird aus der URL erkannt).",
     ),
   tags: z
-    .array(z.string().max(30, "Ein Tag darf höchstens 30 Zeichen haben."))
+    .array(z.string().trim().max(30, "Ein Tag darf höchstens 30 Zeichen haben."))
     .max(5, "Höchstens 5 Tags.")
     .optional()
     .describe("1–3 kurze Tags, höchstens 5."),
-  haus_id: z.string().max(64).optional().describe("ID eines Hauses aus dorf_haeuser_auflisten."),
+  haus_id: z
+    .string()
+    .trim()
+    .max(64)
+    .optional()
+    .describe("ID eines Hauses aus dorf_haeuser_auflisten."),
   haus_titel: z
     .string()
+    .trim()
     .max(80, "Maximal 80 Zeichen.")
     .optional()
     .describe("Titel des Hauses (genau wie in dorf_haeuser_auflisten), alternativ zu haus_id."),
@@ -75,9 +87,14 @@ export const placeInputShape = {
 const placeInput = z.object(placeInputShape);
 
 export const createHouseInputShape = {
-  titel: z.string().max(80, "Maximal 80 Zeichen.").describe("Titel des Hauses (max. 80 Zeichen)."),
+  titel: z
+    .string()
+    .trim()
+    .max(80, "Maximal 80 Zeichen.")
+    .describe("Titel des Hauses (max. 80 Zeichen)."),
   modul_code: z
     .string()
+    .trim()
     .max(40, "Ungültiger Modulcode.")
     .optional()
     .describe(

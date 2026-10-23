@@ -62,9 +62,8 @@ Hub-Dome/  (Repo-Root)
 │  │  ├─ supabase/            # Server- und Browser-Client
 │  │  ├─ validation.ts        # Zod-Schemas
 │  │  ├─ layout.ts            # Dorf-Layout (Positionen der Häuser)
-│  │  └─ tokens.ts            # Token erzeugen und hashen
-│  └─ mcp/
-│     └─ tools.ts             # MCP-Tool-Definitionen
+│  │  ├─ tokens.ts            # Token erzeugen und hashen
+│  │  └─ mcp/                 # MCP-Tools, Server und Token-Prüfung (ohne Next.js, gegen die DB testbar)
 ├─ skill/
 │  └─ hub-dome-platzieren/SKILL.md     # Skill zum Installieren für Nutzer
 └─ tests/

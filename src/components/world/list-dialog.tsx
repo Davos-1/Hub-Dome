@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   hostOf,
   ITEM_TYPES,
@@ -177,7 +177,10 @@ export function ListDialog({
   const [type, setType] = useState<ItemType | "">("");
 
   const presentTypes = ITEM_TYPES.filter((t) => artifacts.some((a) => a.item_type === t));
-  const { sections, total, filtering } = filterList(model, artifacts, query, type);
+  const { sections, total, filtering } = useMemo(
+    () => filterList(model, artifacts, query, type),
+    [model, artifacts, query, type],
+  );
 
   function showInWorld(houseId: string, artifactId: string | null) {
     onClose();
