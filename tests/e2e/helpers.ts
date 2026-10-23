@@ -1,12 +1,18 @@
 import { randomBytes } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import type { BrowserContext } from "@playwright/test";
+import { test, type BrowserContext } from "@playwright/test";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { persistSession: false },
+});
+
+// Selbst geöffnete Kontexte (browser.newContext) nach jedem Test schliessen. Sonst rendern ihre
+// 3D-Szenen im selben Browser weiter und bremsen die folgenden Tests bis zum Timeout.
+test.afterEach(async ({ browser }) => {
+  await Promise.all(browser.contexts().map((c) => c.close()));
 });
 
 export type E2EUser = {
