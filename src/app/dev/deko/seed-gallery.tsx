@@ -326,7 +326,7 @@ export function SeedGallery({
           />
         </Canvas>
       </div>
-      <p className="text-neutral-600 mt-3 text-sm">
+      <p className="text-hd-muted mt-3 text-sm">
         Wasser (blau) liegt bei Mühle, Fischerhütte und Ruderboot vorn (z &gt; 0.3), bei Fähre, Wehr
         und Brücke als Streifen quer durch die Grundfläche. Weisser Umriss = Grundfläche aus dem
         Katalog. Die Front zeigt zur Kamera (+z). Mit <code>?nur=kapelle</code> in der Adresse
@@ -336,7 +336,7 @@ export function SeedGallery({
         {items.map((it) => (
           <li key={it.id} data-testid={`seed-${it.id}`}>
             <span className="font-medium">{it.m.label}</span>
-            <span className="text-neutral-600 block text-xs">
+            <span className="text-hd-muted block text-xs">
               {sizeText(it.m.form)} · {it.m.sub} · {it.tris} Dreiecke
             </span>
           </li>

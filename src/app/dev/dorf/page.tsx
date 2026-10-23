@@ -11,7 +11,6 @@ import type { Artifact, House } from "@/lib/types";
 import { GENERATOR_VERSION, isSeed } from "@/lib/world/seed";
 import { devRerollWorld, devSaveWorld } from "./actions";
 import { devDoc } from "./dev-store";
-import { ThemeAttr } from "./theme-attr";
 
 export const metadata = { title: "Dorf-Vorschau (Entwicklung)" };
 
@@ -40,8 +39,6 @@ const CODES = [
   "TA.BA_WISSARB",
 ];
 const ZEITEN: TimeKey[] = ["morgen", "mittag", "abend", "nacht"];
-/** Stilvarianten der Oberfläche zur Wahl (Phase 4g, Etappe 5). */
-const THEMEN = ["nachtglas", "waldglas", "rauchglas"] as const;
 const KAMERAS =
   /^(uebersicht|vogel|strasse|quartier|ufer|zentrale|panorama|weg|haus-(werkstatt|block|solar|atelier|stadt|haus|turm|digital|baustelle))$/;
 
@@ -49,8 +46,7 @@ const KAMERAS =
  * Entwickler-Vorschau mit erfundenen Daten (ohne Datenbank). Parameter: `h` Häuser, `o` Objekte pro Haus,
  * `zentrale` Stil, `seed` Welt-Seed, `zeit` Tageszeit, `kamera` feste Pose, `bewegung=0` friert alles ein,
  * `besitzer=1` zeigt die Bedienelemente des Besitzers, `deko=1` setzt Beispiel-Deko (gültig eingerastet),
- * `v=1` rechnet mit Generator v1 (Standard: aktuelle Version), `thema` zeigt eine Stilvariante der Oberfläche
- * (`nachtglas`, `waldglas`, `rauchglas`).
+ * `v=1` rechnet mit Generator v1 (Standard: aktuelle Version).
  */
 async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchParams">) {
   if (process.env.NODE_ENV === "production") notFound();
@@ -65,7 +61,6 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
   const kamera = typeof q.kamera === "string" && KAMERAS.test(q.kamera) ? q.kamera : undefined;
   // Generator-Version: Standard die aktuelle, `v=1` zeigt ein Dorf auf dem eingefrorenen Generator v1
   const version = q.v === "1" ? 1 : GENERATOR_VERSION;
-  const thema = THEMEN.find((t) => t === q.thema);
 
   const village = "00000000-0000-4000-8000-000000000001";
   const old = "2026-01-01T00:00:00Z";
@@ -119,41 +114,38 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
   );
 
   return (
-    <>
-      <ThemeAttr thema={thema} />
-      <VillageView
-        villageId={village}
-        villageName="Dorf-Vorschau"
-        ownerUsername="vorschau"
-        ownerName="Vorschau"
-        avatarSeed="seed"
-        isOwner={q.besitzer === "1"}
-        zentraleStyle={zentraleStyle}
-        houses={houses}
-        artifacts={artifacts}
-        previews={{}}
-        extras={EMPTY_EXTRAS}
-        world={{
-          seed,
-          version,
-          // Beispiel-Deko, sonst das im Dev-Server Gespeicherte (ohne Häuser, die es hier nicht gibt)
-          doc:
-            q.deko === "1"
-              ? sampleDoc({ seed, version, houses: toLayoutHouses(houses, artifacts) })
-              : pruneDoc(devDoc(seed) ?? { v: 1 }, new Set(houses.map((h) => h.id))),
-        }}
-        worldActions={{ save: devSaveWorld.bind(null, seed), reroll: devRerollWorld }}
-        dev={{ kamera, zeit, bewegung: q.bewegung === "0" ? false : undefined }}
-        shell={{
-          me: { id: "u", username: "vorschau", displayName: "Vorschau" },
-          villages: [],
-          friends: [],
-          links: [],
-          tokens: [],
-          own: q.besitzer === "1" ? { villageId: village, zentraleStyle, modules: [] } : null,
-        }}
-      />
-    </>
+    <VillageView
+      villageId={village}
+      villageName="Dorf-Vorschau"
+      ownerUsername="vorschau"
+      ownerName="Vorschau"
+      avatarSeed="seed"
+      isOwner={q.besitzer === "1"}
+      zentraleStyle={zentraleStyle}
+      houses={houses}
+      artifacts={artifacts}
+      previews={{}}
+      extras={EMPTY_EXTRAS}
+      world={{
+        seed,
+        version,
+        // Beispiel-Deko, sonst das im Dev-Server Gespeicherte (ohne Häuser, die es hier nicht gibt)
+        doc:
+          q.deko === "1"
+            ? sampleDoc({ seed, version, houses: toLayoutHouses(houses, artifacts) })
+            : pruneDoc(devDoc(seed) ?? { v: 1 }, new Set(houses.map((h) => h.id))),
+      }}
+      worldActions={{ save: devSaveWorld.bind(null, seed), reroll: devRerollWorld }}
+      dev={{ kamera, zeit, bewegung: q.bewegung === "0" ? false : undefined }}
+      shell={{
+        me: { id: "u", username: "vorschau", displayName: "Vorschau" },
+        villages: [],
+        friends: [],
+        links: [],
+        tokens: [],
+        own: q.besitzer === "1" ? { villageId: village, zentraleStyle, modules: [] } : null,
+      }}
+    />
   );
 }
 

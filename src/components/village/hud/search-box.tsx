@@ -5,6 +5,7 @@ import { ARTIFACT_KIND_LABELS } from "@/lib/types";
 import type { VillageModel } from "@/lib/village-model";
 import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
+import { EmptyArt } from "@/components/ui/empty-art";
 
 type Hit = {
   key: string;
@@ -91,7 +92,10 @@ export function SearchBox({ model, actions }: { model: VillageModel; actions: Sc
           className="flex flex-col overflow-hidden hd-float rounded-lg shadow-hd-pop"
         >
           {hits.length === 0 && (
-            <div className="px-3 py-[9px] text-[13px] text-hd-muted">Keine Treffer</div>
+            <div className="flex items-center gap-2 px-3 py-[9px] text-[13px] text-hd-muted">
+              <EmptyArt kind="suche" className="h-6 w-8" />
+              Keine Treffer
+            </div>
           )}
           {hits.map((h) => (
             <button

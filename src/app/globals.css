@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Seitenhintergrund ausserhalb der Welt (Anmeldung, Einstellungen, Liste) */
+  --background: #141417;
+  --foreground: #f4f4f5;
 }
 
 @theme inline {
@@ -48,17 +49,20 @@
   --shadow-hd-pop: var(--hd-shadow-pop);
 }
 
-/* Die Oberfläche ist (noch) nur hell gestaltet. color-scheme verhindert dunkle Browser-Standardfarben
-   in Formularfeldern, auch wenn das Betriebssystem im Dunkelmodus läuft. */
+/* Die Oberfläche ist dunkel (Rauchglas): Browser-Standardfarben (Formulare, Bildlauf) passend dazu. */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 input,
 select,
 textarea {
-  background-color: #fff;
-  color: #171717;
+  background-color: var(--hd-field);
+  color: var(--hd-ink);
+}
+select option {
+  background-color: #1f1f23;
+  color: var(--hd-ink);
 }
 
 body {
@@ -101,18 +105,18 @@ body {
   padding-left: 1.25rem;
 }
 .readme a {
-  color: #1d4ed8;
+  color: var(--hd-link);
   text-decoration: underline;
 }
 .readme code {
-  background: #f4f4f5;
-  color: #18181b;
+  background: var(--hd-raised);
+  color: var(--hd-ink);
   padding: 0 0.25rem;
   border-radius: 0.25rem;
 }
 .readme pre {
-  background: #f4f4f5;
-  color: #18181b;
+  background: var(--hd-field);
+  color: var(--hd-ink);
   padding: 0.5rem;
   border-radius: 0.5rem;
   overflow-x: auto;
@@ -126,7 +130,7 @@ body {
 }
 .readme th,
 .readme td {
-  border: 1px solid #d4d4d8;
+  border: 1px solid var(--hd-line-strong);
   padding: 0.15rem 0.4rem;
 }
 
@@ -188,73 +192,89 @@ body {
   animation: hd-fade-in 0.35s ease-out both;
 }
 .hd-pop-in {
-  animation: hd-pop-in 0.3s ease-out both;
+  animation: hd-pop-in 0.38s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+/* Kranhaken in der Baustellen-Illustration pendelt leicht */
+@keyframes hd-swing {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+.hd-swing {
+  animation: hd-swing 3.2s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .hd-fade-in,
-  .hd-pop-in {
+  .hd-pop-in,
+  .hd-swing {
     animation: none;
   }
 }
 
-/* ===== Hub-Dome-Oberfläche: Design-Tokens =====
+/* ===== Hub-Dome-Oberfläche: Design-Tokens («Rauchglas», Entscheid Gian 2026-10-23) =====
    Alle Farben, Radien, Schatten und Effekte der Oberfläche kommen aus diesen Variablen; Komponenten
    verwenden nur die Tokens (Tailwind: bg-hd-surface, text-hd-ink, border-hd-line, rounded-hd-panel,
-   shadow-hd-panel …). Standard = «Holz» (Holzschild-Kopf, Pergament, Waldgrün); Varianten über
-   data-hd-theme am Wurzelelement der Welt. */
+   shadow-hd-panel …). Rauchglas: neutrales Anthrazit, dunkles Glas mit Unschärfe, feine Linien, Bernstein
+   als Hauptton, Holz nur als feine Linie unter dem Kopf. Kontrasttest: src/app/theme-contrast.test.ts. */
 :root {
   /* Flächen */
-  --hd-surface: #fbf6ea; /* Fensterkörper, Leisten */
-  --hd-raised: #fffdf8; /* Karte, Feld, Chip auf der Fläche */
-  --hd-sunken: #efe6d0; /* Reiter, inaktive Pillen, Nebenflächen */
-  --hd-hover: #f3ead4; /* Hover auf Karten und Geisterknöpfen */
-  --hd-float: rgba(255, 253, 248, 0.95); /* schwebend über der Szene: Brotkrumen, Suche, Hinweise */
-  --hd-frame: #5e3c22; /* Rahmen der Fenster und Leisten */
-  --hd-frame-width: 3px;
+  --hd-surface: rgba(24, 24, 27, 0.92); /* Fensterkörper, Leisten */
+  --hd-raised: rgba(255, 255, 255, 0.07); /* Karte, Feld, Chip auf der Fläche */
+  --hd-sunken: rgba(255, 255, 255, 0.05); /* Reiter, inaktive Pillen, Nebenflächen */
+  --hd-hover: rgba(255, 255, 255, 0.12); /* Hover auf Karten und Geisterknöpfen */
+  --hd-float: var(--hd-surface); /* schwebend über der Szene: Brotkrumen, Suche, Hinweise */
+  --hd-field: rgba(0, 0, 0, 0.25); /* Eingabefelder */
+  --hd-frame: rgba(255, 255, 255, 0.14); /* Rahmen der Fenster und Leisten */
+  --hd-frame-width: 1px;
   /* Schrift */
-  --hd-ink: #1c1b19;
-  --hd-ink-2: #3a3732;
-  --hd-muted: #6d6a63;
+  --hd-ink: #f4f4f5;
+  --hd-ink-2: #d6d6da;
+  --hd-muted: #bcbcc4;
   /* Linien */
-  --hd-line: #e4d9c0;
-  --hd-line-strong: #d9c9a8;
+  --hd-line: rgba(255, 255, 255, 0.12);
+  --hd-line-strong: rgba(255, 255, 255, 0.22);
   /* Hauptton und Auswahl */
-  --hd-accent: #2f5d4a;
-  --hd-accent-hover: #386d57;
-  --hd-accent-strong: #1f4132;
-  --hd-accent-ink: #fbf3e4;
-  --hd-accent-soft: #e6efe9;
-  --hd-selected: #5e3c22; /* aktiver Reiter, gedrückte Pille */
-  --hd-selected-ink: #ffffff;
+  --hd-accent: #f5b754;
+  --hd-accent-hover: #f8c877;
+  --hd-accent-strong: #c98f2e;
+  --hd-accent-ink: #231600;
+  --hd-accent-soft: rgba(245, 183, 84, 0.18);
+  --hd-selected: #f4f4f5; /* aktiver Reiter, gedrückte Pille */
+  --hd-selected-ink: #18181b;
   /* Zustände */
-  --hd-danger: #8a2414;
-  --hd-danger-soft: #fde2dd;
-  --hd-new: #fff3cf; /* Aufkleber «neu» */
-  --hd-new-ink: #6b4e00;
-  --hd-highlight: #facc15;
-  --hd-highlight-ink: #1c1b19;
-  --hd-danger-ink: #ffffff;
-  --hd-info-soft: #e0f2fe;
-  --hd-info-ink: #0c4a6e;
+  --hd-danger: #ffa89d;
+  --hd-danger-soft: rgba(255, 120, 100, 0.16);
+  --hd-danger-ink: #2a0b06;
+  --hd-new: #fde68a; /* Aufkleber «neu» */
+  --hd-new-ink: #2f2500;
+  --hd-highlight: #f5b754;
+  --hd-highlight-ink: #231600;
+  --hd-info-soft: rgba(255, 255, 255, 0.1);
+  --hd-info-ink: #e4e4e7;
+  --hd-link: #f8c877;
   /* Kopf der Fenster */
-  --hd-head: #8b5e3c;
-  --hd-head-ink: #fbf3e4;
-  --hd-kicker: #f3dcb4;
-  --hd-head-grain: rgba(60, 35, 18, 0.35);
-  --hd-head-rule: 4px solid #5e3c22;
+  --hd-head: rgba(255, 255, 255, 0.04);
+  --hd-head-ink: #fafafa;
+  --hd-kicker: #d9bd8f;
+  --hd-head-grain: transparent;
+  --hd-head-rule: 1px solid rgba(214, 160, 90, 0.6); /* feine Holzlinie */
   /* Form und Tiefe */
-  --hd-radius-panel: 16px;
-  --hd-radius-ctl: 10px;
-  --hd-radius-sm: 8px;
-  --hd-shadow-panel: 0 10px 36px rgba(28, 27, 25, 0.3);
-  --hd-shadow-pop: 0 4px 14px rgba(28, 27, 25, 0.25);
-  --hd-blur: 0px;
-  --hd-scrim: rgba(28, 27, 25, 0.35);
+  --hd-radius-panel: 18px;
+  --hd-radius-ctl: 12px;
+  --hd-radius-sm: 9px;
+  --hd-shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --hd-shadow-pop: 0 6px 18px rgba(0, 0, 0, 0.28);
+  --hd-blur: 16px;
+  --hd-scrim: rgba(0, 0, 0, 0.45);
   /* Bewegung */
-  --hd-motion-fast: 120ms;
+  --hd-motion-fast: 140ms;
   --hd-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
-  /* Alte Namen (Seiten ausserhalb der Welt) */
+  /* Alte Namen (für ältere Klassen) */
   --hd-wood: var(--hd-head);
   --hd-wood-dark: var(--hd-frame);
   --hd-paper: var(--hd-surface);
@@ -262,6 +282,15 @@ body {
   --hd-green: var(--hd-accent);
   --hd-green-dark: var(--hd-accent-strong);
   --hd-cream: var(--hd-accent-ink);
+}
+
+/* Unschärfe nur, wo sie nichts kostet: auf schmalen Bildschirmen (Handy) und bei «weniger Transparenz»
+   deckende Flächen ohne Unschärfe über der 3D-Szene. */
+@media (max-width: 767px), (prefers-reduced-transparency: reduce) {
+  :root {
+    --hd-blur: 0px;
+    --hd-surface: rgba(24, 24, 27, 0.97);
+  }
 }
 
 /* Kopf wie ein Holzschild in der Welt: Bretter mit dunklen Fugen und Rahmen */
@@ -301,21 +330,16 @@ body {
   cursor: pointer;
   border-radius: 9999px;
   font-weight: 700;
-  background: var(--hd-head-ink);
-  color: var(--hd-frame);
-  box-shadow: 0 2px 0 var(--hd-frame);
-  transition: background-color var(--hd-motion-fast);
-}
-.hd-close:hover {
-  background: var(--hd-raised);
-}
-[data-hd-theme] .hd-close {
   background: var(--hd-raised);
   color: var(--hd-ink);
   box-shadow: inset 0 0 0 1px var(--hd-line-strong);
+  transition:
+    background-color var(--hd-motion-fast),
+    transform var(--hd-motion-fast) var(--hd-spring);
 }
-[data-hd-theme] .hd-close:hover {
+.hd-close:hover {
   background: var(--hd-hover);
+  transform: rotate(90deg);
 }
 .hd-kicker {
   font-family: var(--font-plex-mono), ui-monospace, monospace;
@@ -329,7 +353,7 @@ body {
   width: 100%;
   border-radius: var(--hd-radius-ctl);
   border: 1.5px solid var(--hd-line-strong);
-  background: var(--hd-raised);
+  background: var(--hd-field);
   padding: 9px 12px;
   font-size: 14px;
   color: var(--hd-ink);
@@ -350,7 +374,7 @@ body {
   font-size: 14px;
   font-weight: 600;
   transition:
-    transform 0.08s,
+    transform var(--hd-motion-fast) var(--hd-spring),
     background-color var(--hd-motion-fast),
     border-color var(--hd-motion-fast);
 }
@@ -358,13 +382,37 @@ body {
   opacity: 0.6;
   cursor: default;
 }
+.hd-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
 .hd-btn:not(:disabled):active {
   transform: translateY(1px);
+}
+/* Aufkleber («neu»): leicht schief, richtet sich beim Darüberfahren federnd auf */
+.hd-sticker {
+  display: inline-block;
+  border-radius: 9999px;
+  background: var(--hd-new);
+  color: var(--hd-new-ink);
+  transform: rotate(-3deg);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  transition: transform var(--hd-motion-fast) var(--hd-spring);
+}
+.hd-sticker:hover {
+  transform: rotate(0deg) scale(1.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hd-btn:not(:disabled):hover,
+  .hd-close:hover {
+    transform: none;
+  }
 }
 .hd-btn-primary {
   background: var(--hd-accent);
   color: var(--hd-accent-ink);
-  box-shadow: 0 2px 0 var(--hd-accent-strong);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--hd-accent) 35%, transparent);
 }
 .hd-btn-primary:not(:disabled):hover {
   background: var(--hd-accent-hover);
@@ -413,149 +461,9 @@ body {
   font-size: 13px;
   color: var(--hd-accent);
 }
+/* Hintergrund der Lade- und Anmeldeseiten: dunkler Verlauf mit warmem Schein oben */
 .hd-sky {
-  background: linear-gradient(to bottom, #6fb1ec 0%, #b9dcf7 55%, #e8f3fb 100%);
-}
-
-/* ===== Stilvarianten «dunkles Glas» (Phase 4g, Etappe 5: zur Wahl) =====
-   Gemeinsam: dunkle, leicht durchscheinende Flächen mit Unschärfe, helle Schrift, feine Linien statt
-   dicker Rahmen, weiche Schatten, Holz nur als feine Linie unter dem Kopf. Kontrast WCAG AA auch über
-   hellem Himmel (Prüfung: docs/PHASE-4G-KONZEPT.md, Abschnitt 6). */
-[data-hd-theme] {
-  --hd-float: var(--hd-surface);
-  --hd-frame-width: 1px;
-  --hd-radius-panel: 18px;
-  --hd-radius-ctl: 12px;
-  --hd-radius-sm: 9px;
-  --hd-blur: 16px;
-  --hd-head-grain: transparent;
-  --hd-shadow-pop: 0 6px 18px rgba(0, 0, 0, 0.28);
-  --hd-motion-fast: 140ms;
-  color-scheme: dark;
-}
-
-/* Nachtglas: Tintenblau, kühles Himmelblau als Hauptton, Bernstein-Aufkleber */
-[data-hd-theme="nachtglas"] {
-  --hd-surface: rgba(16, 23, 38, 0.92);
-  --hd-raised: rgba(255, 255, 255, 0.07);
-  --hd-sunken: rgba(255, 255, 255, 0.05);
-  --hd-hover: rgba(255, 255, 255, 0.12);
-  --hd-frame: rgba(190, 210, 255, 0.16);
-  --hd-ink: #eef2f8;
-  --hd-ink-2: #cdd6e4;
-  --hd-muted: #a9b5c8;
-  --hd-line: rgba(255, 255, 255, 0.12);
-  --hd-line-strong: rgba(255, 255, 255, 0.22);
-  --hd-accent: #8ab4f8;
-  --hd-accent-hover: #a7c7fa;
-  --hd-accent-strong: #5b86cc;
-  --hd-accent-ink: #0c1424;
-  --hd-accent-soft: rgba(138, 180, 248, 0.18);
-  --hd-selected: #e9eef7;
-  --hd-selected-ink: #101726;
-  --hd-danger: #ff9b8f;
-  --hd-danger-soft: rgba(255, 120, 100, 0.16);
-  --hd-new: #f6cf7a;
-  --hd-new-ink: #2e2100;
-  --hd-highlight: #f6cf7a;
-  --hd-highlight-ink: #2e2100;
-  --hd-danger-ink: #2a0b06;
-  --hd-info-soft: rgba(138, 180, 248, 0.14);
-  --hd-info-ink: #d3e3ff;
-  --hd-head: rgba(255, 255, 255, 0.04);
-  --hd-head-ink: #f4f7fc;
-  --hd-kicker: #a9bedf;
-  --hd-head-rule: 1px solid rgba(196, 140, 92, 0.55);
-  --hd-shadow-panel: 0 18px 50px rgba(2, 8, 22, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --hd-scrim: rgba(6, 10, 20, 0.45);
-}
-
-/* Waldglas: tiefes Grün, Minze als Hauptton, warmes Gelb für Aufkleber */
-[data-hd-theme="waldglas"] {
-  --hd-surface: rgba(13, 31, 25, 0.92);
-  --hd-raised: rgba(255, 255, 255, 0.07);
-  --hd-sunken: rgba(255, 255, 255, 0.05);
-  --hd-hover: rgba(255, 255, 255, 0.12);
-  --hd-frame: rgba(190, 240, 210, 0.16);
-  --hd-ink: #edf5ef;
-  --hd-ink-2: #cadbcf;
-  --hd-muted: #b0c4b6;
-  --hd-line: rgba(255, 255, 255, 0.12);
-  --hd-line-strong: rgba(255, 255, 255, 0.22);
-  --hd-accent: #8fd6a8;
-  --hd-accent-hover: #a9e2bd;
-  --hd-accent-strong: #5aa979;
-  --hd-accent-ink: #0a1d13;
-  --hd-accent-soft: rgba(143, 214, 168, 0.18);
-  --hd-selected: #e7f1ea;
-  --hd-selected-ink: #0e2019;
-  --hd-danger: #ffa093;
-  --hd-danger-soft: rgba(255, 120, 100, 0.16);
-  --hd-new: #f2d47e;
-  --hd-new-ink: #2f2400;
-  --hd-highlight: #f2d47e;
-  --hd-highlight-ink: #2f2400;
-  --hd-danger-ink: #2a0b06;
-  --hd-info-soft: rgba(143, 214, 168, 0.14);
-  --hd-info-ink: #d5f0de;
-  --hd-head: rgba(255, 255, 255, 0.04);
-  --hd-head-ink: #f2f8f4;
-  --hd-kicker: #a9cbb5;
-  --hd-head-rule: 1px solid rgba(196, 140, 92, 0.55);
-  --hd-shadow-panel: 0 18px 50px rgba(2, 14, 8, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --hd-scrim: rgba(4, 12, 8, 0.45);
-}
-
-/* Rauchglas: neutrales Anthrazit, Bernstein als Hauptton, Zitronengelb für Aufkleber */
-[data-hd-theme="rauchglas"] {
-  --hd-surface: rgba(24, 24, 27, 0.92);
-  --hd-raised: rgba(255, 255, 255, 0.07);
-  --hd-sunken: rgba(255, 255, 255, 0.05);
-  --hd-hover: rgba(255, 255, 255, 0.12);
-  --hd-frame: rgba(255, 255, 255, 0.14);
-  --hd-ink: #f4f4f5;
-  --hd-ink-2: #d6d6da;
-  --hd-muted: #bcbcc4;
-  --hd-line: rgba(255, 255, 255, 0.12);
-  --hd-line-strong: rgba(255, 255, 255, 0.22);
-  --hd-accent: #f5b754;
-  --hd-accent-hover: #f8c877;
-  --hd-accent-strong: #c98f2e;
-  --hd-accent-ink: #231600;
-  --hd-accent-soft: rgba(245, 183, 84, 0.18);
-  --hd-selected: #f4f4f5;
-  --hd-selected-ink: #18181b;
-  --hd-danger: #ffa89d;
-  --hd-danger-soft: rgba(255, 120, 100, 0.16);
-  --hd-new: #fde68a;
-  --hd-new-ink: #2f2500;
-  --hd-highlight: #f5b754;
-  --hd-highlight-ink: #231600;
-  --hd-danger-ink: #2a0b06;
-  --hd-info-soft: rgba(255, 255, 255, 0.1);
-  --hd-info-ink: #e4e4e7;
-  --hd-head: rgba(255, 255, 255, 0.04);
-  --hd-head-ink: #fafafa;
-  --hd-kicker: #d9bd8f;
-  --hd-head-rule: 1px solid rgba(214, 160, 90, 0.6);
-  --hd-shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --hd-scrim: rgba(0, 0, 0, 0.45);
-}
-
-/* Glas-Varianten: Primärknopf ohne harte Kante, Felder dunkel */
-[data-hd-theme] .hd-btn-primary {
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--hd-accent) 35%, transparent);
-}
-[data-hd-theme] .hd-input {
-  background: rgba(0, 0, 0, 0.25);
-}
-:where([data-hd-theme]) input,
-:where([data-hd-theme]) select,
-:where([data-hd-theme]) textarea {
-  background-color: rgba(0, 0, 0, 0.25);
-  color: var(--hd-ink);
-}
-:where([data-hd-theme]) select option {
-  background-color: #1b1f27;
-  color: #eef2f8;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(245, 183, 84, 0.16) 0%, transparent 55%),
+    linear-gradient(to bottom, #1d1d22 0%, #141417 100%);
 }

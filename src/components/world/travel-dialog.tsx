@@ -15,6 +15,7 @@ import { CopyField } from "@/components/ui/copy-field";
 import type { ActionState } from "@/lib/types";
 import type { ShellData, ShellFriend, ShellLink, ShellVillage } from "@/lib/shell-data";
 import { DialogShell } from "./dialog-shell";
+import { EmptyArt } from "@/components/ui/empty-art";
 
 const fmt = new Intl.DateTimeFormat("de-CH", { dateStyle: "medium", timeZone: "Europe/Zurich" });
 
@@ -88,16 +89,19 @@ function VillagesTab({
       <section className="flex flex-col gap-2.5">
         <h3 className="hd-label">Dörfer deiner Freunde</h3>
         {shared.length === 0 ? (
-          <p className="hd-card hd-note">
-            Noch keine Freunde. Sende im Tab{" "}
-            <button
-              type="button"
-              onClick={onFriends}
-              className="font-semibold text-hd-accent underline"
-            >
-              Freunde
-            </button>{" "}
-            eine Anfrage; sobald sie angenommen wird, siehst du das Dorf hier.
+          <p className="hd-card hd-note flex items-center gap-3">
+            <EmptyArt kind="freunde" />
+            <span>
+              Noch keine Freunde. Sende im Tab{" "}
+              <button
+                type="button"
+                onClick={onFriends}
+                className="font-semibold text-hd-accent underline"
+              >
+                Freunde
+              </button>{" "}
+              eine Anfrage; sobald sie angenommen wird, siehst du das Dorf hier.
+            </span>
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
@@ -289,7 +293,10 @@ function FriendsTab({ shell }: { shell: ShellData }) {
       <section className="flex flex-col gap-2.5">
         <h3 className="hd-label">Deine Freunde ({friends.length})</h3>
         {friends.length === 0 ? (
-          <p className="hd-note">Noch keine Freunde.</p>
+          <p className="hd-note flex items-center gap-3">
+            <EmptyArt kind="freunde" />
+            Noch keine Freunde.
+          </p>
         ) : (
           <ul className="flex flex-col gap-2.5">
             {friends.map((f) => (

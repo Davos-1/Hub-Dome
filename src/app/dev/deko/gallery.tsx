@@ -195,7 +195,7 @@ function Label({ typ, palette }: { typ: DekoTyp; palette: Palette }) {
   return (
     <>
       <span className="font-medium">{e.label}</span>
-      <span className="text-neutral-600 block text-xs">
+      <span className="text-hd-muted block text-xs">
         {size} · {tris} Dreiecke
       </span>
     </>
@@ -261,7 +261,7 @@ export function Gallery({ stimmung, nur }: { stimmung: Stimmung; nur?: DekoTyp }
           />
         </Canvas>
       </div>
-      <p className="text-neutral-600 mt-3 text-sm">
+      <p className="text-hd-muted mt-3 text-sm">
         Reihenfolge wie im Raster, von hinten links nach vorne rechts. Weisser Umriss = Grundfläche
         aus dem Katalog. Die Front zeigt zur Kamera (+z).
       </p>

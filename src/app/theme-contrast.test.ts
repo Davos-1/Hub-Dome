@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * P6: Kontrast der Oberfläche nach WCAG AA (Text ≥ 4.5:1) für das Standard-Thema und die Glas-Varianten.
+ * P6: Kontrast der Oberfläche nach WCAG AA (Text ≥ 4.5:1) für «Rauchglas» (alle Text-/Flächenpaare).
  * Durchscheinende Flächen werden über dem ungünstigsten Hintergrund gemessen: weisser Himmel (helle Schrift)
  * bzw. schwarze Nacht (dunkle Schrift).
  */
@@ -52,13 +52,8 @@ const ratio = (a: Rgba, b: Rgba) => {
 };
 
 const root = block(":root");
-const shared = block("[data-hd-theme]");
-const THEMES: Record<string, Record<string, string>> = {
-  holz: root,
-  nachtglas: { ...root, ...shared, ...block('[data-hd-theme="nachtglas"]') },
-  waldglas: { ...root, ...shared, ...block('[data-hd-theme="waldglas"]') },
-  rauchglas: { ...root, ...shared, ...block('[data-hd-theme="rauchglas"]') },
-};
+/** Rauchglas (Entscheid Gian 2026-10-23) steht direkt in `:root`. */
+const THEMES: Record<string, Record<string, string>> = { rauchglas: root };
 
 /** Text auf Fläche: [Text-Token, Flächen-Tokens von unten nach oben]. */
 const PAIRS: [string, string[]][] = [
@@ -77,6 +72,10 @@ const PAIRS: [string, string[]][] = [
   ["hd-head-ink", ["hd-surface", "hd-head"]],
   ["hd-highlight-ink", ["hd-surface", "hd-highlight"]],
   ["hd-danger-ink", ["hd-surface", "hd-danger"]],
+  ["hd-link", ["hd-surface"]],
+  ["hd-ink", ["hd-surface", "hd-field"]],
+  ["foreground", ["background"]],
+  ["hd-muted", ["background", "hd-raised"]],
 ];
 
 describe("Kontrast der Oberfläche (WCAG AA)", () => {

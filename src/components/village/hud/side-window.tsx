@@ -10,6 +10,7 @@ import { CopyControl, ItemMeta, openHref } from "../../world/item-extras";
 import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
 import { useScene, type SceneStore } from "../scene-store";
+import { EmptyArt } from "@/components/ui/empty-art";
 
 export const TIME_ORDER: TimeSetting[] = ["morgen", "mittag", "abend", "nacht", "auto"];
 export const FILTER_KINDS: ArtifactKind[] = [
@@ -23,8 +24,8 @@ export const FILTER_KINDS: ArtifactKind[] = [
 
 const seg = (on: boolean) =>
   on ? "bg-hd-selected text-hd-selected-ink" : "bg-transparent text-hd-ink-2";
-const newBadge =
-  "flex-none rounded-full bg-hd-new px-2 py-0.5 text-[11px] font-semibold text-hd-new-ink";
+/** «neu» als kleiner Aufkleber (leicht schief, richtet sich beim Darüberfahren auf). */
+const newBadge = "hd-sticker flex-none px-2 py-0.5 text-[11px] font-semibold";
 
 /** Auswahl aus wenigen Möglichkeiten als Brett-Schalter. */
 export function Segments<T extends string>({
@@ -177,21 +178,24 @@ function HouseDetail({
         {house.newCount > 0 && <span className={`${newBadge} ml-2`}>{house.newCount} neu</span>}
       </p>
       {artifacts.length === 0 ? (
-        <p className="rounded-xl bg-hd-new p-3 text-sm text-hd-new-ink">
-          Baustelle: hier gibt es noch keine Objekte.
-          {isOwner && (
-            <>
-              {" "}
-              <button
-                type="button"
-                onClick={() => onAdd(house.id)}
-                className="font-semibold underline"
-              >
-                Erstes Objekt hinzufügen
-              </button>
-              .
-            </>
-          )}
+        <p className="flex items-center gap-3 rounded-xl bg-hd-sunken p-3 text-sm text-hd-ink-2">
+          <EmptyArt kind="baustelle" />
+          <span>
+            Baustelle: hier gibt es noch keine Objekte.
+            {isOwner && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={() => onAdd(house.id)}
+                  className="font-semibold underline"
+                >
+                  Erstes Objekt hinzufügen
+                </button>
+                .
+              </>
+            )}
+          </span>
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

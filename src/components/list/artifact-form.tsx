@@ -36,7 +36,7 @@ export function ArtifactForm({
     >
       {artifact && <input type="hidden" name="id" value={artifact.id} />}
       {isCopy && (
-        <p className="rounded-xl bg-[#e0f2fe] p-3 text-[13px] text-[#0c4a6e]">
+        <p className="rounded-xl bg-hd-info-soft p-3 text-[13px] text-hd-info-ink">
           <strong>Eigene Version verknüpfen:</strong> Passe das Objekt in Claude an (bei geteilten
           Artifacts z.B. über «Remix», falls angeboten) und füge hier den Link deiner Version ein.
         </p>

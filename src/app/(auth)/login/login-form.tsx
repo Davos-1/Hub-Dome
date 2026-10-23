@@ -62,7 +62,7 @@ export function LoginForm({ next }: { next?: string }) {
 
   if (status === "sent") {
     return (
-      <p role="status" className="rounded-xl bg-[#e6efe9] p-4 text-[#1f4132]">
+      <p role="status" className="rounded-xl bg-hd-accent-soft p-4 text-hd-ink">
         Wir haben dir einen Anmelde-Link an <strong>{email}</strong> gesendet. Du kannst ihn auch
         auf einem anderen Gerät öffnen.
       </p>
