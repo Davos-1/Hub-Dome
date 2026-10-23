@@ -59,21 +59,21 @@ export function StartDialog({
             label={village.objects === 1 ? "Objekt" : "Objekte"}
             accent="#10b981"
           />
-          <Stat value={village.fresh} label="neu (7 Tage)" accent="#facc15" />
+          <Stat value={village.fresh} label="neu (7 Tage)" accent="var(--hd-highlight)" />
         </div>
 
         {requests > 0 && (
           <button
             type="button"
             onClick={onFriends}
-            className="flex cursor-pointer items-center justify-between rounded-xl border-2 border-[#facc15] bg-[#fff8d6] px-4 py-3 text-left text-[14px] font-bold"
+            className="flex cursor-pointer items-center justify-between rounded-xl border-2 border-hd-highlight bg-hd-new px-4 py-3 text-left text-[14px] font-bold"
           >
             <span>
               {requests === 1
                 ? "1 neue Freundschaftsanfrage"
                 : `${requests} neue Freundschaftsanfragen`}
             </span>
-            <span className="text-[#2f5d4a] underline">Ansehen</span>
+            <span className="text-hd-accent underline">Ansehen</span>
           </button>
         )}
 
@@ -106,7 +106,7 @@ export function StartDialog({
           </div>
         </div>
 
-        <p className="rounded-xl bg-[#fff3cf] px-3.5 py-2.5 text-[13px] text-[#6b4e00]">
+        <p className="rounded-xl bg-hd-new px-3.5 py-2.5 text-[13px] text-hd-new-ink">
           Teile keine Lösungen zu bewerteten Leistungsnachweisen.
         </p>
 

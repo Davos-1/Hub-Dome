@@ -198,7 +198,7 @@ export function EditHouseDialog({
               name="color"
               type="color"
               defaultValue={house.color}
-              className="h-10 w-20 cursor-pointer rounded-lg border border-[#d9c9a8] bg-white"
+              className="h-10 w-20 cursor-pointer rounded-lg border border-hd-line-strong bg-hd-raised"
             />
           </ActionForm>
           <div className="hd-card flex items-center justify-between gap-3">

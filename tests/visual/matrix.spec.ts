@@ -17,6 +17,15 @@ const STANDARD_SEEDS = [
   "kx81bb20",
   "p9p9p9p9",
   "lmnopqrs",
+  // Phase 4g (Generator v2): alle sieben Landschaftstypen, darunter Fluss-, See- und Berg-Extreme
+  "kn75pp3g", // Bachtal, alpin
+  "3pxwlevt", // Bergsee, alpin
+  "gbj2rwue", // Bucht
+  "flns9q1i", // Flussdorf, alpin
+  "a4o5xjfd", // Flussdorf, Sommer
+  "2myr6qby", // Flussgabel mit Insel
+  "z30m2gui", // Hochplateau
+  "et8zs32l", // Hügelland
 ];
 /** Datenmengen: h = Häuser (ohne Zentrale), o = Objekte pro Haus, deko = Beispiel-Deko (`deko=1`). */
 const DATEN: Record<string, { h: number; o: number; deko?: boolean }> = {
@@ -47,9 +56,24 @@ const HAUSTYPEN = [
   "baustelle",
 ] as const;
 const NAHAUFNAHMEN = HAUSTYPEN.map((typ) => `haus-${typ}`);
+/** Phase 4g: Blick zum Horizont (Panorama) und Wegnahaufnahme; Zentrale je Stil (ganz im Bild). */
+const PANORAMA = "panorama";
+const WEG = "weg";
+const ZENTRALEN = ["rathaus", "schule", "hochhaus", "villa", "marskuppel", "leuchtturm"].map(
+  (stil) => `zentrale-${stil}`,
+);
 
 /** Tokens für VISUAL_ONLY, nach Gruppe (Kamera, Zeit, Daten). Innerhalb einer Gruppe ODER, zwischen Gruppen UND. */
-const KAMERA_TOKENS = new Set<string>([...UEBERSICHTEN, UFER, "haus", ...NAHAUFNAHMEN]);
+const KAMERA_TOKENS = new Set<string>([
+  ...UEBERSICHTEN,
+  UFER,
+  "haus",
+  ...NAHAUFNAHMEN,
+  PANORAMA,
+  WEG,
+  "zentrale",
+  ...ZENTRALEN,
+]);
 const ZEIT_TOKENS = new Set<string>(ZEITEN);
 const DATEN_TOKENS = new Set<string>(DATEN_NAMEN);
 
@@ -71,7 +95,7 @@ const Umgebung = z.object({
       .string()
       .refine(
         (t) => KAMERA_TOKENS.has(t) || ZEIT_TOKENS.has(t) || DATEN_TOKENS.has(t),
-        "unbekannt (erlaubt: Kamera, haus, haus-<typ>, Tageszeit, Datenmenge)",
+        "unbekannt (erlaubt: Kamera, haus, haus-<typ>, zentrale, zentrale-<stil>, panorama, weg, Tageszeit, Datenmenge)",
       ),
   ),
 });
@@ -106,9 +130,15 @@ function baueMatrix(seeds: readonly string[], voll: boolean): Eintrag[] {
       for (const kamera of ["uebersicht", "vogel"])
         matrix.push({ seed, daten: "10h", zeit: "mittag", kamera });
     }
-    // Jeder Seed: Beispiel-Deko in der Übersicht und das Ufer aus der Nähe
+    // Jeder Seed: Beispiel-Deko in der Übersicht und das Ufer aus der Nähe, Panorama und Wegnahaufnahme
     matrix.push({ seed, daten: "deko", zeit: "mittag", kamera: "uebersicht" });
     matrix.push({ seed, daten: "deko", zeit: "mittag", kamera: UFER });
+    for (const zeit of voll || i < 2 ? ZEITEN : (["mittag"] as const))
+      matrix.push({ seed, daten: "10h", zeit, kamera: PANORAMA });
+    matrix.push({ seed, daten: "10h", zeit: "mittag", kamera: WEG });
+    // Zentrale je Stil (Seed 1; alle Seeds mit VISUAL_FULL=1)
+    if (voll || i === 0)
+      for (const kamera of ZENTRALEN) matrix.push({ seed, daten: "10h", zeit: "mittag", kamera });
     if (voll || i === 0) {
       const zeiten: readonly Zeit[] = voll ? ZEITEN : ["mittag"];
       for (const zeit of zeiten)
@@ -124,7 +154,12 @@ function passtZuOnly(e: Eintrag, only: readonly string[]): boolean {
   const daten = only.filter((t) => DATEN_TOKENS.has(t));
   if (
     kameras.length > 0 &&
-    !kameras.some((t) => t === e.kamera || (t === "haus" && e.kamera.startsWith("haus-")))
+    !kameras.some(
+      (t) =>
+        t === e.kamera ||
+        (t === "haus" && e.kamera.startsWith("haus-")) ||
+        (t === "zentrale" && e.kamera.startsWith("zentrale-")),
+    )
   )
     return false;
   if (zeiten.length > 0 && !zeiten.includes(e.zeit)) return false;
@@ -144,7 +179,11 @@ if (MATRIX.length === 0) {
 const dateiname = (e: Eintrag) => `${e.seed}-${e.daten}-${e.zeit}-${e.kamera}.png`;
 const urlVon = (e: Eintrag) => {
   const { h, o, deko } = DATEN[e.daten];
-  return `/dev/dorf?seed=${e.seed}&h=${h}&o=${o}&zeit=${e.zeit}&kamera=${e.kamera}&bewegung=0${deko ? "&deko=1" : ""}`;
+  // zentrale-<stil> → kamera=zentrale&zentrale=<stil>
+  const kamera = e.kamera.startsWith("zentrale-")
+    ? `zentrale&zentrale=${e.kamera.slice("zentrale-".length)}`
+    : e.kamera;
+  return `/dev/dorf?seed=${e.seed}&h=${h}&o=${o}&zeit=${e.zeit}&kamera=${kamera}&bewegung=0${deko ? "&deko=1" : ""}`;
 };
 
 // Szenen-Statistik der Seite (siehe window.__hubDome in village-scene.tsx); hier lokal typisiert

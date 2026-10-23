@@ -15,12 +15,12 @@ async function LoginContent({ searchParams }: Pick<PageProps<"/login">, "searchP
         Du erhältst einen Link per E-Mail. Ein Passwort brauchst du nicht.
       </p>
       {fehler && (
-        <p role="alert" className="rounded-xl bg-[#fdeceb] p-3 text-[#7a1f16]">
+        <p role="alert" className="rounded-xl bg-hd-danger-soft p-3 text-hd-danger">
           Die Anmeldung hat nicht geklappt. Bitte fordere einen neuen Link an.
         </p>
       )}
       {loeschung && (
-        <p role="status" className="rounded-xl bg-[#fff3cf] p-3 text-[#6b4e00]">
+        <p role="status" className="rounded-xl bg-hd-new p-3 text-hd-new-ink">
           Dein Konto wird in einem Tag mit allen Daten gelöscht. Meldest du dich vorher wieder an,
           wird die Löschung abgebrochen.
         </p>

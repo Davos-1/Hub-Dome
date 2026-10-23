@@ -9,8 +9,8 @@ export const SEED_RE = /^[a-z0-9]{8}$/;
 export const seedSchema = z.string().regex(SEED_RE, "Ungültiger Seed.");
 
 /** Aktuelle Version des Generators. Bestehende Welten behalten ihre Version (Annahme A4). */
-export const GENERATOR_VERSION = 1;
-export const SUPPORTED_VERSIONS = [1] as const;
+export const GENERATOR_VERSION = 2;
+export const SUPPORTED_VERSIONS = [1, 2] as const;
 
 export const isSeed = (s: unknown): s is string => typeof s === "string" && SEED_RE.test(s);
 

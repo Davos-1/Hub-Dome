@@ -10,11 +10,15 @@ import type { VillageModel } from "@/lib/village-model";
 import { Boards } from "./boards";
 import { House3D, modelOfHouse, ZENTRALE_LIFT, Zentrale3D } from "./buildings";
 import { CameraRig } from "./camera-rig";
+import { hullLookup } from "./hull";
 import { Daylight } from "./daylight";
 import { DekoLayer } from "./deko-layer";
 import { BuildLayer } from "./build/build-layer";
 import type { BuildStore } from "./build/build-store";
-import { Ground, Lamps, Nature, Paths, PlazaDeco, Plazas } from "./decor";
+import { Ground, Lamps, Nature, PlazaDeco, Plazas } from "./decor";
+import { PathLayer } from "./path-layer";
+import { RockOutcrops, SeedObjects } from "./landscape-extras";
+import { PanoramaLayer } from "./panorama";
 import { buildVillageGardens, type VillageGardens } from "./garden-geometry";
 import { loadLabelFont } from "./label-atlas";
 import { Labels } from "./labels";
@@ -302,6 +306,9 @@ export default function VillageScene(props: SceneProps) {
     };
   }, [pointerCursor]);
 
+  // Hülle der tatsächlichen Modelle: die Kamera passt Häuser und Zentrale vollständig ins Bild
+  const hullOf = useMemo(() => hullLookup(model, zentraleStyle), [model, zentraleStyle]);
+
   const overview = useMemo(
     () => [0, layout.extent * 1.0 + 11, layout.extent * 1.38 + 16] as [number, number, number],
     [layout.extent],
@@ -313,7 +320,7 @@ export default function VillageScene(props: SceneProps) {
       shadows={lowDetail ? false : "percentage"}
       dpr={lowDetail ? [1, 1.25] : [1, 2]}
       gl={{ antialias: !lowDetail, powerPreference: "high-performance" }}
-      camera={{ position: overview, fov: 45, near: 0.1, far: 900 }}
+      camera={{ position: overview, fov: 45, near: 0.1, far: 1600 }}
       onCreated={({ gl, invalidate }) => {
         // Bei Kontextverlust (z.B. Grafiktreiber-Reset) Wiederherstellung erlauben und neu zeichnen.
         gl.domElement.addEventListener("webglcontextlost", (e) => e.preventDefault());
@@ -323,12 +330,27 @@ export default function VillageScene(props: SceneProps) {
         /* Klick ins Leere ändert nichts (verhindert versehentliches Verlassen) */
       }}
     >
-      <Daylight time={timeKey} extent={layout.extent} map={map} lowDetail={lowDetail} />
+      <Daylight
+        time={timeKey}
+        extent={layout.extent}
+        map={map}
+        lowDetail={lowDetail}
+        tint={world.map.params?.tint ?? 0}
+      />
 
       {/* Boden, Plätze, Wege und Rasen sind in beiden Ansichten sichtbar */}
-      <Ground world={world} />
+      <Ground world={world} lowDetail={lowDetail} />
+      {!map && (
+        <PanoramaLayer
+          map={world.map}
+          lowDetail={lowDetail}
+          glow={glow}
+          morning={timeKey === "morgen"}
+          frozen={reducedMotion}
+        />
+      )}
       <Plazas layout={layout} paving={world.map.palette.paving} />
-      <Paths layout={layout} grass={world.map.palette.grassIn} />
+      <PathLayer world={world} grass={world.map.palette.grassIn} lowDetail={lowDetail} />
       {gardens.lawns && (
         <mesh geometry={gardens.lawns} receiveShadow>
           <meshStandardMaterial color="#ffffff" vertexColors roughness={1} />
@@ -343,12 +365,15 @@ export default function VillageScene(props: SceneProps) {
         mapOnly={map}
         dark={isDark(timeKey)}
         paused={paused}
+        glow={glow}
       />
 
       <group visible={!map}>
         <PlazaDeco world={world} />
         <Lamps world={world} glow={glow} lit={isDark(timeKey)} lowDetail={lowDetail} />
         <Nature world={world} />
+        <RockOutcrops rocks={world.map.rocks ?? []} map={world.map} />
+        <SeedObjects objects={world.map.objects ?? []} map={world.map} glow={glow} />
         <DekoLayer map={world.map} items={world.deko} glow={glow} />
         {gardens.body && (
           <mesh geometry={gardens.body} castShadow receiveShadow>
@@ -431,7 +456,7 @@ export default function VillageScene(props: SceneProps) {
       ))}
 
       {map && <MapLayer model={model} atlas={atlas} />}
-      {build && !map && <BuildLayer build={build} map={world.map} />}
+      {build && !map && <BuildLayer build={build} world={world} />}
 
       <OrbitControls
         makeDefault
@@ -442,7 +467,7 @@ export default function VillageScene(props: SceneProps) {
         maxPolarAngle={map ? 0.001 : Math.PI / 2.15}
         minPolarAngle={map ? 0 : 0.15}
       />
-      <CameraRig layout={layout} store={store} reducedMotion={reducedMotion} />
+      <CameraRig layout={layout} store={store} reducedMotion={reducedMotion} hullOf={hullOf} />
       <PerfProbe
         houses={model.houses.length}
         artifacts={model.houses.reduce((n, h) => n + h.items.length, 0)}

@@ -21,6 +21,7 @@ import { dirAngle, DIRECTIONS } from "./axes";
 import type { DekoItem, WorldDoc } from "./doc";
 import { box, circle, polar, TAU, type Pt } from "./geom";
 import { generateMap, TRAIL_WIDTH, type WorldMap } from "./map";
+import { generateMapV2 } from "./map-v2";
 import { applyDeko } from "./rules";
 import { GENERATOR_VERSION } from "./seed";
 import {
@@ -42,6 +43,8 @@ export type WorldInput = {
   doc?: WorldDoc | null;
   /** Mobile: weniger Pflanzen, kein Waldgürtel. */
   lowDetail?: boolean;
+  /** Bau-Modus: diese Quartiere behalten ihre Ausgänge auch ohne Häuser (Prüfwelt beim Ziehen). */
+  keepQuarters?: FachbereichId[];
 };
 
 export type World = {
@@ -158,7 +161,8 @@ export function generateWorld(input: WorldInput): World {
   const seed = input.seed;
   const version = input.version ?? GENERATOR_VERSION;
   const doc = input.doc ?? null;
-  const map = generateMap(seed);
+  // Karte nach Generator-Version (v1 bleibt eingefroren, Golden-Test)
+  const map = version >= 2 ? generateMapV2(seed) : generateMap(seed);
   const space = new Space(map);
   const zentrale = input.houses.find((h) => h.kind === "zentrale");
   const homes = input.houses.filter((h) => h.kind !== "zentrale");
@@ -176,7 +180,7 @@ export function generateWorld(input: WorldInput): World {
     seed,
     space,
     homes.map((h) => ({ id: h.id, fach: h.fach, order: order.get(h.id) ?? 0 })),
-    { quartiere: doc?.quartiere, haeuser: doc?.haeuser },
+    { quartiere: doc?.quartiere, haeuser: doc?.haeuser, keep: input.keepQuarters },
     () => {
       // Zonen am Dorfplatz, die eigene Deko frei lassen muss
       // Feste Grösse (nicht von der Objektzahl abhängig): Besucher sehen keine privaten Objekte und
@@ -384,7 +388,7 @@ function toLayout(
     const node = s.nodes.find((n) => n.quarterId === q);
     const ids = Object.values(s.houses)
       .filter((h) => h.quarterId === q)
-      .sort((a, b) => a.dir - b.dir || slotRank(a.slot) - slotRank(b.slot))
+      .sort((a, b) => a.dir - b.dir || a.t - b.t || slotRank(a.slot) - slotRank(b.slot))
       .map((h) => h.id);
     const cx = node ? node.x : primary.axis[Math.min(primary.axis.length - 1, 20)].x;
     const cz = node ? node.z : primary.axis[Math.min(primary.axis.length - 1, 20)].z;

@@ -43,6 +43,30 @@ test("Welt neu würfeln: Vorschau in der Szene, nochmals, verwerfen, übernehmen
   expect(errors).toEqual([]);
 });
 
+test("Phase 4g: Dorf auf Generator v1 lässt sich mit Vorschau auf die neue Welt-Version aktualisieren", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/dev/dorf?h=6&o=3&seed=hubdome1&besitzer=1&bewegung=0&v=1");
+  await page.waitForFunction(() => window.__hubDome?.ready === true, undefined, ready);
+  await page.getByRole("button", { name: "Einstellungen" }).click();
+  const settings = page.getByRole("dialog", { name: "Einstellungen" });
+  await settings.getByRole("tab", { name: "Dorf" }).click();
+  await expect(settings.getByText(/Generator 1/)).toBeVisible();
+  await settings.getByRole("button", { name: /Auf neue Welt-Version aktualisieren/ }).click();
+  const banner = page.getByRole("dialog", { name: "Vorschau: neue Welt-Version" });
+  await expect(banner).toBeVisible();
+  await expect(banner.getByText(/^Neue Welt-Version:/)).toBeVisible();
+  // Aktualisieren behält den Seed: kein «Nochmals würfeln»
+  await expect(banner.getByRole("button", { name: "Nochmals würfeln" })).toHaveCount(0);
+  await banner.getByRole("button", { name: "Übernehmen …" }).click();
+  await banner.getByRole("button", { name: "Ja, diese Welt übernehmen" }).click();
+  await expect(banner).toHaveCount(0, { timeout: 20_000 });
+  expect(errors).toEqual([]);
+});
+
 test("Besucher sehen keinen Würfel-Knopf", async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto("/dev/dorf?h=4&o=2&seed=hubdome1&bewegung=0");

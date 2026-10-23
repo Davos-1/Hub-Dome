@@ -75,7 +75,7 @@ afterAll(async () => {
 });
 
 describe("Anlegen mit dem Dorf", () => {
-  it("jedes neue Dorf hat eine Welt mit gültigem Seed, Version 1 und leeren Platzierungen", async () => {
+  it("jedes neue Dorf hat eine Welt mit gültigem Seed, aktueller Version und leeren Platzierungen", async () => {
     const seeds: string[] = [];
     for (const u of [a, b, c]) {
       const res = await u.client.from("village_worlds").select("*").eq("village_id", u.villageId);
@@ -84,7 +84,8 @@ describe("Anlegen mit dem Dorf", () => {
       const row = res.data![0];
       expect(row.owner_id).toBe(u.id);
       expect(row.seed).toMatch(SEED_RE);
-      expect(row.generator_version).toBe(1);
+      // Migration 20261023000200: neue Dörfer starten auf Generator v2
+      expect(row.generator_version).toBe(2);
       expect(row.placements).toEqual({});
       seeds.push(row.seed);
     }

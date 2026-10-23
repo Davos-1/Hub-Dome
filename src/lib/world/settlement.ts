@@ -10,10 +10,11 @@
  */
 
 import { FACH_ORDER, FACHBEREICHE, type FachbereichId } from "../fachbereiche";
-import { AXIS_STEP, DIRECTIONS, laneAxis, NODE_RP, type Axis } from "./axes";
+import { AXIS_STEP, DIRECTIONS, laneAxesOf, NODE_RP, type Axis } from "./axes";
 import {
   box,
   circle,
+  distPointPolyline,
   overlaps,
   polar,
   resample,
@@ -23,7 +24,7 @@ import {
   type Pt,
 } from "./geom";
 import { rng } from "./seed";
-import { inWater, riverCrossings } from "./map";
+import { inWater, riverCrossings, type Bridge } from "./map";
 import type { ClaimKind, Space } from "./space";
 
 /** Feste Grösse jedes Grundstücks: Haus der Stufe 3 samt Anbau und 12 Objekt-Plätze (lokal: +z = Tor). */
@@ -40,6 +41,14 @@ const MARGIN_PLOT = 0.6;
 const LANE_SPACING = PLOT.hw * 2 + 1.4;
 /** Halbe Breite der Toröffnung in der Hecke. */
 export const GATE = 0.95;
+/** v2: Breite der Stichwege (Tor → Rückgrat). */
+export const SPUR_WIDTH = 1.1;
+/** v2: Quartierfläche reicht bis so weit (Hausmitte) von der eigenen Gassenachse (zwei Reihen). */
+export const AREA_MAX = 18.5;
+/** Spielraum der Quartierfläche über die Mittellinie zur nächsten fremden Achse hinaus. */
+const AREA_SLACK = 2.5;
+/** Abstand der Hausmitte zur Achse für die erste Reihe (wie die Bauplätze an der Gasse). */
+export const ROW1 = LANE_WIDTH / 2 + GATE_GAP + PLOT.front;
 
 export type SettlementHouse = {
   id: string;
@@ -50,11 +59,18 @@ export type SettlementHouse = {
 
 /** Bauplatz: «p0»/«p1» am Quartierplatz (links/rechts), «g<j>» an der Gasse. */
 export type SlotKey = `p${0 | 1}` | `g${number}`;
-export type HousePin = { r: number; s: string };
+/**
+ * Fixierung eines Hauses: Bauplatz `s` an Gasse `r` (v1 und v2) oder freie Lage `x`, `z` (Hausmitte, nur v2;
+ * die Ausrichtung ergibt sich automatisch: Front quer zur Gasse, Tor zum nächsten Weganschluss).
+ */
+export type HousePin = { r: number; s: string } | { r: number; x: number; z: number };
+export const isFreePin = (p: HousePin): p is { r: number; x: number; z: number } => "x" in p;
 export type SettlementPins = {
   /** Ausgänge pro Quartier (der erste trägt den Quartierplatz, weitere sind Erweiterungen). */
   quartiere?: Partial<Record<FachbereichId, number[]>>;
   haeuser?: Record<string, HousePin>;
+  /** Quartiere, deren Ausgänge auch ohne Häuser bleiben (Prüfwelt im Bau-Modus). */
+  keep?: FachbereichId[];
 };
 
 export type Lane = Axis & {
@@ -83,7 +99,8 @@ export type SettlementNode = {
 
 export type SettlementPath = {
   id: string;
-  kind: "haupt" | "gasse";
+  /** Zuweg, Gasse oder (v2) Stichweg vom Rückgrat zum Gartentor. */
+  kind: "haupt" | "gasse" | "stich";
   ownerId: string;
   quarterIndex: number | null;
   points: Pt[];
@@ -95,7 +112,10 @@ export type PlacedHouse = {
   id: string;
   quarterId: FachbereichId;
   dir: number;
-  slot: SlotKey;
+  /** Bauplatz oder «frei» (v2: freie Lage im Quartier). */
+  slot: SlotKey | "frei";
+  /** Lage entlang der Gasse (Bogenlänge der Projektion). */
+  t: number;
   x: number;
   z: number;
   /** Lokale +z-Achse (Front, Tor) zeigt zum Weg. */
@@ -106,7 +126,7 @@ export type PlacedHouse = {
 export type Settlement = {
   plaza: { a: number; n: number; rot: number };
   /** Brücken, wo Gassen den Fluss queren. */
-  bridges: { x: number; z: number; angle: number; span: number }[];
+  bridges: Bridge[];
   lanes: Lane[];
   nodes: SettlementNode[];
   houses: Record<string, PlacedHouse>;
@@ -115,6 +135,8 @@ export type Settlement = {
   unplaced: string[];
   /** Ungültige Fixierungen (wurden automatisch neu gesetzt). */
   droppedPins: string[];
+  /** Nur v2: Stichweg je Haus (vom Tor zum Rückgrat). */
+  spurs: Record<string, Pt[]>;
 };
 
 /** Index der Quartierfarbe (stabil pro Fachbereich). */
@@ -245,6 +267,9 @@ type Ctx = {
   failed: Set<string>;
   /** Freie Länge jeder Achse bis zum ersten Hindernis der Karte (Wasser ausser Fluss, Merkmal, Rand). */
   room: number[];
+  /** Generator v2: Stichwege, freie Lagen, Rückfall der Platzsuche. */
+  v2: boolean;
+  spurs: Record<string, Pt[]>;
 };
 
 /** Reihenfolge der Bauplätze einer Gasse: zuerst am Quartierplatz (Seite per Seed), dann die Gasse hinaus. */
@@ -310,7 +335,7 @@ function slotCheck(space: Space, lane: Lane, key: SlotKey): string | null {
         nodeClaimId(lane.quarterId),
         "hauptplatz",
       ]);
-      const e = space.pathConflict(ext, LANE_WIDTH / 2, ign, 0, 0, true);
+      const e = space.pathConflict(ext, LANE_WIDTH / 2, ign, 0, 0, true, clearance(space));
       if (e) return `Gasse: ${e.grund}`;
     }
   }
@@ -348,10 +373,328 @@ function claimSlot(ctx: Ctx, lane: Lane, key: SlotKey, houseId: string, pinned: 
     quarterId: lane.quarterId,
     dir: lane.dir,
     slot: key,
+    t: p.t,
     x: p.x,
     z: p.z,
     angle: p.angle,
     pinned,
+  };
+  // v2: kurzer Stichweg vom Tor zur Gasse bzw. zum Quartierplatz (kein Grasspalt)
+  if (ctx.v2) claimSpur(ctx, lane, houseId, p);
+}
+
+// ---------- v2: freie Lagen im Quartier, Stichwege ----------
+
+/** Nächster Punkt einer Lage auf der Gassenachse: Bogenlänge `t`, Abstand `d` (links positiv), Normale. */
+export function spineAt(lane: Axis, x: number, z: number) {
+  let best = { d2: Infinity, i: 0, f: 0 };
+  for (let i = 0; i < lane.axis.length - 1; i++) {
+    const a = lane.axis[i];
+    const b = lane.axis[i + 1];
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const l2 = dx * dx + dz * dz || 1;
+    const f = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2));
+    const d2 = (x - (a.x + dx * f)) ** 2 + (z - (a.z + dz * f)) ** 2;
+    if (d2 < best.d2) best = { d2, i, f };
+  }
+  const p = at(lane, lane.acc[best.i] + best.f * AXIS_STEP);
+  const d = (x - p.x) * p.nx + (z - p.z) * p.nz;
+  return { t: lane.acc[best.i] + best.f * AXIS_STEP, d, dist: Math.sqrt(best.d2), ...p };
+}
+
+/** Lage eines frei gesetzten Hauses: Mitte (x, z), Front quer zur Achse und zum Weg gedreht. */
+export function freePose(lane: Axis, x: number, z: number) {
+  const s = spineAt(lane, x, z);
+  const side = s.d >= 0 ? 1 : -1;
+  return { x, z, angle: Math.atan2(-side * s.nx, -side * s.nz), t: s.t, d: s.d };
+}
+
+/** Stichweg vom Tor gerade zum Rückgrat (Gasse oder Quartierplatz); `null`, wenn das Tor schon anliegt. */
+export function spurOf(
+  lane: Axis & { primary: boolean },
+  pose: { x: number; z: number; angle: number },
+): Pt[] | null {
+  const gate = toWorld(pose.x, pose.z, pose.angle, 0, PLOT.front - 0.05);
+  const s = spineAt(lane, gate.x, gate.z);
+  const onNode = lane.primary && Math.abs(s.t - lane.nodeT) < NODE_RP + 0.6;
+  const reach = onNode ? NODE_RP - 0.15 : LANE_WIDTH / 2 - 0.15;
+  const c = onNode ? at(lane, lane.nodeT) : s;
+  const dx = gate.x - c.x;
+  const dz = gate.z - c.z;
+  const l = Math.hypot(dx, dz) || 1;
+  const end = { x: c.x + (dx / l) * reach, z: c.z + (dz / l) * reach };
+  if (Math.hypot(gate.x - end.x, gate.z - end.z) < 0.15) return null;
+  return resample([gate, end], 0.5);
+}
+
+function claimSpur(
+  ctx: Ctx,
+  lane: Lane,
+  houseId: string,
+  pose: { x: number; z: number; angle: number },
+) {
+  const spur = spurOf(lane, pose);
+  if (!spur) return;
+  ctx.spurs[houseId] = spur;
+  ctx.space.addPath({
+    id: `stich-${houseId}`,
+    pts: spur,
+    hw: SPUR_WIDTH / 2,
+    label: "auf dem Stichweg",
+  });
+}
+
+/**
+ * Liegt die Lage in der Quartierfläche? Feste Aufteilung nach der nächsten Achse aller Ausgänge (auch
+ * unbenutzter): Sie hängt nicht davon ab, welche Gassen später dazukommen, also hält eine gespeicherte Lage.
+ */
+function inQuarterArea(ctx: Ctx, lane: Lane, x: number, z: number): string | null {
+  const own = spineAt(lane, x, z);
+  if (Math.abs(own.d) > AREA_MAX || own.dist > AREA_MAX + 0.5) return "zu weit weg von der Gasse";
+  // Nächste fremde Achse; Häuser am Quartierplatz liegen auf der Mittellinie, daher etwas Spielraum
+  let best = { k: -1, dist: Infinity };
+  ctx.axes.forEach((a, k) => {
+    if (ctx.lanes.get(k)?.quarterId === lane.quarterId) return;
+    const d = spineAt(a, x, z).dist;
+    if (d < best.dist) best = { k, dist: d };
+  });
+  if (own.dist > best.dist + AREA_SLACK)
+    return ctx.lanes.has(best.k) ? "im Nachbarquartier" : "ausserhalb der Quartierfläche";
+  if (lane.primary && own.t < lane.nodeT - NODE_RP - 1)
+    return "zwischen Dorfplatz und Quartierplatz";
+  return null;
+}
+
+/**
+ * Prüft eine freie Lage (v2): Grundstück, Quartierfläche, künftige Gasse, Front, Stichweg und nötige
+ * Verlängerung der Gasse. `null` = gültig, sonst ein kurzer Grund.
+ */
+function freeCheck(
+  ctx: Ctx,
+  lane: Lane,
+  pose: { x: number; z: number; angle: number; t: number },
+  houseId: string,
+): string | null {
+  const plot = plotShape(pose.x, pose.z, pose.angle);
+  const area = inQuarterArea(ctx, lane, pose.x, pose.z);
+  if (area) return area;
+  const ignore = new Set([corridorId(lane.dir), nodeClaimId(lane.quarterId)]);
+  const c = ctx.space.conflict(plot, {
+    margin: MARGIN_PLOT,
+    pathClearance: 0.3,
+    ignore,
+    kinds: PLOT_BLOCKERS,
+    asKind: "grundstueck",
+  });
+  if (c) return c.grund;
+  // Quartierplatz: Grundstück darf ihn nicht berühren (der Platz selbst ist oben ausgenommen)
+  if (lane.primary) {
+    const n = at(lane, lane.nodeT);
+    if (overlaps(plot, circle(n.x, n.z, NODE_RP / Math.cos(Math.PI / NODE_N)), 0.2))
+      return "auf dem Quartierplatz";
+  }
+  if (
+    shapePolylineDist(plot, slice(lane, Math.max(0, pose.t - 9), pose.t + 9)) <
+    LANE_WIDTH / 2 + 0.3
+  )
+    return "zu nah an der Gasse";
+  const f = ctx.space.conflict(frontZone(pose.x, pose.z, pose.angle), {
+    margin: 0.3,
+    pathClearance: 0,
+    kinds: TALL,
+    skipWater: true,
+    skipBounds: true,
+    skipPaths: true,
+  });
+  if (f) return "Baum vor der Front";
+  const spur = spurOf(lane, pose);
+  if (spur) {
+    const ign = new Set([
+      `haus-${houseId}`,
+      `front-${houseId}`,
+      corridorId(lane.dir),
+      laneId(lane.dir),
+      `weg-zugang-${lane.dir}`,
+      nodeClaimId(lane.quarterId),
+    ]);
+    for (const id of Object.keys(ctx.spurs)) ign.add(`stich-${id}`);
+    const e = ctx.space.pathConflict(spur, SPUR_WIDTH / 2, ign, 0, 0.6, false, 0.3);
+    if (e) return `kein Weg zum Tor (${e.grund})`;
+    for (const [id, other] of Object.entries(ctx.spurs)) {
+      if (id !== houseId && spurGap(spur, other) < SPUR_WIDTH + 0.3)
+        return "kein Weg zum Tor (Stichweg)";
+    }
+  }
+  const end = pose.t + PLOT.hw + 1.2;
+  if (end > lane.builtT) {
+    const ext = slice(lane, Math.max(lane.builtT - 0.5, 0), end);
+    const ign = new Set([
+      corridorId(lane.dir),
+      laneId(lane.dir),
+      nodeClaimId(lane.quarterId),
+      "hauptplatz",
+    ]);
+    const e = ctx.space.pathConflict(ext, LANE_WIDTH / 2, ign, 0, 0, true, 0.3);
+    if (e) return `Gasse: ${e.grund}`;
+  }
+  return null;
+}
+
+/** v2 prüft Wege und Grundstücke in beide Richtungen mit demselben Abstand (Reihenfolge beim Laden egal). */
+const clearance = (space: Space) => (space.map.version === 2 ? 0.3 : 0.35);
+
+/** Kleinster Abstand zweier Stichwege, ohne den letzten halben Meter an der Gasse (dort laufen sie zusammen). */
+function spurGap(a: Pt[], b: Pt[]) {
+  const cut = (p: Pt[]) => p.slice(0, Math.max(1, p.length - 1));
+  const pa = cut(a);
+  const pb = cut(b);
+  let best = Infinity;
+  for (const q of pa)
+    best = Math.min(best, distPointPolyline(q.x, q.z, pb.length > 1 ? pb : [pb[0], pb[0]]));
+  for (const q of pb)
+    best = Math.min(best, distPointPolyline(q.x, q.z, pa.length > 1 ? pa : [pa[0], pa[0]]));
+  return best;
+}
+
+function claimFree(
+  ctx: Ctx,
+  lane: Lane,
+  pose: { x: number; z: number; angle: number; t: number },
+  houseId: string,
+  pinned: boolean,
+) {
+  ctx.space.addClaim({
+    id: `haus-${houseId}`,
+    kind: "grundstueck",
+    shape: plotShape(pose.x, pose.z, pose.angle),
+    label: "im Garten eines Hauses",
+  });
+  ctx.space.addClaim({
+    id: `front-${houseId}`,
+    kind: "frontzone",
+    shape: frontZone(pose.x, pose.z, pose.angle),
+    label: "verdeckt ein Haus",
+  });
+  const end = pose.t + PLOT.hw + 1.2;
+  if (end > lane.builtT) {
+    const from = lane.builtT;
+    lane.builtT = end;
+    ctx.space.addPath({
+      id: laneId(lane.dir),
+      pts: slice(lane, Math.max(0, from - 0.5), lane.builtT),
+      hw: LANE_WIDTH / 2,
+      label: "auf der Gasse",
+    });
+  }
+  ctx.houses[houseId] = {
+    id: houseId,
+    quarterId: lane.quarterId,
+    dir: lane.dir,
+    slot: "frei",
+    t: pose.t,
+    x: pose.x,
+    z: pose.z,
+    angle: pose.angle,
+    pinned,
+  };
+  claimSpur(ctx, lane, houseId, pose);
+}
+
+/** Rückfall (v2): erste freie Lage im Quartier, wenn kein Bauplatz und keine neue Gasse mehr passt. */
+function placeFreeAuto(ctx: Ctx, h: SettlementHouse): boolean {
+  const ROW2 = ROW1 + PLOT.front + PLOT.back + 2.0;
+  for (const k of ctx.quarterDirs.get(h.fach) ?? []) {
+    const lane = ctx.lanes.get(k)!;
+    const t0 = lane.primary ? lane.nodeT : 4;
+    const tMax = lane.acc[lane.acc.length - 1] - PLOT.hw - 2;
+    for (const d of [ROW1, -ROW1, ROW2, -ROW2])
+      for (let t = t0; t <= tMax; t += 0.75) {
+        const p = at(lane, t);
+        const pose = freePose(lane, p.x + p.nx * d, p.z + p.nz * d);
+        if (Math.hypot(pose.x, pose.z) > ctx.space.map.rBuild) break;
+        if (!freeCheck(ctx, lane, pose, h.id)) {
+          claimFree(ctx, lane, pose, h.id, false);
+          return true;
+        }
+      }
+  }
+  return false;
+}
+
+/**
+ * Prüft eine freie Lage für ein Haus im Register einer fertigen Welt (Bau-Modus, Ziehen): Das Haus selbst darf
+ * darin nicht mehr stehen. Liefert die Lage samt Ausrichtung oder den Grund.
+ */
+export function checkFreeHouse(
+  space: Space,
+  settlement: Settlement,
+  houseId: string,
+  quarterId: FachbereichId,
+  x: number,
+  z: number,
+): { ok: true; pose: ReturnType<typeof freePose>; dir: number } | { ok: false; grund: string } {
+  const ctx = editCtx(space, settlement);
+  const lanes = [...ctx.lanes.values()].filter((l) => l.quarterId === quarterId);
+  if (!lanes.length) return { ok: false, grund: "kein Quartier" };
+  // Nächste eigene Gasse bestimmt Ausrichtung und Weg
+  const lane = lanes.reduce((a, b) => (spineAt(a, x, z).dist <= spineAt(b, x, z).dist ? a : b));
+  const pose = freePose(lane, x, z);
+  if (!space.inBounds(plotShape(pose.x, pose.z, pose.angle)))
+    return { ok: false, grund: "ausserhalb der Karte" };
+  const why = freeCheck(ctx, lane, pose, houseId);
+  return why ? { ok: false, grund: why } : { ok: true, pose, dir: lane.dir };
+}
+
+/**
+ * Prüft eine Gruppe freier Lagen nacheinander (Quartier verschieben): jedes Haus gegen das Register und gegen die
+ * zuvor gesetzten der Gruppe. `space` wird nicht verändert. Liefert die Lagen oder das erste abgewiesene Haus.
+ */
+export function checkFreeGroup(
+  space: Space,
+  settlement: Settlement,
+  quarterId: FachbereichId,
+  list: { id: string; x: number; z: number }[],
+):
+  | { ok: true; poses: Record<string, ReturnType<typeof freePose> & { dir: number }>; space: Space }
+  | { ok: false; id: string; grund: string } {
+  const ctx = editCtx(space.clone(), settlement);
+  const lanes = [...ctx.lanes.values()].filter((l) => l.quarterId === quarterId);
+  if (!lanes.length) return { ok: false, id: list[0]?.id ?? "", grund: "kein Quartier" };
+  const poses: Record<string, ReturnType<typeof freePose> & { dir: number }> = {};
+  for (const h of list) {
+    const lane = lanes.reduce((a, b) =>
+      spineAt(a, h.x, h.z).dist <= spineAt(b, h.x, h.z).dist ? a : b,
+    );
+    const pose = freePose(lane, h.x, h.z);
+    if (!ctx.space.inBounds(plotShape(pose.x, pose.z, pose.angle)))
+      return { ok: false, id: h.id, grund: "ausserhalb der Karte" };
+    const why = freeCheck(ctx, lane, pose, h.id);
+    if (why) return { ok: false, id: h.id, grund: why };
+    claimFree(ctx, lane, pose, h.id, true);
+    poses[h.id] = { ...pose, dir: lane.dir };
+  }
+  return { ok: true, poses, space: ctx.space };
+}
+
+/** Kontext für Prüfungen auf einer fertigen Welt (Gassen mit ihrer gebauten Länge, Register als Kopie). */
+function editCtx(space: Space, s: Settlement): Ctx {
+  const lanes = new Map(
+    s.lanes.map((l) => [l.dir, { ...l, rejected: new Map(l.rejected) }] as const),
+  );
+  return {
+    seed: space.map.seed,
+    space,
+    plaza: s.plaza,
+    lanes,
+    axes: laneAxesOf(space.map.seed, space.map),
+    nodes: s.nodes,
+    houses: { ...s.houses },
+    quarterDirs: new Map(),
+    failed: new Set(),
+    room: [],
+    v2: true,
+    spurs: {},
   };
 }
 
@@ -370,6 +713,7 @@ function openLane(ctx: Ctx, q: FachbereichId, k: number, primary: boolean): Lane
   const m = ctx.space.mark();
   const ign = new Set([corridorId(k)]);
   if (primary) {
+    if (ctx.v2) lane.nodeT = dryNodeT(ctx.space.map, lane);
     const c = at(lane, lane.nodeT);
     const node: SettlementNode = {
       id: nodeClaimId(q),
@@ -394,7 +738,15 @@ function openLane(ctx: Ctx, q: FachbereichId, k: number, primary: boolean): Lane
         ignore: ign,
         kinds: SIGHT_BLOCKERS,
       }) ||
-      ctx.space.pathConflict(access, MAIN_PATH_WIDTH / 2, new Set([...ign, "hauptplatz"]), 1, 0.5)
+      // v2: Der Zuweg darf einen Bach auf einer Brücke queren
+      ctx.space.pathConflict(
+        access,
+        MAIN_PATH_WIDTH / 2,
+        new Set([...ign, "hauptplatz"]),
+        1,
+        0.5,
+        ctx.v2,
+      )
     ) {
       ctx.failed.add(`${k}:${primary}`);
       return null;
@@ -428,6 +780,19 @@ function openLane(ctx: Ctx, q: FachbereichId, k: number, primary: boolean): Lane
   return lane;
 }
 
+/**
+ * v2: Liegt der Quartierplatz im Wasser (Bach, Teich), rückt er auf der Achse etwas näher zum Dorfplatz oder
+ * über das Wasser hinaus. Hängt nur von der Karte ab, also gleich in jeder Reihenfolge.
+ */
+function dryNodeT(map: Space["map"], lane: Axis): number {
+  const r = NODE_RP / Math.cos(Math.PI / NODE_N) + 0.3 + MARGIN_PLOT;
+  for (const dt of [0, -1.5, -3, 3, 6, 9, 12]) {
+    const c = at(lane, lane.nodeT + dt);
+    if (!inWater(map, circle(c.x, c.z, r), 0.2)) return lane.nodeT + dt;
+  }
+  return lane.nodeT;
+}
+
 /** Wie weit reicht eine Achse, bis sie Wasser (ausser Fluss mit Brücke) oder ein Merkmal trifft? */
 function axisRoom(space: Space, a: Axis): number {
   const m = space.map;
@@ -435,7 +800,7 @@ function axisRoom(space: Space, a: Axis): number {
     const p = a.axis[i];
     const s = circle(p.x, p.z, LANE_WIDTH / 2 + PLOT.front + PLOT.back);
     if (
-      inWater({ ...m, river: null }, s, 0) ||
+      inWater({ ...m, river: null, streams: [] }, s, 0) ||
       space.claims.some((c) => c.kind === "merkmal" && overlaps(s, c.shape, 0))
     ) {
       return a.acc[i];
@@ -499,14 +864,14 @@ export function placeSettlement(
     space,
     plaza,
     lanes: new Map(),
-    axes: Array.from({ length: DIRECTIONS }, (_, k) =>
-      laneAxis(seed, plaza, k, map.rBuild, map.lake),
-    ),
+    axes: laneAxesOf(seed, map),
     nodes: [],
     houses: {},
     quarterDirs: new Map(),
     failed: new Set(),
     room: [],
+    v2: map.version === 2,
+    spurs: {},
   };
   ctx.room = ctx.axes.map((a) => axisRoom(space, a));
   const droppedPins: string[] = [];
@@ -528,7 +893,7 @@ export function placeSettlement(
   });
 
   // 1. Fixierte Quartiere (Ausgänge) und Häuser
-  const present = new Set(houses.map((h) => h.fach));
+  const present = new Set([...houses.map((h) => h.fach), ...(pins.keep ?? [])]);
   for (const q of FACH_ORDER) {
     const dirs = pins.quartiere?.[q];
     if (!dirs || !present.has(q)) continue;
@@ -538,20 +903,34 @@ export function placeSettlement(
     });
   }
   const pinned = new Set<string>();
-  for (const h of houses) {
-    const pin = pins.haeuser?.[h.id];
-    if (!pin) continue;
+  // Bauplätze zuerst, dann freie Lagen (jede Reihenfolge gibt dasselbe Ergebnis, die Prüfungen sind symmetrisch)
+  const pinOrder = houses
+    .filter((h) => pins.haeuser?.[h.id])
+    .sort(
+      (a, b) => Number(isFreePin(pins.haeuser![a.id])) - Number(isFreePin(pins.haeuser![b.id])),
+    );
+  for (const h of pinOrder) {
+    const pin = pins.haeuser![h.id];
     const lane = ctx.lanes.get(pin.r);
-    if (
-      !lane ||
-      lane.quarterId !== h.fach ||
-      !/^(p[01]|g\d{1,2})$/.test(pin.s) ||
-      !slotFree(space, lane, pin.s as SlotKey)
-    ) {
+    if (!lane || lane.quarterId !== h.fach) {
       droppedPins.push(h.id);
       continue;
     }
-    claimSlot(ctx, lane, pin.s as SlotKey, h.id, true);
+    if (isFreePin(pin)) {
+      // Freie Lage (nur v2): Ausrichtung automatisch, gleiche Prüfung wie beim Ziehen
+      const pose = ctx.v2 ? freePose(lane, pin.x, pin.z) : null;
+      if (!pose || freeCheck(ctx, lane, pose, h.id)) {
+        droppedPins.push(h.id);
+        continue;
+      }
+      claimFree(ctx, lane, pose, h.id, true);
+    } else {
+      if (!/^(p[01]|g\d{1,2})$/.test(pin.s) || !slotFree(space, lane, pin.s as SlotKey)) {
+        droppedPins.push(h.id);
+        continue;
+      }
+      claimSlot(ctx, lane, pin.s as SlotKey, h.id, true);
+    }
     pinned.add(h.id);
   }
 
@@ -561,7 +940,12 @@ export function placeSettlement(
   const rest = houses
     .filter((h) => !pinned.has(h.id))
     .sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1));
-  for (const h of rest) if (!placeAuto(ctx, h)) unplaced.push(h.id);
+  for (const h of rest) {
+    if (placeAuto(ctx, h)) continue;
+    // v2: Rückfall auf eine freie Lage im eigenen Quartier (zweite Reihe, Lücken)
+    if (ctx.v2 && placeFreeAuto(ctx, h)) continue;
+    unplaced.push(h.id);
+  }
 
   // Wege: Zuweg zum Quartierplatz und gebaute Gasse
   const paths: SettlementPath[] = [];
@@ -591,11 +975,34 @@ export function placeSettlement(
       });
     }
   }
+  // v2: Stichwege vom Tor zum Rückgrat (konstante Breite)
+  for (const [id, pts] of Object.entries(ctx.spurs)) {
+    const h = ctx.houses[id];
+    if (!h) continue;
+    paths.push({
+      id: `stich-${id}`,
+      kind: "stich",
+      ownerId: h.quarterId,
+      quarterIndex: quarterIndex(h.quarterId),
+      points: pts,
+      width: SPUR_WIDTH,
+      seed: 11,
+    });
+  }
   const lanes = [...ctx.lanes.values()];
   const bridges = paths
-    .filter((p) => p.kind === "gasse")
+    .filter((p) => p.kind === "gasse" || (map.version === 2 && p.kind === "haupt"))
     .flatMap((p) => riverCrossings(map, p.points, p.width / 2))
-    .map(({ x, z, angle, span }) => ({ x, z, angle, span: span + 1.2 }));
+    .map(({ x, z, angle, span, width }) => ({
+      x,
+      z,
+      angle,
+      span: span + 1.2,
+      // v2: breites Wasser bekommt eine Steinbogenbrücke (v1 kennt keinen Stil)
+      ...(map.version === 2
+        ? { style: width >= 4.5 ? ("stein" as const) : ("holz" as const) }
+        : {}),
+    }));
   return {
     plaza,
     bridges,
@@ -605,11 +1012,14 @@ export function placeSettlement(
     paths,
     unplaced,
     droppedPins,
+    spurs: ctx.spurs,
   };
 }
 
 /** Fixierungen, die den aktuellen Stand genau festhalten (Bau-Modus speichert immer alles fixiert). */
-export function pinsFromSettlement(s: Settlement): Required<SettlementPins> {
+export function pinsFromSettlement(
+  s: Settlement,
+): Required<Pick<SettlementPins, "quartiere" | "haeuser">> {
   const quartiere: Partial<Record<FachbereichId, number[]>> = {};
   for (const lane of s.lanes) {
     const list = (quartiere[lane.quarterId] ??= []);
@@ -617,7 +1027,11 @@ export function pinsFromSettlement(s: Settlement): Required<SettlementPins> {
     else list.push(lane.dir);
   }
   const haeuser: Record<string, HousePin> = {};
-  for (const h of Object.values(s.houses)) haeuser[h.id] = { r: h.dir, s: h.slot };
+  for (const h of Object.values(s.houses))
+    haeuser[h.id] =
+      h.slot === "frei"
+        ? { r: h.dir, x: Math.round(h.x * 100) / 100, z: Math.round(h.z * 100) / 100 }
+        : { r: h.dir, s: h.slot };
   return { quartiere, haeuser };
 }
 

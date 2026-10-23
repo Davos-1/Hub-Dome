@@ -51,7 +51,7 @@ export function FriendLinkDialog({
           </>
         ) : (
           <>
-            <p role="alert" className="rounded-xl bg-[#fff3cf] p-3 text-[14px] text-[#6b4e00]">
+            <p role="alert" className="rounded-xl bg-hd-new p-3 text-[14px] text-hd-new-ink">
               {FRIEND_LINK_MESSAGES[link.state as Exclude<FriendLinkState, "ok">]}
             </p>
             {link.state === "befreundet" && link.username && (

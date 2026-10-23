@@ -3,9 +3,9 @@
 import { useEffect, useMemo } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { overviewDistance } from "@/lib/camera-poses";
 import { seededRandom } from "@/lib/random";
-import { TIMES, type TimeKey } from "@/lib/daytime";
+import { TIMES, type TimeKey, type TimePreset } from "@/lib/daytime";
+import { setWaterSky } from "./life/water-sky";
 
 /**
  * Himmel, Nebel, Sonne und Hemisphärenlicht nach Tageszeit (ohne Neuaufbau der Szene).
@@ -16,13 +16,16 @@ export function Daylight({
   extent,
   map,
   lowDetail,
+  tint = 0,
 }: {
   time: TimeKey;
   extent: number;
   map: boolean;
   lowDetail: boolean;
+  /** Farbton der Welt (v2): −1 kühl … +1 warm; verschiebt Himmel und Sonne leicht. */
+  tint?: number;
 }) {
-  const p = TIMES[time];
+  const p = useMemo(() => tinted(TIMES[time], tint), [time, tint]);
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
 
@@ -43,6 +46,35 @@ export function Daylight({
   }, [p]);
   useEffect(() => () => sky.dispose(), [sky]);
 
+  // Himmel als Umgebung fürs Wasser (Spiegelung): Zenit oben, Horizont in der Mitte, Boden unten
+  useEffect(() => {
+    const c = document.createElement("canvas");
+    c.width = 16;
+    c.height = 64;
+    const ctx = c.getContext("2d")!;
+    const g = ctx.createLinearGradient(0, 0, 0, 64);
+    g.addColorStop(0, p.sky[0]);
+    g.addColorStop(0.3, p.sky[1]);
+    g.addColorStop(0.5, p.sky[2]);
+    g.addColorStop(0.56, p.hemi.ground);
+    g.addColorStop(1, p.hemi.ground);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 16, 64);
+    const equi = new THREE.CanvasTexture(c);
+    equi.mapping = THREE.EquirectangularReflectionMapping;
+    equi.colorSpace = THREE.SRGBColorSpace;
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const env = pmrem.fromEquirectangular(equi).texture;
+    equi.dispose();
+    pmrem.dispose();
+    setWaterSky(env);
+    invalidate();
+    return () => {
+      setWaterSky(null);
+      env.dispose();
+    };
+  }, [gl, p, invalidate]);
+
   useEffect(() => {
     // Belichtung des Renderers pro Tageszeit (kein React-State, daher direkt setzen)
     // eslint-disable-next-line react-hooks/immutability
@@ -50,7 +82,6 @@ export function Daylight({
     invalidate();
   }, [gl, p.exposure, invalidate]);
 
-  const d0 = overviewDistance(extent);
   return (
     <>
       <primitive object={sky} attach="background" />
@@ -60,7 +91,8 @@ export function Daylight({
           count={lowDetail ? 260 : 700}
         />
       )}
-      {!map && <fog attach="fog" args={[p.sky[2], d0 + extent * 0.4, d0 + extent * 2.2]} />}
+      {/* Luftperspektive: exponentieller Dunst; das Dorf bleibt klar, Berge werden nach hinten heller */}
+      {!map && <fogExp2 attach="fog" args={[p.sky[2], FOG_DENSITY]} />}
       <hemisphereLight args={[p.hemi.sky, p.hemi.ground, p.hemi.intensity]} />
       <directionalLight
         position={[p.sunPosition[0] * extent, p.sunPosition[1] * extent, p.sunPosition[2] * extent]}
@@ -80,6 +112,23 @@ export function Daylight({
       />
     </>
   );
+}
+
+/** Dichte des Dunsts: bei 150 m kaum spürbar (6 %), bei 400 m ein Drittel, bei 700 m rund 70 %. */
+const FOG_DENSITY = 0.0016;
+
+/** Tageszeit leicht getönt: warm Richtung Pfirsich, kühl Richtung Blau (höchstens 10 %). */
+function tinted(p: TimePreset, tint: number): TimePreset {
+  if (!tint) return p;
+  const to = new THREE.Color(tint > 0 ? "#ffcf9e" : "#9ec2ff");
+  const k = Math.min(1, Math.abs(tint)) * 0.1;
+  const mix = (c: string) => "#" + new THREE.Color(c).lerp(to, k).getHexString();
+  return {
+    ...p,
+    sky: [mix(p.sky[0]), mix(p.sky[1]), mix(p.sky[2])],
+    sun: mix(p.sun),
+    hemi: { ...p.hemi, sky: mix(p.hemi.sky) },
+  };
 }
 
 /**

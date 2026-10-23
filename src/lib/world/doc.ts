@@ -71,14 +71,27 @@ export const worldDocSchema = z.object({
   haeuser: z
     .record(
       idSchema,
-      z.object({
-        r: z
-          .number()
-          .int()
-          .min(0)
-          .max(DIRECTIONS - 1),
-        s: z.string().regex(/^(p[01]|g\d{1,2})$/),
-      }),
+      z.union([
+        // Bauplatz an einer Gasse (v1 und v2)
+        z.object({
+          r: z
+            .number()
+            .int()
+            .min(0)
+            .max(DIRECTIONS - 1),
+          s: z.string().regex(/^(p[01]|g\d{1,2})$/),
+        }),
+        // Freie Lage der Hausmitte im Quartier (nur v2; Ausrichtung automatisch)
+        z.object({
+          r: z
+            .number()
+            .int()
+            .min(0)
+            .max(DIRECTIONS - 1),
+          x: z.number().finite().min(-150).max(150),
+          z: z.number().finite().min(-150).max(150),
+        }),
+      ]),
     )
     .optional(),
   deko: z.array(dekoItemSchema).max(MAX_DEKO).optional(),

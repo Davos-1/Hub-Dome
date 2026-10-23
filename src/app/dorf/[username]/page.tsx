@@ -49,9 +49,9 @@ export default function DorfPage(props: PageProps<"/dorf/[username]">) {
 /** Ruhiger Ladezustand, solange Dorf und Dialogdaten geladen werden. */
 function WorldLoading() {
   return (
-    <div className="hubdome-ui hd-fade-in fixed inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#6fb1ec] via-[#b9dcf7] to-[#e8f3fb] text-[#1c1b19]">
+    <div className="hubdome-ui hd-fade-in fixed inset-0 flex flex-col items-center justify-center gap-2 hd-sky text-hd-ink">
       <div className="text-2xl font-semibold">Hub Dome</div>
-      <p role="status" className="text-[14px] text-[#3a3732]">
+      <p role="status" className="text-[14px] text-hd-ink-2">
         Dorf wird aufgebaut…
       </p>
     </div>

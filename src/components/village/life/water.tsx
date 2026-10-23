@@ -8,6 +8,8 @@ import { seededRandom } from "../colors";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { box, cyl, mergeParts, rbox, type Part } from "../geo";
 import { T0 } from "./herd";
+import { useWaterSky } from "./water-sky";
+import { stoneBridgeParts } from "../seed-object-models";
 
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
@@ -50,6 +52,38 @@ function useWaterTexture(repeatX: number) {
   return texture;
 }
 
+/** Schaumlinien am Ufer: weisse, unterbrochene Striche auf transparentem Grund (kachelbar in Fliessrichtung). */
+function useFoamTexture() {
+  const texture = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 32;
+    const ctx = c.getContext("2d")!;
+    ctx.clearRect(0, 0, 256, 32);
+    const rnd = seededRandom("schaum");
+    for (let i = 0; i < 46; i++) {
+      const x = rnd() * 256;
+      const y = 4 + rnd() * 24;
+      const l = 8 + rnd() * 30;
+      ctx.strokeStyle = `rgba(255,255,255,${0.45 + rnd() * 0.45})`;
+      ctx.lineWidth = 1 + rnd() * 2.2;
+      ctx.lineCap = "round";
+      for (const dx of [0, -256]) {
+        ctx.beginPath();
+        ctx.moveTo(x + dx, y);
+        ctx.lineTo(x + dx + l, y + (rnd() - 0.5) * 3);
+        ctx.stroke();
+      }
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = THREE.RepeatWrapping;
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return texture;
+}
+
 function Water({
   geometry,
   texture,
@@ -64,13 +98,17 @@ function Water({
   useFrame(({ clock }) => {
     if (!frozen) texture.offset.set(-((T0 + clock.elapsedTime) * speed) % 1, 0);
   });
+  // Spiegelung des Himmels und Glanzlicht der Sonne (Tag), dunkler Spiegel mit Lichtern (Nacht)
+  const sky = useWaterSky();
   return (
     <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial
         map={texture}
         color="#9fd8ee"
-        roughness={0.25}
+        roughness={0.14}
         metalness={0.05}
+        envMap={sky}
+        envMapIntensity={0.55}
         transparent
         opacity={0.95}
         vertexColors={!!geometry.getAttribute("color")}
@@ -310,8 +348,11 @@ export function River({
   bridges,
   frozen,
   density,
+  level = 0.05,
 }: {
   river: NonNullable<Environment["river"]>;
+  /** Höhe der Wasseroberfläche; Nebenarme und Zuflüsse liegen etwas tiefer (kein Flimmern, wo sie münden). */
+  level?: number;
   /** Brücken: dort wachsen kein Schilf und liegen keine Steine. */
   bridges: Environment["bridges"];
   frozen: boolean;
@@ -324,7 +365,8 @@ export function River({
       "catmullrom",
       0.5,
     );
-    return c.getSpacedPoints(160);
+    // Etwa ein Stützpunkt pro Meter: glatte Ufer auch bei breiten, mäandernden Flüssen
+    return c.getSpacedPoints(Math.min(700, Math.max(160, Math.round(c.getLength()))));
   }, [river.points]);
 
   const water = useMemo(() => {
@@ -332,25 +374,42 @@ export function River({
     // Flaches Wasser am Rand heller, in der Mitte tiefer
     const edge: RGBA = [1.3, 1.25, 1.12, 1];
     const mid: RGBA = [0.86, 0.92, 0.98, 1];
-    return ribbonUV(curve, [-h, -h * 0.45, h * 0.45, h], 0.05, 1 / 5, [edge, mid, mid, edge]);
-  }, [curve, river.width]);
+    return ribbonUV(curve, [-h, -h * 0.45, h * 0.45, h], level, 1 / 5, [edge, mid, mid, edge]);
+  }, [curve, river.width, level]);
+  // Schaum entlang beider Ufer (nur breitere Wasserläufe)
+  const foam = useMemo(() => {
+    if (river.width < 2.6) return null;
+    const h = river.width / 2;
+    const a = ribbonUV(curve, [-h + 0.12, -h + 0.6], level + 0.004, 1 / 6);
+    const b = ribbonUV(curve, [h - 0.6, h - 0.12], level + 0.004, 1 / 6);
+    const g = mergeGeometries([a.geometry, b.geometry], false);
+    a.geometry.dispose();
+    b.geometry.dispose();
+    return g;
+  }, [curve, river.width, level]);
+  useEffect(() => () => foam?.dispose(), [foam]);
+  const foamTex = useFoamTexture();
+  useFrame(({ clock }) => {
+    if (!frozen) foamTex.offset.set(-((T0 + clock.elapsedTime) * 0.045) % 1, 0);
+  });
   const bank = useMemo(() => {
     const h = river.width / 2;
-    return ribbonUV(curve, [-h - 1.6, -h - 0.7, -h + 0.1, h - 0.1, h + 0.7, h + 1.6], 0.025, 1, [
-      FADE,
-      SAND,
-      WET,
-      WET,
-      SAND,
-      FADE,
-    ]);
-  }, [curve, river.width]);
+    return ribbonUV(
+      curve,
+      [-h - 1.6, -h - 0.7, -h + 0.1, h - 0.1, h + 0.7, h + 1.6],
+      level - 0.025,
+      1,
+      [FADE, SAND, WET, WET, SAND, FADE],
+    );
+  }, [curve, river.width, level]);
   const texture = useWaterTexture(Math.max(1, Math.round(water.length / 5 / 1)));
   useEffect(() => () => water.geometry.dispose(), [water]);
   useEffect(() => () => bank.geometry.dispose(), [bank]);
 
-  const reeds = Math.min(100, Math.round(70 * density));
-  const stones = Math.min(100, Math.round(34 * density));
+  // Mehr Schilf und Steine an langen Wasserläufen (v2), höchstens 100 je Art
+  const perMeter = curve.length / 160;
+  const reeds = Math.min(100, Math.round(70 * density * Math.min(1.4, perMeter)));
+  const stones = Math.min(100, Math.round(34 * density * Math.min(2, perMeter)));
   const rnd = useMemo(
     () => seededRandom(`fluss${river.points.length}${Math.round(river.points[3].x)}`),
     [river.points],
@@ -407,6 +466,11 @@ export function River({
         {shoreMaterial}
       </mesh>
       <Water geometry={water.geometry} texture={texture} frozen={frozen} speed={0.06} />
+      {foam && (
+        <mesh geometry={foam} renderOrder={1}>
+          <meshBasicMaterial map={foamTex} transparent depthWrite={false} opacity={0.75} />
+        </mesh>
+      )}
       <Scatter count={reeds} place={placeReed} geometry={reedGeometry()}>
         <meshStandardMaterial vertexColors roughness={0.9} />
       </Scatter>
@@ -418,26 +482,134 @@ export function River({
   );
 }
 
-/** Holzbrücken über den Fluss (Wanderweg und Gassen); Achse in Gehrichtung. */
-export function Bridges({ bridges }: { bridges: Environment["bridges"] }) {
+/**
+ * Sandbänke im Fluss (v2): flache Inseln an den Innenseiten der Biegungen, als Fächer mit weichem Rand (Deckkraft
+ * nach aussen null), damit sie ins Wasser übergehen statt wie ausgeschnitten zu wirken.
+ */
+export function Sandbanks({ polys }: { polys: { x: number; z: number }[][] }) {
+  const geometry = useMemo(() => {
+    const pos: number[] = [];
+    const col: number[] = [];
+    const idx: number[] = [];
+    for (const poly of polys) {
+      const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
+      const cz = poly.reduce((s, p) => s + p.z, 0) / poly.length;
+      const base = pos.length / 3;
+      const n = poly.length;
+      pos.push(cx, 0, cz);
+      col.push(0.84, 0.78, 0.6, 1);
+      for (const [k, a] of [
+        [0.55, 0.95],
+        [1, 0],
+      ] as const)
+        for (const p of poly) {
+          pos.push(cx + (p.x - cx) * k, 0, cz + (p.z - cz) * k);
+          col.push(0.8, 0.74, 0.57, a);
+        }
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        idx.push(base, base + 1 + j, base + 1 + i);
+        idx.push(base + 1 + i, base + 1 + j, base + 1 + n + i);
+        idx.push(base + 1 + j, base + 1 + n + j, base + 1 + n + i);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(col, 4));
+    g.setIndex(idx);
+    const nor = new Float32Array(pos.length);
+    for (let i = 1; i < nor.length; i += 3) nor[i] = 1;
+    g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+    return g;
+  }, [polys]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} position={[0, 0.058, 0]} renderOrder={1} receiveShadow>
+      <meshStandardMaterial
+        vertexColors
+        transparent
+        depthWrite={false}
+        roughness={1}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+}
+
+/** Laterne am Brückenkopf (v2): Pfosten aus Holz bzw. Stein, Leuchte als eigener Teil (leuchtet abends). */
+function bridgeLantern(x: number, z: number, stone: boolean): { body: Part[]; glow: Part[] } {
+  return {
+    body: [
+      { geo: cyl(0.06, 0.08, 1.5, 6), color: stone ? "#8f8a82" : "#6b4423", pos: [x, 0.75, z] },
+      { geo: box(0.26, 0.05, 0.26), color: "#2f2f35", pos: [x, 1.52, z] },
+      { geo: cyl(0, 0.2, 0.18, 4), color: "#2f2f35", pos: [x, 1.86, z], rot: [0, Math.PI / 4, 0] },
+    ],
+    glow: [{ geo: box(0.18, 0.22, 0.18), color: "#ffe9b8", pos: [x, 1.66, z] }],
+  };
+}
+
+/**
+ * Brücken über Fluss und Bäche (Wanderweg und Gassen); Achse in Gehrichtung. v2: Steinbogen bei breitem Wasser,
+ * sonst Holz, mit Laternen an den Brückenköpfen (Lichter am Wasser bei Nacht).
+ */
+export function Bridges({
+  bridges,
+  glow = 0.85,
+}: {
+  bridges: Environment["bridges"];
+  glow?: number;
+}) {
   const geometry = useMemo(() => {
     if (bridges.length === 0) return null;
     const m = new THREE.Matrix4();
-    const geos = bridges.map((b) => {
-      const g = mergeParts(bridgeParts(b.span));
-      g.applyMatrix4(m.makeRotationY(b.angle).setPosition(b.x, 0, b.z));
+    const body: THREE.BufferGeometry[] = [];
+    const light: THREE.BufferGeometry[] = [];
+    for (const b of bridges) {
+      const stone = b.style === "stein";
+      const parts = stone ? stoneBridgeParts(b.span, 2.2) : bridgeParts(b.span);
+      const lamps = b.style
+        ? [
+            bridgeLantern(0.95, -b.span / 2 + 0.35, stone),
+            bridgeLantern(-0.95, b.span / 2 - 0.35, stone),
+          ]
+        : [];
+      const at = m.makeRotationY(b.angle).setPosition(b.x, 0, b.z);
+      const g = mergeParts([...parts, ...lamps.flatMap((l) => l.body)]);
+      g.applyMatrix4(at);
+      body.push(g);
+      if (lamps.length) {
+        const gl = mergeParts(lamps.flatMap((l) => l.glow));
+        gl.applyMatrix4(at);
+        light.push(gl);
+      }
+    }
+    const merge = (list: THREE.BufferGeometry[]) => {
+      if (!list.length) return null;
+      const g = mergeGeometries(list, false);
+      list.forEach((x) => x.dispose());
       return g;
-    });
-    const merged = mergeGeometries(geos, false);
-    geos.forEach((g) => g.dispose());
-    return merged;
+    };
+    return { body: merge(body), glow: merge(light) };
   }, [bridges]);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
-  if (!geometry) return null;
+  useEffect(
+    () => () => {
+      geometry?.body?.dispose();
+      geometry?.glow?.dispose();
+    },
+    [geometry],
+  );
+  if (!geometry?.body) return null;
   return (
-    <mesh geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial vertexColors roughness={0.85} />
-    </mesh>
+    <group>
+      <mesh geometry={geometry.body} castShadow receiveShadow>
+        <meshStandardMaterial vertexColors roughness={0.85} />
+      </mesh>
+      {geometry.glow && (
+        <mesh geometry={geometry.glow}>
+          <meshStandardMaterial color="#ffe9b8" emissive="#ffb84d" emissiveIntensity={glow} />
+        </mesh>
+      )}
+    </group>
   );
 }
 

@@ -1,8 +1,8 @@
 /** Ein Weg als Linienzug: Zuweg (Dorfplatz → Quartierplatz) oder Gasse (Quartierplatz hinaus, Häuser beidseits). */
 export type VillagePath = {
   id: string;
-  /** Hauptweg (Dorfplatz → Quartierplatz), Gasse oder Fusspfad (Wanderweg über die Brücke). */
-  kind: "haupt" | "gasse" | "pfad";
+  /** Hauptweg (Dorfplatz → Quartierplatz), Gasse, Stichweg (v2: Tor → Rückgrat) oder Fusspfad (Wanderweg). */
+  kind: "haupt" | "gasse" | "stich" | "pfad";
   /** Quartier-Id. */
   ownerId: string;
   /** Index in der Quartierfarbe, `null` für Wege ohne Quartier. */

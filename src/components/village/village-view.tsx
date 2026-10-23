@@ -36,7 +36,7 @@ const VillageScene = dynamic(() => import("./village-scene"), {
   // Während die 3D-Szene lädt: ruhiger Hinweis statt leerer Fläche
   loading: () => (
     <div className="absolute inset-0 flex items-center justify-center" role="status">
-      <p className="hd-card text-[14px] text-[#3a3732]">Das Dorf wird aufgebaut …</p>
+      <p className="hd-card text-[14px] text-hd-ink-2">Das Dorf wird aufgebaut …</p>
     </div>
   ),
 });
@@ -91,7 +91,7 @@ function hasWebGL() {
 }
 
 const hint =
-  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border-2 border-[#e6c870] bg-[#fff3cf] p-3 text-sm text-[#6b4e00] shadow";
+  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border-2 border-hd-highlight bg-hd-new p-3 text-sm text-hd-new-ink shadow-hd-pop";
 
 /** Ersatz ohne WebGL: alle Häuser nach Quartier als Liste; die Auswahl öffnet das Fenster rechts. */
 function FallbackList({ model, actions }: { model: VillageModel; actions: SceneActions }) {
@@ -180,10 +180,19 @@ export function VillageView(props: Props) {
     if (building && !preview) return { ...props.world, doc: draftDoc(draft) };
     if (!preview) return props.world;
     const d = props.world.doc;
+    // Aktualisieren (gleicher Seed, neue Version): Hausplätze und Quartiere werden mitgenommen
+    const upgrade = preview === props.world.seed;
     return {
       seed: preview,
       version: GENERATOR_VERSION,
-      doc: resetPlacements ? { v: 1 } : { v: 1, deko: d.deko, varianten: d.varianten },
+      doc: resetPlacements
+        ? { v: 1 }
+        : {
+            v: 1,
+            deko: d.deko,
+            varianten: d.varianten,
+            ...(upgrade ? { quartiere: d.quartiere, haeuser: d.haeuser } : {}),
+          },
     };
   }, [preview, resetPlacements, props.world, building, draft]);
   const devZeit = props.dev?.zeit;
@@ -196,8 +205,20 @@ export function VillageView(props: Props) {
   const [store] = useState(() => createSceneStore({ intro: dialog.id === "start" }));
   const actions = useMemo(() => makeActions(store, model), [store, model]);
   // Die Live-Prüfung rechnet gegen die aktuelle (Entwurfs-)Welt
-  useEffect(() => build.setWorld(model.world), [build, model]);
-  useEffect(() => store.set({ building }), [store, building]);
+  useEffect(() => build.setWorld(model.world, model.input, model.byId), [build, model]);
+  useEffect(() => store.set({ building, buildFocus: null }), [store, building]);
+  // Bau-Modus: Haus oder Quartier gewählt → Kamera zum Quartier (beim Abwählen bleibt sie dort)
+  useEffect(() => {
+    const off = build.subscribe(() => {
+      const s = build.get();
+      const q =
+        s.quarter ?? (s.house ? (model.world.settlement.houses[s.house]?.quarterId ?? null) : null);
+      if (q && q !== store.get().buildFocus) store.set({ buildFocus: q });
+    });
+    return () => {
+      off();
+    };
+  }, [build, store, model]);
 
   const startBuild = () => {
     store.set({ panel: null, nav: { level: "dorf" } });
@@ -261,7 +282,17 @@ export function VillageView(props: Props) {
         return;
       }
     }
-    store.set({ devPose: devPose(model.layout, devKamera, house?.id) });
+    // Zentrale und Häuser wie nach einem Klick (Fenster offen, Kamera eingepasst)
+    const zentrale = model.houses.find((h) => h.kind === "zentrale");
+    const target = devKamera === "zentrale" ? zentrale : house;
+    if (target) {
+      store.set({
+        devPose: null,
+        nav: { level: "haus", q: model.layout.houses[target.id]?.quarterId ?? null, h: target.id },
+      });
+      return;
+    }
+    store.set({ devPose: devPose(model.layout, devKamera) });
   }, [store, devKamera, model]);
 
   // Zurück im Tab (z.B. nach dem Platzieren in claude.ai): Dorfdaten neu laden, höchstens alle 10 s.
@@ -326,7 +357,7 @@ export function VillageView(props: Props) {
   return (
     <ItemExtrasProvider value={extras}>
       <div
-        className="hubdome-ui fixed inset-0 overflow-hidden bg-[#cfe4f4] text-[#1c1b19]"
+        className="hubdome-ui fixed inset-0 overflow-hidden bg-hd-info-soft text-hd-ink"
         role="application"
         aria-label={`3D-Ansicht des Dorfs ${props.villageName}. Alle Häuser und Objekte sind auch über die Suche und die Fenster erreichbar.`}
       >
@@ -414,6 +445,7 @@ export function VillageView(props: Props) {
           {empty && !props.isOwner && <p className={hint}>Hier gibt es noch keine Häuser.</p>}
           {preview && props.isOwner && active === null && (
             <RerollBanner
+              upgrade={preview === props.world.seed}
               model={model}
               reset={resetPlacements}
               onReset={setResetPlacements}

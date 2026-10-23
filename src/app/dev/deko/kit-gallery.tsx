@@ -95,7 +95,7 @@ function Label({ name, palette, farben }: { name: KitName; palette: Palette; far
   return (
     <>
       <span className="font-medium">{KIT_LABELS[name]}</span>
-      <span className="text-neutral-600 block text-xs">
+      <span className="text-hd-muted block text-xs">
         {(m.hw * 2).toFixed(2)} × {(m.hd * 2).toFixed(2)} m · bis {m.h.toFixed(1)} m · {tris}{" "}
         Dreiecke
       </span>
@@ -197,7 +197,7 @@ export function KitGallery({
           />
         </Canvas>
       </div>
-      <p className="text-neutral-600 mt-3 text-sm">
+      <p className="text-hd-muted mt-3 text-sm">
         Hinten die Anbauten (Laube, Schuppen, Wintergarten), davor die Gartenstile (Blumen, Gemüse,
         Stein, Obst). Weisser Umriss = Grundfläche. Die Front zeigt zur Kamera (+z).
       </p>

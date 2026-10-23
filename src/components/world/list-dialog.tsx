@@ -124,8 +124,8 @@ export function ListDialog({
                   onClick={() => setType(t)}
                   className={`cursor-pointer rounded-full border-[1.5px] px-3 py-1 text-[12.5px] font-semibold ${
                     type === t
-                      ? "border-[#5e3c22] bg-[#5e3c22] text-[#fbf3e4]"
-                      : "border-[#d9c9a8] bg-[#fffdf8] text-[#3a3732] hover:bg-[#f3ead4]"
+                      ? "border-hd-selected bg-hd-selected text-hd-selected-ink"
+                      : "border-hd-line-strong bg-hd-raised text-hd-ink-2 hover:bg-hd-hover"
                   }`}
                 >
                   {t ? `${ITEM_TYPE_ICONS[t]} ${ITEM_TYPE_LABELS[t]}` : "Alle"}
@@ -143,7 +143,7 @@ export function ListDialog({
 
         {shown.map((s) => (
           <section key={s.key} aria-label={s.title} className="flex flex-col gap-2.5">
-            <h3 className="font-mono text-[11.5px] font-semibold tracking-[.08em] text-[#7a766d] uppercase">
+            <h3 className="font-mono text-[11.5px] font-semibold tracking-[.08em] text-hd-muted uppercase">
               {s.title}
             </h3>
             {s.houses.map(({ h, items }) => (
@@ -203,19 +203,19 @@ export function ListDialog({
                     {items.map((a) => (
                       <li
                         key={a.id}
-                        className="flex flex-col gap-1 rounded-xl border-[1.5px] border-[#e4d9c0] bg-white p-3"
+                        className="flex flex-col gap-1 rounded-xl border-[1.5px] border-hd-line bg-hd-raised p-3"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <a
                             href={openHref(a)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="min-w-0 text-[14px] font-semibold text-[#2f5d4a] underline underline-offset-2"
+                            className="min-w-0 text-[14px] font-semibold text-hd-accent underline underline-offset-2"
                           >
                             {a.title}
                           </a>
                           <span
-                            className="flex flex-none items-center gap-1 rounded-full bg-[#efe6d0] px-2 py-0.5 text-[11px] font-semibold"
+                            className="flex flex-none items-center gap-1 rounded-full bg-hd-sunken px-2 py-0.5 text-[11px] font-semibold"
                             title="Inhaltskategorie"
                           >
                             <span

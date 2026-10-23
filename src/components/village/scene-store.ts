@@ -26,6 +26,8 @@ export type SceneState = {
   devPose: Pose | null;
   /** Bau-Modus aktiv: Klicks in der Szene wählen und setzen statt zu navigieren. */
   building: boolean;
+  /** Bau-Modus: Kamera zeigt dieses Quartier (gewähltes Haus oder Quartier), ohne Quartierfenster. */
+  buildFocus: FachbereichId | null;
 };
 
 export const initialSceneState: SceneState = {
@@ -43,6 +45,7 @@ export const initialSceneState: SceneState = {
   intro: false,
   devPose: null,
   building: false,
+  buildFocus: null,
 };
 
 export type SceneStore = {

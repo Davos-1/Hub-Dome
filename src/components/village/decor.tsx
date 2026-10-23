@@ -6,46 +6,69 @@ import { QUARTER_COLORS, type VillageLayout } from "@/lib/layout";
 import { smooth } from "@/lib/terrain";
 import type { World } from "@/lib/world/generate";
 import { heightAt } from "@/lib/world/map";
+import { groundRadius } from "@/lib/world/panorama";
 import type { Small, Tree } from "@/lib/world/vegetation";
 import { cyl, mergeParts, type Part } from "./geo";
-import { buildPathGeometry, gravelTexture } from "./paths-geometry";
+import { willowParts } from "./seed-object-models";
 import { plazaDecoParts, plazaSurface } from "./plaza-geometry";
 
 const dummy = new THREE.Object3D();
 const color = new THREE.Color();
 
 /**
- * Boden: Gitter über die ganze Karte mit Hügeln ausserhalb der flachen Zone. Farben nach Stimmung:
- * innen satt, aussen heller, auf Kuppen gelblicher.
+ * Boden: runde Scheibe über die ganze Karte mit Hügeln ausserhalb der flachen Zone; ihr Rand liegt unter den
+ * Vorbergen des Panoramas (keine Kante am Horizont). Polares Gitter: innen fein, aussen gröber. Farben nach
+ * Stimmung: innen satt, aussen heller, auf Kuppen gelblicher.
  */
-export function Ground({ world }: { world: World }) {
+export function Ground({ world, lowDetail = false }: { world: World; lowDetail?: boolean }) {
   const geometry = useMemo(() => {
     const m = world.map;
-    const size = 2 * (m.rFlat + 90);
-    const g = new THREE.PlaneGeometry(size, size, 200, 200);
-    g.rotateX(-Math.PI / 2);
-    const pa = g.attributes.position;
+    const R = groundRadius(m);
+    const seg = lowDetail ? 160 : 288;
+    // Ringabstände: bis zur flachen Zone 1.6 m, danach wachsend bis ~6 m
+    const radii: number[] = [0];
+    for (let r = 1.6; r < R;) {
+      radii.push(r);
+      r += r < m.rFlat ? (lowDetail ? 2.6 : 1.6) : Math.min(6, 1.6 + (r - m.rFlat) * 0.06);
+    }
+    radii.push(R);
+    const pos: number[] = [];
     const cols: number[] = [];
+    const idx: number[] = [];
     const cIn = new THREE.Color(m.palette.grassIn);
     const cOut = new THREE.Color(m.palette.grassOut);
     const cHi = new THREE.Color(m.palette.grassHill);
     const c = new THREE.Color();
     const inner = world.layout.extent;
-    for (let i = 0; i < pa.count; i++) {
-      const x = pa.getX(i);
-      const z = pa.getZ(i);
+    const push = (x: number, z: number) => {
       const y = heightAt(m, x, z);
       const r = Math.hypot(x, z);
-      pa.setY(i, y - 0.03);
+      pos.push(x, y - 0.03, z);
       c.copy(cIn)
         .lerp(cOut, smooth((r - inner - 4) / 14))
         .lerp(cHi, Math.min(1, y / 5) * 0.6);
       cols.push(c.r, c.g, c.b);
-    }
+    };
+    push(0, 0);
+    for (let i = 1; i < radii.length; i++)
+      for (let j = 0; j < seg; j++) {
+        const a = (j / seg) * Math.PI * 2;
+        push(Math.cos(a) * radii[i], Math.sin(a) * radii[i]);
+      }
+    for (let j = 0; j < seg; j++) idx.push(0, 1 + ((j + 1) % seg), 1 + j);
+    for (let i = 1; i < radii.length - 1; i++)
+      for (let j = 0; j < seg; j++) {
+        const a = 1 + (i - 1) * seg + j;
+        const b = 1 + (i - 1) * seg + ((j + 1) % seg);
+        idx.push(a, b, a + seg, b, b + seg, a + seg);
+      }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
+    g.setIndex(idx);
     g.computeVertexNormals();
     return g;
-  }, [world]);
+  }, [world, lowDetail]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   return (
     <mesh geometry={geometry} receiveShadow>
@@ -93,20 +116,6 @@ export function PlazaDeco({ world }: { world: World }) {
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial vertexColors roughness={0.85} />
-    </mesh>
-  );
-}
-
-/** Wege als ein Mesh: Kies-Textur, Quartierfarben, weicher Übergang ins Gras. */
-export function Paths({ layout, grass }: { layout: VillageLayout; grass?: string }) {
-  const geometry = useMemo(() => buildPathGeometry(layout.paths, grass), [layout.paths, grass]);
-  const texture = useMemo(() => gravelTexture(), []);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
-  useEffect(() => () => texture.dispose(), [texture]);
-  if (!geometry) return null;
-  return (
-    <mesh geometry={geometry} receiveShadow>
-      <meshStandardMaterial vertexColors map={texture} roughness={0.97} />
     </mesh>
   );
 }
@@ -280,6 +289,8 @@ const placeLeafHigh = (s: Tree) => ({ y: 2.15 * s.s, sx: s.s * 0.65, sy: s.s * 0
 const placeBush = (s: Small) => ({ y: 0.22 * s.s, sx: s.s * 0.6, sy: s.s * 0.5 });
 const placeRock = (s: Small) => ({ y: 0.1 * s.s, sx: s.s * 0.38, sy: s.s * 0.26 });
 const placeFlower = (s: Small) => ({ y: 0.05, sx: s.s * 0.7, sy: 0.8 + s.s * 0.3 });
+const placeWillow = (s: Tree) => ({ y: 0.05, sx: s.s, sy: s.s });
+const WHITE = new THREE.Color("#ffffff");
 
 /**
  * Blumenbüschel (Radius 1, Höhe absolut): Blätter und Stiele grün, Blüten weiss (die Instanzfarbe färbt
@@ -330,8 +341,31 @@ function flowerGeometries() {
 export function Nature({ world }: { world: World }) {
   const { trees, bushes, rocks, flowers } = world.vegetation;
   const needles = useMemo(() => trees.filter((t) => t.kind === "nadel"), [trees]);
-  const leafy = useMemo(() => trees.filter((t) => t.kind !== "nadel"), [trees]);
-  const trunks = useMemo(() => trees.map((t) => ({ ...t, color: TRUNK })), [trees]);
+  const leafy = useMemo(
+    () => trees.filter((t) => t.kind !== "nadel" && t.kind !== "weide"),
+    [trees],
+  );
+  const trunks = useMemo(
+    () => trees.filter((t) => t.kind !== "weide").map((t) => ({ ...t, color: TRUNK })),
+    [trees],
+  );
+  // Trauerweiden (v2): eigenes Modell mit Stamm; die Instanzfarbe tönt das Laub nur leicht
+  const willows = useMemo(
+    () =>
+      trees
+        .filter((t) => t.kind === "weide")
+        .map((t) => ({ ...t, color: "#" + color.set(t.color).lerp(WHITE, 0.6).getHexString() })),
+    [trees],
+  );
+  const willowRef = useRef<THREE.InstancedMesh>(null);
+  const willowGeo = useMemo(() => {
+    const parts = willowParts();
+    const g = mergeParts(parts);
+    parts.forEach((p) => p.geo.dispose());
+    return g;
+  }, []);
+  useEffect(() => () => willowGeo.dispose(), [willowGeo]);
+  useInstances(willowRef, willows, placeWillow);
 
   const trunkRef = useRef<THREE.InstancedMesh>(null);
   const needleLow = useRef<THREE.InstancedMesh>(null);
@@ -394,6 +428,16 @@ export function Nature({ world }: { world: World }) {
       {inst(leafHigh, leafy.length, "lh", <icosahedronGeometry args={[1.0, 1]} />)}
       {inst(bushRef, bushes.length, "b", <icosahedronGeometry args={[0.8, 1]} />)}
       {inst(rockRef, rocks.length, "r", <dodecahedronGeometry args={[1, 0]} />)}
+      {willows.length > 0 && (
+        <instancedMesh
+          ref={willowRef}
+          args={[willowGeo, undefined, willows.length]}
+          key={`w${willows.length}`}
+          castShadow
+        >
+          <meshStandardMaterial vertexColors roughness={0.85} />
+        </instancedMesh>
+      )}
       {flowers.length > 0 && (
         <>
           <instancedMesh

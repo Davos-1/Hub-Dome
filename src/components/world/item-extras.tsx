@@ -50,7 +50,7 @@ export function ItemMeta({ artifact }: { artifact: Artifact }) {
   return (
     <p className="hd-note flex flex-wrap gap-x-2 gap-y-1">
       {origin && (
-        <span className="rounded-full bg-[#e0f2fe] px-2 py-0.5 text-[11px] font-semibold text-[#0c4a6e]">
+        <span className="rounded-full bg-hd-info-soft px-2 py-0.5 text-[11px] font-semibold text-hd-info-ink">
           {origin}
         </span>
       )}
@@ -108,7 +108,7 @@ export function CopyControl({
     );
   }
   if (artifact.allow_copy === false) {
-    return <p className="hd-note text-[#8a8170]">Besitzer hat Übernehmen deaktiviert</p>;
+    return <p className="hd-note">Besitzer hat Übernehmen deaktiviert</p>;
   }
 
   // Vorschlag: eigenes Haus mit gleichem Modul, sonst «Haus anlegen und übernehmen»
@@ -129,7 +129,7 @@ export function CopyControl({
       value={value}
       disabled={pending}
       className={`w-full cursor-pointer rounded-lg px-2.5 py-1.5 text-left text-[13.5px] ${
-        primary ? "bg-[#2f5d4a] font-semibold text-white" : "hover:bg-[#f7efdc]"
+        primary ? "bg-hd-accent font-semibold text-hd-accent-ink" : "hover:bg-hd-hover"
       }`}
     >
       {label}
@@ -151,7 +151,7 @@ export function CopyControl({
         <form
           action={action}
           aria-label="Haus wählen"
-          className="mt-2 flex max-h-72 flex-col gap-0.5 overflow-y-auto rounded-xl border-[1.5px] border-[#e4d9c0] bg-[#fffdf8] p-2"
+          className="mt-2 flex max-h-72 flex-col gap-0.5 overflow-y-auto rounded-xl border-[1.5px] border-hd-line bg-hd-raised p-2"
         >
           <input type="hidden" name="source" value={artifact.id} />
           {match && option(match.id, <>Vorschlag: {match.title}</>, true)}
@@ -169,7 +169,7 @@ export function CopyControl({
             <p className="hd-note p-2">Lege zuerst ein Haus in deinem Dorf an.</p>
           )}
           {state.error && (
-            <p role="alert" className="p-2 text-[13px] text-red-700">
+            <p role="alert" className="p-2 text-[13px] text-hd-danger">
               {state.error}
             </p>
           )}

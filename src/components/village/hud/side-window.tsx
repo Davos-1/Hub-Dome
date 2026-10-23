@@ -10,6 +10,7 @@ import { CopyControl, ItemMeta, openHref } from "../../world/item-extras";
 import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
 import { useScene, type SceneStore } from "../scene-store";
+import { EmptyArt } from "@/components/ui/empty-art";
 
 export const TIME_ORDER: TimeSetting[] = ["morgen", "mittag", "abend", "nacht", "auto"];
 export const FILTER_KINDS: ArtifactKind[] = [
@@ -21,9 +22,10 @@ export const FILTER_KINDS: ArtifactKind[] = [
   "visualisierung",
 ];
 
-const seg = (on: boolean) => (on ? "bg-[#5e3c22] text-[#fbf3e4]" : "bg-transparent text-[#4a3a26]");
-const newBadge =
-  "flex-none rounded-full bg-[#fde68a] px-2 py-0.5 text-[11px] font-semibold text-[#78350f]";
+const seg = (on: boolean) =>
+  on ? "bg-hd-selected text-hd-selected-ink" : "bg-transparent text-hd-ink-2";
+/** «neu» als kleiner Aufkleber (leicht schief, richtet sich beim Darüberfahren auf). */
+const newBadge = "hd-sticker flex-none px-2 py-0.5 text-[11px] font-semibold";
 
 /** Auswahl aus wenigen Möglichkeiten als Brett-Schalter. */
 export function Segments<T extends string>({
@@ -41,7 +43,7 @@ export function Segments<T extends string>({
     <div className="flex flex-col gap-1.5">
       <div className="hd-label">{label}</div>
       <div
-        className="flex flex-wrap gap-0.5 rounded-[10px] bg-[#efe6d0] p-[3px]"
+        className="flex flex-wrap gap-0.5 rounded-[10px] bg-hd-sunken p-[3px]"
         role="group"
         aria-label={label}
       >
@@ -61,6 +63,7 @@ export function Segments<T extends string>({
   );
 }
 
+/** Fenster rechts (Desktop) bzw. Blatt in der unteren Hälfte (Handy); Masse wie `HUD` in `insets.ts`. */
 function Shell({
   title,
   subtitle,
@@ -75,7 +78,7 @@ function Shell({
   return (
     <aside
       aria-label={title}
-      className="pointer-events-auto absolute top-16 right-3 bottom-3 z-20 flex w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea] shadow-[0_12px_40px_rgba(28,27,25,.28)]"
+      className="pointer-events-auto absolute right-3 bottom-3 left-3 z-20 flex h-[52%] flex-col md:top-16 md:left-auto md:h-auto md:w-[min(380px,calc(100vw-24px))] hd-panel overflow-hidden"
     >
       <div className="hd-plank flex items-center justify-between gap-3 px-[18px] py-3.5">
         <div className="min-w-0">
@@ -86,7 +89,7 @@ function Shell({
           type="button"
           onClick={onClose}
           aria-label="Schliessen"
-          className="h-8 w-8 flex-none cursor-pointer rounded-full bg-[#fbf3e4] text-[13px] font-bold text-[#5e3c22] shadow-[0_2px_0_#3e2814] hover:bg-white"
+          className="hd-close h-8 w-8 flex-none text-[13px]"
         >
           ✕
         </button>
@@ -118,11 +121,11 @@ function ObjectDetail({
       <button
         type="button"
         onClick={onBack}
-        className="self-start text-[13px] text-[#2f5d4a] underline"
+        className="self-start text-[13px] text-hd-accent underline"
       >
         ← Zurück zu {house.kind === "zentrale" ? "Zentrale" : house.title}
       </button>
-      <h3 className="text-xl font-bold text-[#1c1b19]">{artifact.title}</h3>
+      <h3 className="text-xl font-bold text-hd-ink">{artifact.title}</h3>
       <p className="hd-note">
         <span aria-hidden>{ITEM_TYPE_ICONS[artifact.item_type]}</span>{" "}
         {ITEM_TYPE_LABELS[artifact.item_type]} · {ARTIFACT_KIND_LABELS[artifact.kind]}
@@ -130,7 +133,7 @@ function ObjectDetail({
       </p>
       {artifact.description && <p className="text-[14px]">{artifact.description}</p>}
       {artifact.tags.length > 0 && <p className="hd-note">#{artifact.tags.join(" #")}</p>}
-      {artifact.visibility === "private" && <p className="text-xs text-amber-700">Privat</p>}
+      {artifact.visibility === "private" && <p className="text-xs text-hd-new-ink">Privat</p>}
       <ItemMeta artifact={artifact} />
       <a
         href={openHref(artifact)}
@@ -175,21 +178,24 @@ function HouseDetail({
         {house.newCount > 0 && <span className={`${newBadge} ml-2`}>{house.newCount} neu</span>}
       </p>
       {artifacts.length === 0 ? (
-        <p className="rounded-xl bg-[#fff3cf] p-3 text-sm text-[#6b4e00]">
-          Baustelle: hier gibt es noch keine Objekte.
-          {isOwner && (
-            <>
-              {" "}
-              <button
-                type="button"
-                onClick={() => onAdd(house.id)}
-                className="font-semibold underline"
-              >
-                Erstes Objekt hinzufügen
-              </button>
-              .
-            </>
-          )}
+        <p className="flex items-center gap-3 rounded-xl bg-hd-sunken p-3 text-sm text-hd-ink-2">
+          <EmptyArt kind="baustelle" />
+          <span>
+            Baustelle: hier gibt es noch keine Objekte.
+            {isOwner && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={() => onAdd(house.id)}
+                  className="font-semibold underline"
+                >
+                  Erstes Objekt hinzufügen
+                </button>
+                .
+              </>
+            )}
+          </span>
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -200,7 +206,7 @@ function HouseDetail({
                 <button
                   type="button"
                   onClick={() => actions.goToObject(house.id, a.id)}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-[#e4d9c0] bg-[#fffdf8] px-3 py-2 text-left hover:bg-[#f7efdc] focus-visible:outline-2 focus-visible:outline-[#2f5d4a]"
+                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-hd-line bg-hd-raised px-3 py-2 text-left hover:bg-hd-hover focus-visible:outline-2 focus-visible:outline-hd-accent"
                 >
                   <span
                     aria-hidden
@@ -208,7 +214,7 @@ function HouseDetail({
                     style={{ background: KIND_COLORS[a.kind] }}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-semibold text-[#1c1b19]">
+                    <span className="block truncate text-[14px] font-semibold text-hd-ink">
                       <span aria-hidden>{ITEM_TYPE_ICONS[a.item_type]}</span> {a.title}
                     </span>
                     <span className="hd-note block">
@@ -268,14 +274,14 @@ function QuarterDetail({
             <button
               type="button"
               onClick={() => actions.openHouse(id)}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-[#e4d9c0] bg-[#fffdf8] px-3 py-2 text-left hover:bg-[#f7efdc]"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-hd-line bg-hd-raised px-3 py-2 text-left hover:bg-hd-hover"
             >
               <span
                 aria-hidden
                 className="h-3 w-3 flex-none rounded-full"
                 style={{ background: h.color }}
               />
-              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#1c1b19]">
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-hd-ink">
                 {h.title}
               </span>
               <span className="hd-note flex-none">

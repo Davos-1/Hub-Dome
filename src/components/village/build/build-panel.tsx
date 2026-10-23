@@ -11,24 +11,24 @@ import {
   kitFits,
   withVariante,
 } from "@/lib/world/kit";
-import { FACHBEREICHE } from "@/lib/fachbereiche";
+import { FACHBEREICHE, type FachbereichId } from "@/lib/fachbereiche";
 import type { VillageModel } from "@/lib/village-model";
 import { useBuild, type BuildStore } from "./build-store";
 
 const GRUPPEN = Object.keys(DEKO_GRUPPEN) as DekoGruppe[];
-const LEGEND = "mb-1 text-[12px] font-bold tracking-wide text-[#5e4a33] uppercase";
+const LEGEND = "mb-1 text-[12px] font-bold tracking-wide text-hd-ink-2 uppercase";
 
 const chip = (on: boolean) =>
   `cursor-pointer rounded-lg border-2 px-2.5 py-1.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
     on
-      ? "border-[#2f5d4a] bg-[#2f5d4a] text-white"
-      : "border-[#e4d9c0] bg-white text-[#3a3732] hover:border-[#c9b98f]"
+      ? "border-hd-accent bg-hd-accent text-hd-accent-ink"
+      : "border-hd-line bg-hd-raised text-hd-ink-2 hover:border-hd-line-strong"
   }`;
 
 /** Farbmuster eines Hauses (Wand, Dach, Akzent) für die Auswahl. */
 function Swatch({ wall, roof, accent }: { wall: string; roof: string; accent: string }) {
   return (
-    <span className="flex h-4 overflow-hidden rounded border border-black/15" aria-hidden>
+    <span className="flex h-4 overflow-hidden rounded border border-hd-line-strong" aria-hidden>
       <span className="w-3" style={{ background: roof }} />
       <span className="w-4" style={{ background: wall }} />
       <span className="w-2" style={{ background: accent }} />
@@ -50,6 +50,8 @@ function HouseKit({
   const slots = useBuild(build, (s) => s.houseSlots);
   const info = model.byId[houseId];
   if (!info) return null;
+  // Generator v2: frei ziehen; v1: freie Bauplätze zur Auswahl
+  const free = model.world.map.version === 2;
   const fachBase = FACHBEREICHE[info.fach].style;
   const fits = kitFits(fachBase.type);
   return (
@@ -64,7 +66,36 @@ function HouseKit({
           ←
         </button>
         <span className="text-[14px] font-bold">{info.title}</span>
+        {info.kind !== "zentrale" && free && (
+          <>
+            <button
+              type="button"
+              className="hd-btn hd-btn-ghost hd-btn-sm"
+              onClick={() => build.startHouseDrag(houseId)}
+            >
+              Verschieben
+            </button>
+            <button
+              type="button"
+              className="hd-btn hd-btn-ghost hd-btn-sm"
+              onClick={() => build.selectQuarter(info.fach)}
+            >
+              Ganzes Quartier …
+            </button>
+          </>
+        )}
+        {info.kind !== "zentrale" && (
+          <button
+            type="button"
+            className="hd-btn hd-btn-ghost hd-btn-sm"
+            onClick={() => build.unpin()}
+            title="Das Haus bekommt wieder den nächsten freien Platz seines Quartiers."
+          >
+            Zurück auf Automatik
+          </button>
+        )}
         {info.kind !== "zentrale" &&
+          !free &&
           (slots ? (
             <span
               className="flex flex-wrap items-center gap-1.5"
@@ -190,6 +221,98 @@ function HouseKit({
   );
 }
 
+/** Gewähltes Quartier: als Ganzes verschieben (v2) oder alle Häuser zurück auf Automatik. */
+function QuarterKit({
+  build,
+  model,
+  quarterId,
+}: {
+  build: BuildStore;
+  model: VillageModel;
+  quarterId: FachbereichId;
+}) {
+  const free = model.world.map.version === 2;
+  const count = Object.values(model.world.settlement.houses).filter(
+    (h) => h.quarterId === quarterId,
+  ).length;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="hd-btn hd-btn-ghost hd-btn-sm"
+          onClick={() => build.selectQuarter(null)}
+          aria-label="Zurück zum Katalog"
+        >
+          ←
+        </button>
+        <span className="text-[14px] font-bold">Quartier «{FACHBEREICHE[quarterId].name}»</span>
+        <span className="hd-note">
+          {count} {count === 1 ? "Haus" : "Häuser"}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {free && (
+          <button
+            type="button"
+            className="hd-btn hd-btn-ghost hd-btn-sm"
+            disabled={!count}
+            onClick={() => build.startGroupDrag(quarterId)}
+          >
+            Quartier verschieben
+          </button>
+        )}
+        <button
+          type="button"
+          className="hd-btn hd-btn-ghost hd-btn-sm"
+          disabled={!count}
+          onClick={() => build.unpin()}
+          title="Alle Häuser des Quartiers bekommen wieder automatisch einen Platz."
+        >
+          Zurück auf Automatik
+        </button>
+      </div>
+      {free && (
+        <p className="hd-note">
+          Alle Häuser und die eigene Deko des Quartiers bewegen sich gemeinsam. Quartierplatz und
+          Gasse bleiben, die Stichwege passen sich an.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Während des Ziehens: Ablegen oder Abbrechen (auch per Enter und Esc). */
+function DragBar({ build }: { build: BuildStore }) {
+  const drag = useBuild(build, (s) => s.drag);
+  if (!drag) return null;
+  const ok = drag.kind === "haus" ? drag.ghost.ok : drag.ghost.state !== "nein";
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[14px] font-bold">
+        {drag.kind === "haus" ? "Haus verschieben" : "Quartier verschieben"}
+      </span>
+      <button
+        type="button"
+        className="hd-btn hd-btn-primary hd-btn-sm"
+        disabled={!ok}
+        onClick={() => build.enter()}
+        aria-keyshortcuts="Enter"
+      >
+        Hier ablegen
+      </button>
+      <button
+        type="button"
+        className="hd-btn hd-btn-ghost hd-btn-sm"
+        onClick={() => build.escape()}
+        aria-keyshortcuts="Escape"
+      >
+        Abbrechen
+      </button>
+    </div>
+  );
+}
+
 /**
  * Werkzeugleiste des Bau-Modus: Katalog nach Gruppen, Aktionen für das gewählte Element oder Haus,
  * Rückgängig/Wiederholen und Speichern. Tastatur: Pfeile (0.5 m), Q/E (15°), Enter, Entf, Esc,
@@ -219,6 +342,24 @@ export function BuildPanel({
   const canRedo = useBuild(build, (s) => s.history.future.length > 0);
   const count = useBuild(build, (s) => s.history.present.deko.length);
   const ghostBad = useBuild(build, (s) => (s.ghost && !s.ghost.ok ? s.ghost.grund : null));
+  const quarter = useBuild(build, (s) => s.quarter);
+  const dragging = useBuild(build, (s) => s.drag !== null);
+  // Ansage beim Ziehen (Auswahl liefert nur Zeichenketten: stabile Werte für useSyncExternalStore)
+  const dragText = useBuild(build, (s) => {
+    const d = s.drag;
+    if (!d) return null;
+    if (d.kind === "haus")
+      return d.ghost.ok
+        ? d.ghost.snapped
+          ? "Passt (eingerastet)."
+          : "Passt."
+        : `Hier nicht möglich: ${d.ghost.grund}`;
+    if (d.ghost.state === "ok") return "Passt.";
+    return d.ghost.state === "grenze"
+      ? `Nur bis zur Grenze: ${d.ghost.grund}`
+      : `Hier nicht möglich: ${d.ghost.grund}`;
+  });
+  const dragBad = dragText !== null && !dragText.startsWith("Passt");
 
   // Tastatur (vor den Kürzeln der Szene, die im Bau-Modus ruhen)
   useEffect(() => {
@@ -279,7 +420,7 @@ export function BuildPanel({
   return (
     <section
       aria-label="Bau-Modus"
-      className="hd-pop-in pointer-events-auto absolute inset-x-2 bottom-2 z-20 flex max-h-[52vh] flex-col gap-2 overflow-y-auto rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea]/97 p-3 shadow-[0_10px_36px_rgba(28,27,25,.3)] md:inset-x-auto md:top-16 md:right-3 md:bottom-3 md:max-h-none md:w-[380px]"
+      className="hd-pop-in pointer-events-auto absolute inset-x-2 bottom-2 z-20 flex max-h-[52vh] flex-col gap-2 hd-panel overflow-y-auto p-3 md:inset-x-auto md:top-16 md:right-3 md:bottom-3 md:max-h-none md:w-[380px]"
     >
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-[16px] font-bold">Bauen</h2>
@@ -310,12 +451,16 @@ export function BuildPanel({
         role="status"
         aria-live="polite"
         data-testid="bau-ansage"
-        className={`min-h-[20px] text-[13px] ${ghostBad ? "text-[#8a2414]" : "text-[#3a3732]"}`}
+        className={`min-h-[20px] text-[13px] ${(ghostBad && tool) || dragBad ? "text-hd-danger" : "text-hd-ink-2"}`}
       >
-        {ghostBad && tool ? `Hier nicht möglich: ${ghostBad}` : message}
+        {dragText ?? (ghostBad && tool ? `Hier nicht möglich: ${ghostBad}` : message)}
       </p>
 
-      {house ? (
+      {dragging ? (
+        <DragBar build={build} />
+      ) : quarter ? (
+        <QuarterKit build={build} model={model} quarterId={quarter} />
+      ) : house ? (
         <HouseKit build={build} model={model} houseId={house} />
       ) : sel ? (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -357,7 +502,7 @@ export function BuildPanel({
           <label className="flex items-center gap-2 text-[13px]">
             <span className={LEGEND}>Haus anpassen</span>
             <select
-              className="min-w-0 flex-1 rounded-lg border-2 border-[#e4d9c0] bg-white px-2 py-1 text-[13px]"
+              className="min-w-0 flex-1 rounded-lg border-2 border-hd-line bg-hd-raised px-2 py-1 text-[13px]"
               value=""
               onChange={(e) => build.selectHouse(e.target.value || null)}
             >
@@ -379,7 +524,9 @@ export function BuildPanel({
                 role="tab"
                 aria-selected={gruppe === g}
                 className={`cursor-pointer rounded-lg px-3 py-1.5 text-[13px] font-bold ${
-                  gruppe === g ? "bg-[#5e3c22] text-white" : "bg-[#efe6d0] text-[#4a3a26]"
+                  gruppe === g
+                    ? "bg-hd-selected text-hd-selected-ink"
+                    : "bg-hd-sunken text-hd-ink-2"
                 }`}
                 onClick={() => setGruppe(g)}
               >
@@ -406,12 +553,15 @@ export function BuildPanel({
       )}
 
       {error && (
-        <p role="alert" className="rounded-lg bg-[#fde2dd] px-3 py-2 text-[13px] text-[#8a2414]">
+        <p
+          role="alert"
+          className="rounded-lg bg-hd-danger-soft px-3 py-2 text-[13px] text-hd-danger"
+        >
           {error}
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-[#e4d9c0] pt-2">
+      <div className="flex flex-wrap items-center gap-2 border-t border-hd-line pt-2">
         {confirmReset ? (
           <>
             <span className="text-[13px]">Alle eigene Deko und Hausvarianten entfernen?</span>

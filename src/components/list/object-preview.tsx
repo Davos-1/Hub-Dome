@@ -34,16 +34,16 @@ export function ObjectPreview({ artifact }: { artifact: Artifact }) {
   if (type !== "github_repo" && type !== "gist") return null;
 
   if ("unavailable" in meta) {
-    return <p className="mt-2 text-xs text-zinc-500">Vorschau nicht verfügbar.</p>;
+    return <p className="mt-2 text-xs text-hd-muted">Vorschau nicht verfügbar.</p>;
   }
   if (!("kind" in meta)) {
-    return <p className="mt-2 text-xs text-zinc-500">Vorschau wird geladen…</p>;
+    return <p className="mt-2 text-xs text-hd-muted">Vorschau wird geladen…</p>;
   }
 
   if (meta.kind === "github") {
     return (
       <div className="mt-2 text-sm">
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-hd-muted">
           {meta.full_name}
           {meta.language && ` · ${meta.language}`} · ★ {meta.stars}
           {meta.pushed_at && ` · letzter Push ${nf.format(new Date(meta.pushed_at))}`}

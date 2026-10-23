@@ -32,8 +32,8 @@ export function StyleSettings({ zentraleStyle }: { zentraleStyle: ZentraleStyle 
                 key={s}
                 className={`flex cursor-pointer gap-3 rounded-xl border-2 p-3 ${
                   on
-                    ? "border-[#2f5d4a] bg-[#eef5f0]"
-                    : "border-[#e4d9c0] bg-[#fffdf8] hover:bg-[#f7efdc]"
+                    ? "border-hd-accent bg-hd-accent-soft"
+                    : "border-hd-line bg-hd-raised hover:bg-hd-hover"
                 }`}
               >
                 <input
@@ -42,7 +42,7 @@ export function StyleSettings({ zentraleStyle }: { zentraleStyle: ZentraleStyle 
                   value={s}
                   checked={on}
                   onChange={() => setZentrale(s)}
-                  className="mt-1 accent-[#2f5d4a]"
+                  className="mt-1 accent-hd-accent"
                 />
                 <span>
                   <span className="block text-[14px] font-bold">
@@ -56,7 +56,7 @@ export function StyleSettings({ zentraleStyle }: { zentraleStyle: ZentraleStyle 
         </fieldset>
 
         <div className="flex flex-col gap-2 md:sticky md:top-0 md:self-start">
-          <div className="hd-frame h-72 overflow-hidden rounded-2xl">
+          <div className="hd-frame h-72 overflow-hidden rounded-hd-panel">
             <StylePreview mode="zentrale" zentraleStyle={zentrale} />
           </div>
           <p className="hd-note">Drehen mit der Maus, zoomen mit dem Mausrad.</p>

@@ -5,6 +5,7 @@ import { ARTIFACT_KIND_LABELS } from "@/lib/types";
 import type { VillageModel } from "@/lib/village-model";
 import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
+import { EmptyArt } from "@/components/ui/empty-art";
 
 type Hit = {
   key: string;
@@ -82,16 +83,19 @@ export function SearchBox({ model, actions }: { model: VillageModel; actions: Sc
             (e.target as HTMLInputElement).blur();
           }
         }}
-        className="w-full rounded-lg border border-[#1c1b19]/15 bg-[#fffdf8]/95 px-3 py-2 text-[13px] font-medium text-[#1c1b19] shadow-[0_1px_3px_rgba(0,0,0,.1)] outline-none focus-visible:border-[#2f5d4a]"
+        className="w-full rounded-lg hd-float border border-hd-line-strong px-3 py-2 text-[13px] font-medium text-hd-ink shadow-hd-pop outline-none focus-visible:border-hd-accent"
       />
       {open && query.trim() && (
         <div
           role="listbox"
           aria-label="Suchergebnisse"
-          className="flex flex-col overflow-hidden rounded-lg bg-[#fffdf8]/98 shadow-[0_4px_14px_rgba(0,0,0,.15)]"
+          className="flex flex-col overflow-hidden hd-float rounded-lg shadow-hd-pop"
         >
           {hits.length === 0 && (
-            <div className="px-3 py-[9px] text-[13px] text-[#7a766d]">Keine Treffer</div>
+            <div className="flex items-center gap-2 px-3 py-[9px] text-[13px] text-hd-muted">
+              <EmptyArt kind="suche" className="h-6 w-8" />
+              Keine Treffer
+            </div>
           )}
           {hits.map((h) => (
             <button
@@ -100,16 +104,16 @@ export function SearchBox({ model, actions }: { model: VillageModel; actions: Sc
               role="option"
               aria-selected={false}
               onClick={() => choose(h)}
-              className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-left hover:bg-[#efeae0]"
+              className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-left hover:bg-hd-hover"
             >
               <span
                 aria-hidden
-                className="h-3 w-3 flex-none rounded-[3px] shadow-[inset_0_0_0_1px_rgba(0,0,0,.12)]"
+                className="h-3 w-3 flex-none rounded-[3px] ring-1 ring-hd-ink/12 ring-inset"
                 style={{ background: h.color }}
               />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[13px] font-semibold text-[#1c1b19]">{h.label}</span>
-                <span className="text-[11.5px] text-[#6d6a63]">{h.sub}</span>
+                <span className="truncate text-[13px] font-semibold text-hd-ink">{h.label}</span>
+                <span className="text-[11.5px] text-hd-muted">{h.sub}</span>
               </span>
             </button>
           ))}

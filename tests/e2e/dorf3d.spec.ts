@@ -52,7 +52,7 @@ test("grosses Dorf: Szene rendert, Aufwand bleibt klein, Navigation Dorf › Qua
   await expect(breadcrumb(page).getByText("Haus 10")).toBeVisible();
   const side = page.getByRole("complementary", { name: "Haus 10" });
   await expect(side.getByRole("button", { name: /Objekt 10\.\d/ })).toHaveCount(6);
-  await page.waitForTimeout(1500); // Kamerafahrt abwarten
+  await page.waitForTimeout(3500); // Kamerafahrt abwarten (2.0–3.2 s)
   await page.screenshot({ path: "test-results/dorf3d-haus.png" });
 
   // Objekt-Detail mit «Öffnen»-Link (neuer Tab, noopener)
