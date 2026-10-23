@@ -62,7 +62,7 @@ function ProfileTab({ shell }: { shell: ShellData }) {
           submitLabel="Konto löschen"
           pendingLabel="Wird beantragt…"
           confirm="Konto wirklich löschen? Du wirst abgemeldet."
-          buttonClassName="hd-btn hd-btn-sm self-start bg-[#9b2c1f] text-white"
+          buttonClassName="hd-btn hd-btn-sm self-start bg-hd-danger text-hd-danger-ink"
         >
           <label htmlFor="confirmUsername" className="hd-label">
             Zur Bestätigung Benutzernamen eingeben ({shell.me.username})
@@ -85,7 +85,7 @@ function VillageTab({ shell, world }: { shell: ShellData; world: WorldProps }) {
   if (!own) return <p className="hd-note">Dein Dorf wurde noch nicht angelegt.</p>;
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[14px] text-[#3a3732]">
+      <p className="text-[14px] text-hd-ink-2">
         Die Häuser ergeben sich aus dem Fachbereich des Moduls (Werkstatt, Blockhaus, Solarhaus,
         Atelier, Stadthaus, Turmhaus, Giebelhaus, Digital-Haus). Je mehr Objekte ein Haus enthält,
         desto grösser wird es; ein leeres Haus ist eine Baustelle. Hier wählst du den Stil deiner
@@ -160,7 +160,7 @@ export function SettingsDialog({
         <div
           role="tablist"
           aria-label="Einstellungen"
-          className="flex gap-0.5 rounded-xl bg-[#efe6d0] p-[3px]"
+          className="flex gap-0.5 rounded-xl bg-hd-sunken p-[3px]"
         >
           {SETTINGS_TABS.map(([id, label]) => (
             <button
@@ -170,7 +170,9 @@ export function SettingsDialog({
               aria-selected={current === id}
               onClick={() => onTab(id)}
               className={`flex-1 cursor-pointer rounded-[9px] px-2 py-2 text-[13px] font-bold ${
-                current === id ? "bg-[#5e3c22] text-[#fbf3e4]" : "text-[#4a3a26] hover:bg-[#e6dbc0]"
+                current === id
+                  ? "bg-hd-selected text-hd-selected-ink"
+                  : "text-hd-ink-2 hover:bg-hd-line"
               }`}
             >
               {label}

@@ -16,19 +16,19 @@ import type { VillageModel } from "@/lib/village-model";
 import { useBuild, type BuildStore } from "./build-store";
 
 const GRUPPEN = Object.keys(DEKO_GRUPPEN) as DekoGruppe[];
-const LEGEND = "mb-1 text-[12px] font-bold tracking-wide text-[#5e4a33] uppercase";
+const LEGEND = "mb-1 text-[12px] font-bold tracking-wide text-hd-ink-2 uppercase";
 
 const chip = (on: boolean) =>
   `cursor-pointer rounded-lg border-2 px-2.5 py-1.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
     on
-      ? "border-[#2f5d4a] bg-[#2f5d4a] text-white"
-      : "border-[#e4d9c0] bg-white text-[#3a3732] hover:border-[#c9b98f]"
+      ? "border-hd-accent bg-hd-accent text-hd-accent-ink"
+      : "border-hd-line bg-hd-raised text-hd-ink-2 hover:border-hd-line-strong"
   }`;
 
 /** Farbmuster eines Hauses (Wand, Dach, Akzent) für die Auswahl. */
 function Swatch({ wall, roof, accent }: { wall: string; roof: string; accent: string }) {
   return (
-    <span className="flex h-4 overflow-hidden rounded border border-black/15" aria-hidden>
+    <span className="flex h-4 overflow-hidden rounded border border-hd-line-strong" aria-hidden>
       <span className="w-3" style={{ background: roof }} />
       <span className="w-4" style={{ background: wall }} />
       <span className="w-2" style={{ background: accent }} />
@@ -420,7 +420,7 @@ export function BuildPanel({
   return (
     <section
       aria-label="Bau-Modus"
-      className="hd-pop-in pointer-events-auto absolute inset-x-2 bottom-2 z-20 flex max-h-[52vh] flex-col gap-2 overflow-y-auto rounded-2xl border-[3px] border-[#5e3c22] bg-[#fbf6ea]/97 p-3 shadow-[0_10px_36px_rgba(28,27,25,.3)] md:inset-x-auto md:top-16 md:right-3 md:bottom-3 md:max-h-none md:w-[380px]"
+      className="hd-pop-in pointer-events-auto absolute inset-x-2 bottom-2 z-20 flex max-h-[52vh] flex-col gap-2 hd-panel overflow-y-auto p-3 md:inset-x-auto md:top-16 md:right-3 md:bottom-3 md:max-h-none md:w-[380px]"
     >
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-[16px] font-bold">Bauen</h2>
@@ -451,7 +451,7 @@ export function BuildPanel({
         role="status"
         aria-live="polite"
         data-testid="bau-ansage"
-        className={`min-h-[20px] text-[13px] ${(ghostBad && tool) || dragBad ? "text-[#8a2414]" : "text-[#3a3732]"}`}
+        className={`min-h-[20px] text-[13px] ${(ghostBad && tool) || dragBad ? "text-hd-danger" : "text-hd-ink-2"}`}
       >
         {dragText ?? (ghostBad && tool ? `Hier nicht möglich: ${ghostBad}` : message)}
       </p>
@@ -502,7 +502,7 @@ export function BuildPanel({
           <label className="flex items-center gap-2 text-[13px]">
             <span className={LEGEND}>Haus anpassen</span>
             <select
-              className="min-w-0 flex-1 rounded-lg border-2 border-[#e4d9c0] bg-white px-2 py-1 text-[13px]"
+              className="min-w-0 flex-1 rounded-lg border-2 border-hd-line bg-hd-raised px-2 py-1 text-[13px]"
               value=""
               onChange={(e) => build.selectHouse(e.target.value || null)}
             >
@@ -524,7 +524,9 @@ export function BuildPanel({
                 role="tab"
                 aria-selected={gruppe === g}
                 className={`cursor-pointer rounded-lg px-3 py-1.5 text-[13px] font-bold ${
-                  gruppe === g ? "bg-[#5e3c22] text-white" : "bg-[#efe6d0] text-[#4a3a26]"
+                  gruppe === g
+                    ? "bg-hd-selected text-hd-selected-ink"
+                    : "bg-hd-sunken text-hd-ink-2"
                 }`}
                 onClick={() => setGruppe(g)}
               >
@@ -551,12 +553,15 @@ export function BuildPanel({
       )}
 
       {error && (
-        <p role="alert" className="rounded-lg bg-[#fde2dd] px-3 py-2 text-[13px] text-[#8a2414]">
+        <p
+          role="alert"
+          className="rounded-lg bg-hd-danger-soft px-3 py-2 text-[13px] text-hd-danger"
+        >
           {error}
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-[#e4d9c0] pt-2">
+      <div className="flex flex-wrap items-center gap-2 border-t border-hd-line pt-2">
         {confirmReset ? (
           <>
             <span className="text-[13px]">Alle eigene Deko und Hausvarianten entfernen?</span>

@@ -23,19 +23,19 @@ export function Breadcrumb({
       <button
         type="button"
         onClick={onClick}
-        className="cursor-pointer rounded-md px-[9px] py-[5px] text-[#2f5d4a] hover:bg-[#efeae0] focus-visible:outline-2 focus-visible:outline-[#2f5d4a]"
+        className="cursor-pointer rounded-md px-[9px] py-[5px] text-hd-accent hover:bg-hd-hover focus-visible:outline-2 focus-visible:outline-hd-accent"
       >
         {label}
       </button>
     ) : (
       <span
-        className={`px-[9px] py-[5px] ${strong ? "font-semibold text-[#1c1b19]" : "text-[#2f5d4a]"}`}
+        className={`px-[9px] py-[5px] ${strong ? "font-semibold text-hd-ink" : "text-hd-accent"}`}
       >
         {label}
       </span>
     );
   const sep = (
-    <span className="text-[#a8a29e]" aria-hidden>
+    <span className="text-hd-muted" aria-hidden>
       ›
     </span>
   );
@@ -43,7 +43,7 @@ export function Breadcrumb({
   return (
     <nav
       aria-label="Ebene im Dorf"
-      className="pointer-events-auto absolute top-3 left-3 flex max-w-[calc(100vw-172px)] items-center md:max-w-[calc(100vw-300px)] gap-0.5 overflow-hidden rounded-[9px] bg-[#fffdf8]/95 p-1 text-[13px] font-medium shadow-[0_1px_3px_rgba(0,0,0,.15)]"
+      className="pointer-events-auto absolute top-3 left-3 flex max-w-[calc(100vw-172px)] items-center md:max-w-[calc(100vw-300px)] gap-0.5 overflow-hidden hd-float rounded-[9px] p-1 text-[13px] font-medium shadow-hd-pop"
     >
       {seg("Dorf", nav.level === "dorf" ? null : actions.goHome, nav.level === "dorf")}
       {quarter && (

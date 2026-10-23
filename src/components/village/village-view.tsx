@@ -36,7 +36,7 @@ const VillageScene = dynamic(() => import("./village-scene"), {
   // Während die 3D-Szene lädt: ruhiger Hinweis statt leerer Fläche
   loading: () => (
     <div className="absolute inset-0 flex items-center justify-center" role="status">
-      <p className="hd-card text-[14px] text-[#3a3732]">Das Dorf wird aufgebaut …</p>
+      <p className="hd-card text-[14px] text-hd-ink-2">Das Dorf wird aufgebaut …</p>
     </div>
   ),
 });
@@ -91,7 +91,7 @@ function hasWebGL() {
 }
 
 const hint =
-  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border-2 border-[#e6c870] bg-[#fff3cf] p-3 text-sm text-[#6b4e00] shadow";
+  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border-2 border-hd-highlight bg-hd-new p-3 text-sm text-hd-new-ink shadow-hd-pop";
 
 /** Ersatz ohne WebGL: alle Häuser nach Quartier als Liste; die Auswahl öffnet das Fenster rechts. */
 function FallbackList({ model, actions }: { model: VillageModel; actions: SceneActions }) {
@@ -357,7 +357,7 @@ export function VillageView(props: Props) {
   return (
     <ItemExtrasProvider value={extras}>
       <div
-        className="hubdome-ui fixed inset-0 overflow-hidden bg-[#cfe4f4] text-[#1c1b19]"
+        className="hubdome-ui fixed inset-0 overflow-hidden bg-hd-info-soft text-hd-ink"
         role="application"
         aria-label={`3D-Ansicht des Dorfs ${props.villageName}. Alle Häuser und Objekte sind auch über die Suche und die Fenster erreichbar.`}
       >

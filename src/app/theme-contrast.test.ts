@@ -75,6 +75,8 @@ const PAIRS: [string, string[]][] = [
   ["hd-new-ink", ["hd-surface", "hd-new"]],
   ["hd-info-ink", ["hd-surface", "hd-info-soft"]],
   ["hd-head-ink", ["hd-surface", "hd-head"]],
+  ["hd-highlight-ink", ["hd-surface", "hd-highlight"]],
+  ["hd-danger-ink", ["hd-surface", "hd-danger"]],
 ];
 
 describe("Kontrast der Oberfläche (WCAG AA)", () => {

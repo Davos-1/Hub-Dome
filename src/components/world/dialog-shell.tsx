@@ -128,7 +128,9 @@ export function DialogShell({
     >
       <div
         className={`hd-fade-in absolute inset-0 ${
-          lowDetail ? "bg-[#1c1b19]/55" : "bg-[#1c1b19]/25 backdrop-blur-md"
+          lowDetail
+            ? "bg-hd-scrim shadow-[inset_0_0_0_100vmax_var(--hd-scrim)]"
+            : "bg-hd-scrim backdrop-blur-md"
         }`}
         onClick={onClose}
         aria-hidden
@@ -140,12 +142,12 @@ export function DialogShell({
         aria-labelledby={titleId}
         tabIndex={-1}
         data-hd-dialog
-        className={`hd-pop-in hd-frame relative flex max-h-full w-full flex-col overflow-hidden bg-[var(--hd-paper)] text-[var(--hd-ink)] shadow-[0_24px_80px_rgba(28,27,25,.4)] outline-none max-sm:h-full max-sm:border-0 sm:rounded-[20px] ${
+        className={`hd-pop-in hd-frame relative flex max-h-full w-full flex-col overflow-hidden bg-hd-surface text-hd-ink shadow-hd-panel outline-none max-sm:h-full max-sm:border-0 sm:rounded-hd-panel ${
           size === "lg" ? "sm:max-w-3xl" : "sm:max-w-xl"
         }`}
       >
         <div className="hd-plank flex items-center gap-3.5 px-5 py-4">
-          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#5e3c22]/55 text-[#fbf3e4]">
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-hd-frame/55 text-hd-head-ink">
             <Icon name={icon} />
           </span>
           <div className="min-w-0 flex-1">
@@ -153,14 +155,14 @@ export function DialogShell({
             <h2 id={titleId} className="truncate text-[21px] leading-tight font-bold">
               {title}
             </h2>
-            {subtitle && <p className="mt-0.5 text-[13px] text-[#f0d9b5]">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 text-[13px] text-hd-kicker">{subtitle}</p>}
           </div>
           {!hideClose && (
             <button
               type="button"
               onClick={onClose}
               aria-label="Schliessen"
-              className="h-9 w-9 flex-none cursor-pointer rounded-full bg-[#fbf3e4] text-[15px] font-bold text-[#5e3c22] shadow-[0_2px_0_#3e2814] hover:bg-white"
+              className="hd-close h-9 w-9 flex-none text-[15px]"
             >
               ✕
             </button>
@@ -175,4 +177,4 @@ export function DialogShell({
 /** Knöpfe und Links der Dialoge (Klassen aus globals.css). */
 export const dlgPrimary = "hd-btn hd-btn-primary";
 export const dlgSecondary = "hd-btn hd-btn-ghost";
-export const dlgLink = "text-[13px] font-medium text-[#2f5d4a] underline underline-offset-2";
+export const dlgLink = "text-[13px] font-medium text-hd-accent underline underline-offset-2";

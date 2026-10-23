@@ -33,7 +33,7 @@ export function WorldSettings({
       <h3 className="text-[15px] font-bold">Landschaft</h3>
       {isOwner ? (
         <>
-          <p className="text-[14px] text-[#3a3732]">
+          <p className="text-[14px] text-hd-ink-2">
             {describeMap(w.map)}{" "}
             <span className="hd-note">
               (Welt «{w.seed}», Generator {w.version})

@@ -16,7 +16,7 @@ const fmt = new Intl.DateTimeFormat("de-CH", {
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
-      <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#5e3c22] text-[12px] font-bold text-[#fbf3e4]">
+      <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-hd-selected text-[12px] font-bold text-hd-selected-ink">
         {n}
       </span>
       <div className="min-w-0 flex-1 text-[14px]">{children}</div>
@@ -68,7 +68,7 @@ export function ClaudeTab({ tokens }: { tokens: ShellToken[] }) {
           </div>
         )}
         {tokens.length > 0 && (
-          <ul className="flex flex-col gap-1.5 border-t border-[#e4d9c0] pt-2.5">
+          <ul className="flex flex-col gap-1.5 border-t border-hd-line pt-2.5">
             {tokens.map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-3 text-[13px]">
                 <span>

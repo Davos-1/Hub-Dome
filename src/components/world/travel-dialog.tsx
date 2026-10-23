@@ -93,7 +93,7 @@ function VillagesTab({
             <button
               type="button"
               onClick={onFriends}
-              className="font-semibold text-[#2f5d4a] underline"
+              className="font-semibold text-hd-accent underline"
             >
               Freunde
             </button>{" "}
@@ -172,7 +172,7 @@ function FriendLinkSection({ links }: { links: ShellLink[] }) {
         </div>
       )}
       {links.length > 0 && (
-        <ul className="flex flex-col gap-1.5 border-t border-[#e4d9c0] pt-2.5">
+        <ul className="flex flex-col gap-1.5 border-t border-hd-line pt-2.5">
           {links.map((l) => (
             <li key={l.id} className="flex items-center justify-between gap-3 text-[13px]">
               <span>
@@ -353,7 +353,7 @@ export function TravelDialog({
         <div
           role="tablist"
           aria-label="Reise und Freunde"
-          className="flex gap-0.5 rounded-xl bg-[#efe6d0] p-[3px]"
+          className="flex gap-0.5 rounded-xl bg-hd-sunken p-[3px]"
         >
           {TRAVEL_TABS.map(([id, label]) => (
             <button
@@ -363,12 +363,14 @@ export function TravelDialog({
               aria-selected={current === id}
               onClick={() => onTab(id)}
               className={`flex-1 cursor-pointer rounded-[9px] px-2 py-2 text-[13px] font-bold ${
-                current === id ? "bg-[#5e3c22] text-[#fbf3e4]" : "text-[#4a3a26] hover:bg-[#e6dbc0]"
+                current === id
+                  ? "bg-hd-selected text-hd-selected-ink"
+                  : "text-hd-ink-2 hover:bg-hd-line"
               }`}
             >
               {label}
               {id === "freunde" && requests > 0 && (
-                <span className="ml-1.5 rounded-full bg-[#facc15] px-1.5 py-0.5 text-[11px] text-[#1c1b19]">
+                <span className="ml-1.5 rounded-full bg-hd-highlight px-1.5 py-0.5 text-[11px] text-hd-highlight-ink">
                   {requests}
                 </span>
               )}
@@ -377,7 +379,10 @@ export function TravelDialog({
         </div>
 
         {pending && target && (
-          <p role="status" className="rounded-lg bg-[#e6efe9] px-3 py-2 text-[13px] text-[#2f5d4a]">
+          <p
+            role="status"
+            className="rounded-lg bg-hd-accent-soft px-3 py-2 text-[13px] text-hd-accent"
+          >
             Reise nach @{target}…
           </p>
         )}

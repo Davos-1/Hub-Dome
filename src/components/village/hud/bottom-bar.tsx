@@ -7,9 +7,10 @@ import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
 import { useScene, type SceneStore } from "../scene-store";
 
-const seg = (on: boolean) => (on ? "bg-[#5e3c22] text-[#fbf3e4]" : "bg-transparent text-[#4a3a26]");
+const seg = (on: boolean) =>
+  on ? "bg-hd-selected text-hd-selected-ink" : "bg-transparent text-hd-ink-2";
 const flat =
-  "cursor-pointer rounded-[9px] px-2.5 py-2 text-[13px] font-semibold whitespace-nowrap text-[#1c1b19] hover:bg-[#f0e6cf] md:px-3";
+  "cursor-pointer rounded-[9px] px-2.5 py-2 text-[13px] font-semibold whitespace-nowrap text-hd-ink hover:bg-hd-hover md:px-3";
 
 /** Schwebende Leiste unten: Ansicht 3D/Karte, Anzeige-Fenster, Reise, Haus anlegen, Einstellungen. */
 export function BottomBar({
@@ -61,7 +62,7 @@ export function BottomBar({
         <div
           role="menu"
           aria-label="Mehr"
-          className="hd-pop-in pointer-events-auto mb-2 flex flex-col gap-1 rounded-[14px] border-[3px] border-[#5e3c22] bg-[#fbf6ea] p-1.5 shadow-[0_6px_24px_rgba(28,27,25,.25)] md:hidden"
+          className="hd-pop-in pointer-events-auto mb-2 flex flex-col gap-1 hd-panel p-1.5 md:hidden"
         >
           {secondary.map(([label, fn]) => (
             <button
@@ -79,9 +80,9 @@ export function BottomBar({
           ))}
         </div>
       )}
-      <div className="pointer-events-auto flex items-center justify-center gap-1 rounded-[16px] border-[3px] border-[#5e3c22] bg-[#fbf6ea]/96 p-1 shadow-[0_6px_24px_rgba(28,27,25,.25)] md:flex-wrap md:gap-1.5 md:p-1.5">
+      <div className="pointer-events-auto flex items-center justify-center gap-1 hd-panel p-1 md:flex-wrap md:gap-1.5 md:p-1.5">
         <div
-          className="flex gap-0.5 rounded-[11px] bg-[#efe6d0] p-[3px]"
+          className="flex gap-0.5 rounded-[11px] bg-hd-sunken p-[3px]"
           role="group"
           aria-label="Ansicht"
         >
@@ -106,12 +107,12 @@ export function BottomBar({
           type="button"
           onClick={() => store.set({ panel: panel === "anzeige" ? null : "anzeige" })}
           aria-expanded={panel === "anzeige"}
-          className={`${flat} flex items-center gap-[7px] ${panel === "anzeige" ? "bg-[#f0e6cf]" : ""}`}
+          className={`${flat} flex items-center gap-[7px] ${panel === "anzeige" ? "bg-hd-sunken" : ""}`}
         >
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: TIME_DOTS[time] }} />
           {TIME_LABELS[time]}
           {filter && (
-            <span className="flex items-center gap-1 text-[#4a3a26]">
+            <span className="flex items-center gap-1 text-hd-ink-2">
               ·
               <span
                 className="h-2.5 w-2.5 rounded-[3px]"
@@ -121,13 +122,13 @@ export function BottomBar({
             </span>
           )}
         </button>
-        <div className="hidden h-6 w-px bg-[#e4d9c0] md:block" />
+        <div className="hidden h-6 w-px bg-hd-line md:block" />
         <button type="button" onClick={onTravel} className={`${flat} relative`}>
           Reise
           {friendRequests > 0 && (
             <span
               aria-label={`${friendRequests} offene Freundschaftsanfragen`}
-              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#facc15] px-1 text-[10px] font-bold"
+              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-hd-highlight px-1 text-[10px] font-bold text-hd-highlight-ink"
             >
               {friendRequests}
             </span>
