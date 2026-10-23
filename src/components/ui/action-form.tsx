@@ -16,6 +16,10 @@ type Props = {
   successText?: string;
   /** Wird einmal pro erfolgreichem Absenden aufgerufen (z.B. Dialog schliessen). */
   onSuccess?: () => void;
+  /** Zusätzliche Anzeige unter den Meldungen, z.B. ein erzeugter Link. */
+  renderResult?: (state: ActionState) => ReactNode;
+  /** Wenn gesetzt, stehen Felder und Knopf zusammen in einer Zeile mit dieser Klasse; Meldungen folgen darunter. */
+  rowClassName?: string;
 };
 
 const initial: ActionState = {};
@@ -31,6 +35,8 @@ export function ActionForm({
   buttonClassName = "hd-btn hd-btn-primary self-start",
   successText,
   onSuccess,
+  renderResult,
+  rowClassName,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, initial);
   const seen = useRef(state);
@@ -38,6 +44,15 @@ export function ActionForm({
     if (state.ok && seen.current !== state) onSuccess?.();
     seen.current = state;
   }, [state, onSuccess]);
+
+  const controls = (
+    <>
+      {children}
+      <button type="submit" disabled={pending} className={buttonClassName}>
+        {pending ? pendingLabel : submitLabel}
+      </button>
+    </>
+  );
 
   return (
     <form
@@ -47,10 +62,7 @@ export function ActionForm({
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}
     >
-      {children}
-      <button type="submit" disabled={pending} className={buttonClassName}>
-        {pending ? pendingLabel : submitLabel}
-      </button>
+      {rowClassName ? <div className={rowClassName}>{controls}</div> : controls}
       {state.error && (
         <p role="alert" className="hd-error">
           {state.error}
@@ -61,10 +73,10 @@ export function ActionForm({
           {successText}
         </p>
       )}
+      {renderResult?.(state)}
     </form>
   );
 }
 
 export const inputClass = "hd-input";
 export const dangerButton = "hd-btn hd-btn-danger hd-btn-sm";
-export const subtleButton = "hd-btn hd-btn-ghost hd-btn-sm";

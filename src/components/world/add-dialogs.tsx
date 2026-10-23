@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   createArtifact,
   deleteArtifact,
@@ -10,9 +10,43 @@ import {
 } from "@/app/dorf/actions";
 import { ArtifactForm } from "@/components/list/artifact-form";
 import { HouseCreateForm } from "@/components/list/house-create-form";
+import { HouseFields } from "@/components/list/house-fields";
 import { ActionForm, dangerButton } from "@/components/ui/action-form";
-import type { Artifact, House, ModuleOption } from "@/lib/types";
+import type { ActionState, Artifact, House, ModuleOption } from "@/lib/types";
 import { DialogShell } from "./dialog-shell";
+
+/** Karte mit Hinweis und Löschknopf am Ende der Bearbeiten-Dialoge. */
+function DeleteCard({
+  note,
+  action,
+  id,
+  submitLabel,
+  confirm,
+  onSuccess,
+}: {
+  note: ReactNode;
+  action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
+  id: string;
+  submitLabel: string;
+  confirm: string;
+  onSuccess: () => void;
+}) {
+  return (
+    <div className="hd-card flex items-center justify-between gap-3">
+      <span className="hd-note">{note}</span>
+      <ActionForm
+        action={action}
+        submitLabel={submitLabel}
+        confirm={confirm}
+        buttonClassName={dangerButton}
+        className=""
+        onSuccess={onSuccess}
+      >
+        <input type="hidden" name="id" value={id} />
+      </ActionForm>
+    </div>
+  );
+}
 
 /** Objekt direkt aus der 3D-Welt anlegen (z.B. vom Baustellenschild oder aus dem Haus-Fenster). */
 export function AddObjectDialog({
@@ -73,36 +107,27 @@ export function EditObjectDialog({
       title="Objekt bearbeiten"
       kicker="Hub Dome · Objekt"
       icon="bearbeiten"
-      subtitle={artifact?.title}
+      subtitle={artifact.title}
       onClose={onClose}
       lowDetail={lowDetail}
     >
-      {artifact ? (
-        <div className="flex flex-col gap-5">
-          <ArtifactForm
-            action={updateArtifact}
-            artifact={artifact}
-            houses={houses}
-            submitLabel="Speichern"
-            onSuccess={onClose}
-          />
-          <div className="hd-card flex items-center justify-between gap-3">
-            <span className="hd-note">Das Objekt wird aus deinem Dorf entfernt.</span>
-            <ActionForm
-              action={deleteArtifact}
-              submitLabel="Löschen"
-              confirm="Objekt wirklich löschen?"
-              buttonClassName={dangerButton}
-              className=""
-              onSuccess={onClose}
-            >
-              <input type="hidden" name="id" value={artifact.id} />
-            </ActionForm>
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm">Dieses Objekt gibt es nicht mehr.</p>
-      )}
+      <div className="flex flex-col gap-5">
+        <ArtifactForm
+          action={updateArtifact}
+          artifact={artifact}
+          houses={houses}
+          submitLabel="Speichern"
+          onSuccess={onClose}
+        />
+        <DeleteCard
+          note="Das Objekt wird aus deinem Dorf entfernt."
+          action={deleteArtifact}
+          id={artifact.id}
+          submitLabel="Löschen"
+          confirm="Objekt wirklich löschen?"
+          onSuccess={onClose}
+        />
+      </div>
     </DialogShell>
   );
 }
@@ -148,80 +173,49 @@ export function EditHouseDialog({
     if (!house) onClose();
   }, [house, onClose]);
   if (!house) return null;
+  const deleteNote =
+    objectCount === 0
+      ? "Das leere Haus wird entfernt."
+      : `Alle ${objectCount} Objekte darin werden ebenfalls gelöscht.`;
   return (
     <DialogShell
       title="Haus bearbeiten"
       kicker="Hub Dome · Haus"
       icon="bearbeiten"
-      subtitle={house?.title}
+      subtitle={house.title}
       onClose={onClose}
       lowDetail={lowDetail}
     >
-      {house ? (
-        <div className="flex flex-col gap-5">
-          <ActionForm
-            action={updateHouse}
-            submitLabel="Speichern"
-            successText="Gespeichert."
-            onSuccess={onClose}
-          >
-            <input type="hidden" name="id" value={house.id} />
-            <label htmlFor="edit-house-title" className="hd-label">
-              Titel
-            </label>
-            <input
-              id="edit-house-title"
-              name="title"
-              required
-              maxLength={80}
-              defaultValue={house.title}
-              className="hd-input"
-            />
-            <label htmlFor="edit-house-semester" className="hd-label">
-              Semester (optional)
-            </label>
-            <input
-              id="edit-house-semester"
-              name="semester"
-              type="number"
-              min={1}
-              max={12}
-              inputMode="numeric"
-              defaultValue={house.semester ?? ""}
-              className="hd-input"
-            />
-            <label htmlFor="edit-house-color" className="hd-label">
-              Farbe
-            </label>
-            <input
-              id="edit-house-color"
-              name="color"
-              type="color"
-              defaultValue={house.color}
-              className="h-10 w-20 cursor-pointer rounded-lg border border-[#d9c9a8] bg-white"
-            />
-          </ActionForm>
-          <div className="hd-card flex items-center justify-between gap-3">
-            <span className="hd-note">
-              {objectCount === 0
-                ? "Das leere Haus wird entfernt."
-                : `Alle ${objectCount} Objekte darin werden ebenfalls gelöscht.`}
-            </span>
-            <ActionForm
-              action={deleteHouse}
-              submitLabel="Haus löschen"
-              confirm={`Haus «${house.title}» löschen? Alle ${objectCount} Objekte darin werden ebenfalls gelöscht.`}
-              buttonClassName={dangerButton}
-              className=""
-              onSuccess={onClose}
-            >
-              <input type="hidden" name="id" value={house.id} />
-            </ActionForm>
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm">Dieses Haus gibt es nicht mehr.</p>
-      )}
+      <div className="flex flex-col gap-5">
+        <ActionForm
+          action={updateHouse}
+          submitLabel="Speichern"
+          successText="Gespeichert."
+          onSuccess={onClose}
+        >
+          <input type="hidden" name="id" value={house.id} />
+          <label htmlFor="edit-house-title" className="hd-label">
+            Titel
+          </label>
+          <input
+            id="edit-house-title"
+            name="title"
+            required
+            maxLength={80}
+            defaultValue={house.title}
+            className="hd-input"
+          />
+          <HouseFields semester={house.semester} color={house.color} />
+        </ActionForm>
+        <DeleteCard
+          note={deleteNote}
+          action={deleteHouse}
+          id={house.id}
+          submitLabel="Haus löschen"
+          confirm={`Haus «${house.title}» löschen? Alle ${objectCount} Objekte darin werden ebenfalls gelöscht.`}
+          onSuccess={onClose}
+        />
+      </div>
     </DialogShell>
   );
 }

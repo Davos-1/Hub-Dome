@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ActionForm, inputClass } from "@/components/ui/action-form";
 import { ITEM_TYPE_LABELS, LINK_ITEM_TYPES } from "@/lib/item-types";
 import { ARTIFACT_KINDS, ARTIFACT_KIND_LABELS, type ActionState, type Artifact } from "@/lib/types";
@@ -22,8 +22,8 @@ export function ArtifactForm({
   submitLabel,
   onSuccess,
 }: Props) {
-  // Eindeutige IDs: dieselbe Seite enthält mehrere Formulare (pro Haus und pro Artifact).
-  const id = artifact?.id ?? `neu-${defaultHouseId}`;
+  // Eindeutige IDs: dieselbe Seite kann mehrere Formulare enthalten.
+  const id = useId();
   // Übernahmen sind immer privat; eine neue URL macht daraus eine eigene Version («basiert auf»).
   const isCopy = artifact?.is_copy ?? false;
   const [visibility, setVisibility] = useState(artifact?.visibility ?? "shared");

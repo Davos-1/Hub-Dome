@@ -1,15 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
-import { completeOnboarding, type OnboardingState } from "./actions";
-
-const initial: OnboardingState = {};
+import { ActionForm } from "@/components/ui/action-form";
+import { completeOnboarding } from "./actions";
 
 export function OnboardingForm({ suggestedName, next }: { suggestedName: string; next?: string }) {
-  const [state, action, pending] = useActionState(completeOnboarding, initial);
-
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <ActionForm
+      action={completeOnboarding}
+      submitLabel="Dorf gründen"
+      buttonClassName="hd-btn hd-btn-primary"
+    >
       {next && <input type="hidden" name="next" value={next} />}
       <label htmlFor="displayName" className="hd-label">
         Anzeigename
@@ -38,14 +38,6 @@ export function OnboardingForm({ suggestedName, next }: { suggestedName: string;
       <p className="hd-note">
         3–24 Zeichen: Kleinbuchstaben, Zahlen, _ und -. Er bildet die Adresse deines Dorfs.
       </p>
-      <button type="submit" disabled={pending} className="hd-btn hd-btn-primary">
-        {pending ? "Speichere…" : "Dorf gründen"}
-      </button>
-      {state.error && (
-        <p role="alert" className="hd-error">
-          {state.error}
-        </p>
-      )}
-    </form>
+    </ActionForm>
   );
 }
