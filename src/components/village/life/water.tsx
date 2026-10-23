@@ -88,7 +88,7 @@ function ribbonUV(
   offsets: number[],
   y: number,
   uPerMeter: number,
-  colors?: [number, number, number, number][],
+  colors?: RGBA[],
 ) {
   const pos: number[] = [];
   const uv: number[] = [];
@@ -130,6 +130,58 @@ function ribbonUV(
   g.setAttribute("normal", new THREE.BufferAttribute(n, 3));
   return { geometry: g, length: len };
 }
+
+type RGBA = [number, number, number, number];
+/** Ufer: nasser Sand am Wasser, trockener Sand, dann weich in die Wiese auslaufend (Deckkraft 0). */
+const WET: RGBA = [0.62, 0.55, 0.42, 1];
+const SAND: RGBA = [0.79, 0.73, 0.56, 1];
+const FADE: RGBA = [0.79, 0.73, 0.56, 0];
+
+/**
+ * Uferband rund um ein geschlossenes Gewässer (Punkte lokal um die Mitte): Spalten nach aussen in den
+ * Abständen `offsets` (Meter, negativ = ins Wasser), Farben je Spalte.
+ */
+function shoreRing(points: { x: number; z: number }[], offsets: number[], colors: RGBA[]) {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  const k = offsets.length;
+  const n = points.length;
+  points.forEach((p) => {
+    const l = Math.hypot(p.x, p.z) || 1;
+    const ux = p.x / l;
+    const uz = p.z / l;
+    offsets.forEach((o, j) => {
+      pos.push(p.x + ux * o, 0, p.z + uz * o);
+      col.push(...colors[j]);
+    });
+  });
+  // Umlaufsinn der Uferlinie ist frei: Dreiecke so legen, dass sie nach oben zeigen
+  const area = points.reduce((acc, p, i) => {
+    const q = points[(i + 1) % n];
+    return acc + p.x * q.z - q.x * p.z;
+  }, 0);
+  for (let i = 0; i < n; i++) {
+    const a = i * k;
+    const b = ((i + 1) % n) * k;
+    for (let j = 0; j < k - 1; j++)
+      if (area < 0) idx.push(a + j, a + j + 1, b + j, b + j, a + j + 1, b + j + 1);
+      else idx.push(a + j, b + j, a + j + 1, b + j, b + j + 1, a + j + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 4));
+  const nor = new Float32Array(pos.length);
+  for (let i = 1; i < nor.length; i += 3) nor[i] = 1;
+  g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return g;
+}
+
+/** Material des Uferbands (Vertex-Farben mit Deckkraft). */
+const shoreMaterial = (
+  <meshStandardMaterial vertexColors transparent depthWrite={false} roughness={1} />
+);
 
 let REED: THREE.BufferGeometry | null = null;
 /** Geteilte Geometrie der Schilfbüschel (klein, bleibt für die Lebensdauer der Seite). */
@@ -255,10 +307,13 @@ function bridgeParts(span: number): Part[] {
 /** Fluss mit animierter Wasseroberfläche, Ufer, Schilf, Steinen und Holzbrücke. */
 export function River({
   river,
+  bridges,
   frozen,
   density,
 }: {
   river: NonNullable<Environment["river"]>;
+  /** Brücken: dort wachsen kein Schilf und liegen keine Steine. */
+  bridges: Environment["bridges"];
   frozen: boolean;
   density: number;
 }) {
@@ -275,54 +330,55 @@ export function River({
   const water = useMemo(() => {
     const h = river.width / 2;
     // Flaches Wasser am Rand heller, in der Mitte tiefer
-    const edge: [number, number, number, number] = [1.3, 1.25, 1.12, 1];
-    const mid: [number, number, number, number] = [0.86, 0.92, 0.98, 1];
+    const edge: RGBA = [1.3, 1.25, 1.12, 1];
+    const mid: RGBA = [0.86, 0.92, 0.98, 1];
     return ribbonUV(curve, [-h, -h * 0.45, h * 0.45, h], 0.05, 1 / 5, [edge, mid, mid, edge]);
   }, [curve, river.width]);
   const bank = useMemo(() => {
     const h = river.width / 2;
-    // Nasser Sand am Wasser, trockener Sand, dann sanft in die Wiese auslaufend (Deckkraft 0)
-    const wet: [number, number, number, number] = [0.62, 0.55, 0.42, 1];
-    const sand: [number, number, number, number] = [0.79, 0.73, 0.56, 1];
-    const fade: [number, number, number, number] = [0.79, 0.73, 0.56, 0];
     return ribbonUV(curve, [-h - 1.6, -h - 0.7, -h + 0.1, h - 0.1, h + 0.7, h + 1.6], 0.025, 1, [
-      fade,
-      sand,
-      wet,
-      wet,
-      sand,
-      fade,
+      FADE,
+      SAND,
+      WET,
+      WET,
+      SAND,
+      FADE,
     ]);
   }, [curve, river.width]);
   const texture = useWaterTexture(Math.max(1, Math.round(water.length / 5 / 1)));
   useEffect(() => () => water.geometry.dispose(), [water]);
   useEffect(() => () => bank.geometry.dispose(), [bank]);
 
-  const reeds = Math.round(70 * density);
-  const stones = Math.round(34 * density);
+  const reeds = Math.min(100, Math.round(70 * density));
+  const stones = Math.min(100, Math.round(34 * density));
   const rnd = useMemo(
     () => seededRandom(`fluss${river.points.length}${Math.round(river.points[3].x)}`),
     [river.points],
   );
   const bankPts = useMemo(() => {
     const out: { x: number; z: number; s: number; r: number; c: number }[] = [];
-    for (let k = 0; k < 200; k++) {
+    // 200 Punkte (Schilf 0–99, Steine ab 100), ohne die Brückenbereiche
+    for (let k = 0; k < 1200 && out.length < 200; k++) {
       const i = 4 + Math.floor(rnd() * (curve.length - 8));
       const p = curve[i];
       const q = curve[i + 1];
       const l = Math.hypot(q.x - p.x, q.z - p.z) || 1;
       const side = rnd() > 0.5 ? 1 : -1;
       const off = river.width / 2 + 0.25 + rnd() * 0.8;
+      const x = p.x + (-(q.z - p.z) / l) * off * side;
+      const z = p.z + ((q.x - p.x) / l) * off * side;
+      // Nicht unter oder neben einer Brücke (Bretter, Widerlager, Weg)
+      if (bridges.some((b) => Math.hypot(x - b.x, z - b.z) < b.span / 2 + 1.8)) continue;
       out.push({
-        x: p.x + (-(q.z - p.z) / l) * off * side,
-        z: p.z + ((q.x - p.x) / l) * off * side,
+        x,
+        z,
         s: 0.7 + rnd() * 0.8,
         r: rnd() * 6,
         c: rnd(),
       });
     }
     return out;
-  }, [curve, river.width, rnd]);
+  }, [curve, river.width, rnd, bridges]);
 
   const placeReed = useMemo(
     () => (i: number, o: THREE.Object3D, c: THREE.Color) => {
@@ -348,7 +404,7 @@ export function River({
   return (
     <group>
       <mesh geometry={bank.geometry} receiveShadow>
-        <meshStandardMaterial vertexColors transparent depthWrite={false} roughness={1} />
+        {shoreMaterial}
       </mesh>
       <Water geometry={water.geometry} texture={texture} frozen={frozen} speed={0.06} />
       <Scatter count={reeds} place={placeReed} geometry={reedGeometry()}>
@@ -406,20 +462,11 @@ export function Lake({
     const pos = surface.attributes.position;
     const uv = surface.attributes.uv;
     for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / 8, pos.getZ(i) / 8);
-    const outer = lake.outline.map((p) => {
-      const dx = p.x - lake.x;
-      const dz = p.z - lake.z;
-      const l = Math.hypot(dx, dz) || 1;
-      return new THREE.Vector2(dx + (dx / l) * 1.6, -(dz + (dz / l) * 1.6));
-    });
-    const ring = new THREE.Shape(outer);
-    ring.holes.push(
-      new THREE.Path(
-        lake.outline.map((p) => new THREE.Vector2(p.x - lake.x, -(p.z - lake.z))).reverse(),
-      ),
+    const rim = shoreRing(
+      lake.outline.map((p) => ({ x: p.x - lake.x, z: p.z - lake.z })),
+      [-0.3, 0.5, 1.4, 2.6],
+      [WET, SAND, SAND, FADE],
     );
-    const rim = new THREE.ShapeGeometry(ring, 2);
-    rim.rotateX(-Math.PI / 2);
     return { surface, rim };
   }, [lake]);
   useEffect(() => () => surface.dispose(), [surface]);
@@ -443,7 +490,7 @@ export function Lake({
   return (
     <group>
       <mesh geometry={rim} position={[lake.x, 0.02, lake.z]} receiveShadow>
-        <meshStandardMaterial color="#c9b98f" roughness={1} />
+        {shoreMaterial}
       </mesh>
       <group position={[lake.x, 0.05, lake.z]}>
         <Water geometry={surface} texture={texture} frozen={frozen} speed={0.01} />
@@ -467,11 +514,18 @@ export function Pond({
 }) {
   const { x, z, r } = pond;
   const texture = useWaterTexture(3);
-  const rim = useMemo(() => {
-    const g = new THREE.RingGeometry(r * 0.96, r + 0.9, 36);
-    g.rotateX(-Math.PI / 2);
-    return g;
-  }, [r]);
+  const rim = useMemo(
+    () =>
+      shoreRing(
+        Array.from({ length: 36 }, (_, i) => ({
+          x: Math.cos((i / 36) * Math.PI * 2) * r,
+          z: Math.sin((i / 36) * Math.PI * 2) * r,
+        })),
+        [-0.15, 0.45, 0.95, 1.9],
+        [WET, SAND, SAND, FADE],
+      ),
+    [r],
+  );
   const surface = useMemo(() => {
     const g = new THREE.CircleGeometry(r, 36);
     g.rotateX(-Math.PI / 2);
@@ -524,7 +578,7 @@ export function Pond({
   return (
     <group>
       <mesh geometry={rim} position={[x, 0.02, z]} receiveShadow>
-        <meshStandardMaterial color="#c9b98f" roughness={1} />
+        {shoreMaterial}
       </mesh>
       <group position={[x, 0.05, z]}>
         <Water geometry={surface} texture={texture} frozen={frozen} speed={0.015} />

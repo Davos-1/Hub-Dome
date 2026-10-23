@@ -155,7 +155,7 @@ function SlotHits({
       position={[s.x, 0.6, s.z]}
       visible={false}
       onPointerOver={(e) => {
-          if (store.get().building) return;
+        if (store.get().building) return;
         e.stopPropagation();
         store.set({ hoverObjId: s.id, hoverHouseId: null });
         document.body.style.cursor = "pointer";

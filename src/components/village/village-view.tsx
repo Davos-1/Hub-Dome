@@ -254,7 +254,7 @@ export function VillageView(props: Props) {
         const d = m.bridge ? 13 : "r" in t ? t.r + 10 : 12;
         store.set({
           devPose: {
-            position: [t.x - Math.sin(a + 0.5) * d, 7, t.z - Math.cos(a + 0.5) * d],
+            position: [t.x - Math.sin(a + 0.5) * d, 11, t.z - Math.cos(a + 0.5) * d],
             target: [t.x, 0, t.z],
           },
         });

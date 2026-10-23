@@ -44,7 +44,9 @@ export function Life({
   return (
     <>
       <LiveFrames enabled={!reducedMotion} fps={n(30, 20)} />
-      {env.river && <River river={env.river} frozen={frozen} density={n(1, 0.5)} />}
+      {env.river && (
+        <River river={env.river} bridges={env.bridges} frozen={frozen} density={n(1, 0.5)} />
+      )}
       {env.lake && <Lake lake={env.lake} frozen={frozen} density={n(1, 0.5)} />}
       <Bridges bridges={env.bridges} />
       {!mapOnly && (

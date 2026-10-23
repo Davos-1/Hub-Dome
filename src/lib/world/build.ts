@@ -52,7 +52,11 @@ export function pinHouse(d: Draft, houseId: string, pin: HousePin): Draft {
 /** Alles zurück auf Automatik: keine eigene Deko, keine Varianten, keine Fixierung. */
 export const EMPTY_DRAFT: Draft = { deko: [], varianten: {}, pins: { quartiere: {}, haeuser: {} } };
 
-export const startHistory = (draft: Draft): BuildHistory => ({ past: [], present: draft, future: [] });
+export const startHistory = (draft: Draft): BuildHistory => ({
+  past: [],
+  present: draft,
+  future: [],
+});
 
 /** Neuer Stand (wird rückgängig machbar). Gleicher Stand ändert nichts. */
 export function commit(h: BuildHistory, next: Draft): BuildHistory {
@@ -84,8 +88,7 @@ export function nextDekoId(deko: readonly DekoItem[]): string {
 
 /** Ergebnis der Live-Prüfung: gültig (ggf. eingerastet) oder Grund. */
 export type Ghost =
-  | { ok: true; item: DekoItem; snapped: boolean }
-  | { ok: false; item: DekoItem; grund: string };
+  { ok: true; item: DekoItem; snapped: boolean } | { ok: false; item: DekoItem; grund: string };
 
 /** Auf 0.25 m runden (Raster des Bau-Modus) und Drehung in 15°-Schritte bringen. */
 export function normalize(item: DekoItem): DekoItem {
@@ -130,7 +133,8 @@ export function removeDeko(d: Draft, id: string): Draft {
 /** Variante eines Hauses ändern; leere Varianten werden entfernt (= Automatik). */
 export function setVariante(d: Draft, houseId: string, patch: Partial<Variante>): Draft {
   const next: Variante = { ...(d.varianten[houseId] ?? {}), ...patch };
-  for (const k of Object.keys(next) as (keyof Variante)[]) if (next[k] === undefined) delete next[k];
+  for (const k of Object.keys(next) as (keyof Variante)[])
+    if (next[k] === undefined) delete next[k];
   const varianten = { ...d.varianten };
   if (Object.keys(next).length) varianten[houseId] = next;
   else delete varianten[houseId];

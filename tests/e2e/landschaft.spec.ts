@@ -4,7 +4,9 @@ import { expect, test } from "@playwright/test";
 
 const ready = { timeout: 120_000 };
 
-test("Welt neu würfeln: Vorschau in der Szene, nochmals, verwerfen, übernehmen", async ({ page }) => {
+test("Welt neu würfeln: Vorschau in der Szene, nochmals, verwerfen, übernehmen", async ({
+  page,
+}) => {
   test.setTimeout(240_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -48,7 +50,9 @@ test("Besucher sehen keinen Würfel-Knopf", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Welt neu würfeln/ })).toHaveCount(0);
 });
 
-test("gleicher Seed, gleiche Welt; anderer Seed, andere Welt (Render-Statistik)", async ({ page }) => {
+test("gleicher Seed, gleiche Welt; anderer Seed, andere Welt (Render-Statistik)", async ({
+  page,
+}) => {
   test.setTimeout(240_000);
   const stats = async (seed: string) => {
     await page.goto(`/dev/dorf?h=10&o=4&seed=${seed}&bewegung=0&kamera=vogel`);
