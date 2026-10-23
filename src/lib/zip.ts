@@ -19,7 +19,7 @@ export function crc32(data: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-export type ZipEntry = { path: string; content: string };
+type ZipEntry = { path: string; content: string };
 
 /** Fester Zeitstempel (1980-01-01), damit das Ergebnis reproduzierbar ist. */
 const DOS_TIME = 0;

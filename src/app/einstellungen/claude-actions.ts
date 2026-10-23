@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/site-url";
 import { generateMcpToken, hashMcpToken } from "@/lib/tokens";
 import type { ActionState } from "@/lib/types";
+import { firstIssue } from "@/lib/validation";
 
 const labelSchema = z
   .string()
@@ -17,7 +18,7 @@ const idSchema = z.uuid({ message: "Ungültiges Token." });
 /** Connector-Token erzeugen. Die fertige Connector-URL steht nur in dieser Antwort (Klartext wird nie gespeichert). */
 export async function createMcpToken(_: ActionState, formData: FormData): Promise<ActionState> {
   const label = labelSchema.safeParse(formData.get("label") ?? "");
-  if (!label.success) return { error: label.error.issues[0].message };
+  if (!label.success) return { error: firstIssue(label.error) };
   const { supabase, user } = await requireUser();
   const token = generateMcpToken();
   const { error } = await supabase
@@ -38,7 +39,7 @@ export async function createMcpToken(_: ActionState, formData: FormData): Promis
 /** Connector-Token widerrufen: der Connector funktioniert danach sofort nicht mehr. */
 export async function revokeMcpToken(_: ActionState, formData: FormData): Promise<ActionState> {
   const id = idSchema.safeParse(formData.get("id"));
-  if (!id.success) return { error: id.error.issues[0].message };
+  if (!id.success) return { error: firstIssue(id.error) };
   const { supabase, user } = await requireUser();
   const { error } = await supabase
     .from("mcp_tokens")

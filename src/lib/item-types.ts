@@ -99,7 +99,7 @@ export function urlMatchesType(type: ItemType, rawUrl: string): boolean {
 
 export const hostOf = (rawUrl: string) => URL.parse(rawUrl)?.hostname.replace(/^www\./, "") ?? "";
 
-export const META_TTL_MS = 24 * 60 * 60 * 1000;
+const META_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Vorschau-Daten höchstens alle 24 h neu laden. */
 export function needsRefresh(refreshedAt: string | null, now = Date.now()): boolean {

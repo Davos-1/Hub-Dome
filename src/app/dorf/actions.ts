@@ -6,9 +6,13 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import type { ActionState } from "@/lib/types";
-import { artifactSchema, copySchema, houseSchema, houseUpdateSchema } from "@/lib/validation";
-
-const firstError = (e: { issues: { message: string }[] }) => e.issues[0].message;
+import {
+  artifactSchema,
+  copySchema,
+  firstIssue,
+  houseSchema,
+  houseUpdateSchema,
+} from "@/lib/validation";
 
 function refresh() {
   revalidatePath("/", "layout");
@@ -20,7 +24,7 @@ const fields = (fd: FormData) => Object.fromEntries(fd.entries());
 
 export async function createHouse(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = houseSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
 
   const { data: village } = await supabase
@@ -66,7 +70,7 @@ export async function createHouse(_: ActionState, formData: FormData): Promise<A
 export async function updateHouse(_: ActionState, formData: FormData): Promise<ActionState> {
   const id = String(formData.get("id"));
   const parsed = houseUpdateSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase } = await requireUser();
 
   const { data, error } = await supabase
@@ -96,7 +100,7 @@ export async function deleteHouse(_: ActionState, formData: FormData): Promise<A
 
 export async function createArtifact(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = artifactSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
 
   const { houseId, itemType, allowCopy, topdorfOk, ...rest } = parsed.data;
@@ -128,7 +132,7 @@ export async function createArtifact(_: ActionState, formData: FormData): Promis
 export async function updateArtifact(_: ActionState, formData: FormData): Promise<ActionState> {
   const id = String(formData.get("id"));
   const parsed = artifactSchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
 
   const { houseId, itemType, allowCopy, topdorfOk, ...rest } = parsed.data;
@@ -194,7 +198,7 @@ export type CopyState = ActionState & { houseTitle?: string };
  */
 export async function copyArtifact(_: CopyState, formData: FormData): Promise<CopyState> {
   const parsed = copySchema.safeParse(fields(formData));
-  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
   const { source, house } = parsed.data;
 

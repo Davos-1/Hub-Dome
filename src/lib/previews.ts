@@ -1,7 +1,7 @@
 import { needsRefresh, parseGistId, parseGithubRepo, type ItemType } from "./item-types";
 
 /** Gespeicherte Vorschau-Daten (Spalte `artifacts.meta`). */
-export type GithubMeta = {
+type GithubMeta = {
   kind: "github";
   full_name: string;
   description: string | null;
@@ -10,12 +10,12 @@ export type GithubMeta = {
   pushed_at: string | null;
   readme: string | null;
 };
-export type GistMeta = {
+type GistMeta = {
   kind: "gist";
   description: string | null;
   files: { filename: string; language: string | null; content: string; truncated: boolean }[];
 };
-export type UnavailableMeta = { unavailable: true };
+type UnavailableMeta = { unavailable: true };
 export type PreviewMeta = GithubMeta | GistMeta | UnavailableMeta | Record<string, never>;
 
 type FetchFn = typeof fetch;

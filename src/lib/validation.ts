@@ -2,15 +2,6 @@ import { z } from "zod";
 import { detectItemType, LINK_ITEM_TYPES, urlMatchesType } from "@/lib/item-types";
 import { ARTIFACT_KINDS } from "@/lib/types";
 
-/** Nur claude.ai-Links sind als Artifact erlaubt (siehe PLAN.md Abschnitt 9). */
-export const artifactUrlSchema = z.url().refine(
-  (u) => {
-    const url = URL.parse(u);
-    return url?.protocol === "https:" && url.hostname === "claude.ai";
-  },
-  { message: "Nur https://claude.ai/-Links sind erlaubt." },
-);
-
 export const emailSchema = z.email({ message: "Bitte eine gültige E-Mail-Adresse eingeben." });
 
 export const onboardingSchema = z.object({
@@ -26,6 +17,11 @@ export const onboardingSchema = z.object({
     .max(60, "Maximal 60 Zeichen."),
 });
 
+/** Erste Fehlermeldung einer fehlgeschlagenen Zod-Prüfung. */
+export function firstIssue(error: { issues: { message: string }[] }): string {
+  return error.issues[0].message;
+}
+
 /** Erlaubt nur interne Pfade als Weiterleitungsziel (kein Open Redirect). */
 export function safeNextPath(next: string | null | undefined, fallback = "/start") {
   return next && /^\/(?![/\\])/.test(next) ? next : fallback;
@@ -34,7 +30,7 @@ export function safeNextPath(next: string | null | undefined, fallback = "/start
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Ungültige Farbe.");
 
 /** Optionales Semester 1–12; leeres Feld → null. */
-export const semesterSchema = z.preprocess(
+const semesterSchema = z.preprocess(
   (v) => (v === "" || v === undefined || v === null ? null : Number(v)),
   z
     .number({ message: "Semester: eine Zahl von 1 bis 12." })
@@ -68,7 +64,7 @@ export const houseUpdateSchema = z.object({
 });
 
 /** Komma-getrennte Tags → bereinigte Liste (max. 5, je max. 30 Zeichen). */
-export const tagsSchema = z
+const tagsSchema = z
   .string()
   .default("")
   .transform((s) =>

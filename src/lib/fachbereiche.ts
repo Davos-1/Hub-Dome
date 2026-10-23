@@ -1,3 +1,4 @@
+import { fnv } from "./geometry";
 import type { House } from "./types";
 
 /**
@@ -18,7 +19,7 @@ export type FachbereichId =
   | "digital"
   | "weitere";
 
-export type FachStyle = { type: FachType; wall: string; roof: string; accent: string };
+type FachStyle = { type: FachType; wall: string; roof: string; accent: string };
 
 export const FACHBEREICHE: Record<FachbereichId, { name: string; style: FachStyle }> = {
   tragwerk: {
@@ -236,16 +237,6 @@ export function fachbereichOf(house: Pick<House, "kind" | "module_code">): Fachb
 export function houseShortCode(house: Pick<House, "kind" | "module_code" | "title">): string {
   if (house.kind === "modul" && house.module_code) return normalizeModuleCode(house.module_code);
   return house.title.slice(0, 4).toUpperCase();
-}
-
-/** FNV-1a-Hash für deterministische Variation pro Id. */
-export function fnv(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
 }
 
 /** Stil eines Hauses; die Wandfarbe variiert pro Haus um den Faktor 0.90–1.09. */

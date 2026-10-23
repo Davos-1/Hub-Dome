@@ -3,8 +3,9 @@
  * Alles hängt nur von `extent` (Radius des Dorfs) und einem Seed ab – gleiche Daten, gleiche Landschaft.
  */
 
-export type Pt = { x: number; z: number };
-export type Circle = { x: number; z: number; r: number };
+import { fnv, polar, type Pt } from "./geometry";
+
+type Circle = { x: number; z: number; r: number };
 
 export type Environment = {
   /** Flussmitte als Linienzug (läuft bei beiden Enden aus dem Bild). */
@@ -17,27 +18,13 @@ export type Environment = {
   reserved: Circle[];
 };
 
-function hash(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-const polar = (angle: number, radius: number): Pt => ({
-  x: Math.cos(angle) * radius,
-  z: Math.sin(angle) * radius,
-});
-
 export const RIVER_WIDTH = 3.4;
 /** Fluss belegt den hinteren Bogen (von +z aus gesehen die Rückseite); die Vorderseite bleibt frei. */
 const RIVER_CENTER = -Math.PI / 2;
 const RIVER_HALF_SPAN = 1.75;
 
 export function computeEnvironment(extent: number, seed: string): Environment {
-  const k = hash(seed);
+  const k = fnv(seed);
   const phase = ((k % 628) / 100) as number;
 
   // Fluss: Bogen um das Dorf, leicht mäandernd, die Enden laufen nach aussen aus dem Dorf

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { onboardingSchema, safeNextPath } from "@/lib/validation";
+import { firstIssue, onboardingSchema, safeNextPath } from "@/lib/validation";
 
 export type OnboardingState = { error?: string };
 
@@ -14,7 +14,7 @@ export async function completeOnboarding(
     username: formData.get("username"),
     displayName: formData.get("displayName"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("complete_onboarding", {

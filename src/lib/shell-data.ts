@@ -54,101 +54,33 @@ export type ShellData = {
   own: ShellOwn | null;
 };
 
-type VillageRow = {
+export type VillageRow = {
   id: string;
   name: string;
   owner_id: string;
   owner: { username: string; display_name: string } | null;
   houses: { id: string; kind: string; created_at: string; artifacts: { created_at: string }[] }[];
 };
+export type FriendshipRow = {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: string;
+  created_at: string;
+  responded_at: string | null;
+};
+type ProfileRow = { id: string; username: string; display_name: string };
+type LinkRow = { id: string; expires_at: string; max_uses: number; uses: number };
+type TokenRow = {
+  id: string;
+  label: string;
+  created_at: string;
+  last_used_at: string | null;
+};
 
-/** Freundschaften und Anfragen der angemeldeten Person (leer, falls die Tabelle noch fehlt). */
-async function loadFriends(supabase: SupabaseClient, meId: string): Promise<ShellFriend[]> {
-  const { data: rows, error } = await supabase
-    .from("friendships")
-    .select("id, requester_id, addressee_id, status, created_at, responded_at")
-    .order("created_at");
-  if (error || !rows?.length) return [];
-  const otherIds = rows.map((r) => (r.requester_id === meId ? r.addressee_id : r.requester_id));
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, username, display_name")
-    .in("id", otherIds);
-  const byId = new Map((profiles ?? []).map((p) => [p.id as string, p]));
-  return rows.flatMap((r) => {
-    const otherId = r.requester_id === meId ? r.addressee_id : r.requester_id;
-    const p = byId.get(otherId);
-    if (!p) return [];
-    const status: ShellFriend["status"] =
-      r.status === "accepted" ? "freund" : r.requester_id === meId ? "ausgehend" : "eingehend";
-    return [
-      {
-        friendshipId: r.id as string,
-        otherId: otherId as string,
-        username: p.username as string,
-        displayName: p.display_name as string,
-        status,
-        since: (r.responded_at ?? r.created_at) as string,
-      },
-    ];
-  });
-}
-
-/** Eigene, noch gültige Freundschaftslinks (leer, falls die Tabelle noch fehlt). */
-async function loadLinks(supabase: SupabaseClient): Promise<ShellLink[]> {
-  const { data, error } = await supabase
-    .from("friend_links")
-    .select("id, expires_at, max_uses, uses")
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false });
-  if (error) return [];
-  return (data ?? []).map((l) => ({
-    id: l.id as string,
-    expiresAt: l.expires_at as string,
-    maxUses: l.max_uses as number,
-    uses: l.uses as number,
-  }));
-}
-
-/** Aktive Connector-Tokens der Person (leer, falls die Tabelle fehlt). */
-async function loadTokens(supabase: SupabaseClient): Promise<ShellToken[]> {
-  const { data, error } = await supabase
-    .from("mcp_tokens")
-    .select("id, label, created_at, last_used_at")
-    .is("revoked_at", null)
-    .order("created_at", { ascending: false });
-  if (error) return [];
-  return (data ?? []).map((t) => ({
-    id: t.id as string,
-    label: t.label as string,
-    createdAt: t.created_at as string,
-    lastUsedAt: (t.last_used_at as string | null) ?? null,
-  }));
-}
-
-/**
- * Lädt alles für Start-, Reise-, Einstellungs- und Hinzufügen-Dialoge. Läuft mit dem RLS-Client:
- * Dörfer und Freundschaften sehen nur die Beteiligten.
- */
-export async function loadShell(
-  supabase: SupabaseClient,
-  profile: { id: string; username: string; display_name: string },
-): Promise<ShellData> {
-  const [villagesRes, ownRes, friends, links, tokens] = await Promise.all([
-    supabase
-      .from("villages")
-      .select(
-        "id, name, owner_id, owner:profiles!villages_owner_id_fkey(username, display_name), houses(id, kind, created_at, artifacts(created_at))",
-      )
-      .order("created_at"),
-    supabase.from("villages").select("id, zentrale_style").eq("owner_id", profile.id).maybeSingle(),
-    loadFriends(supabase, profile.id),
-    loadLinks(supabase),
-    loadTokens(supabase),
-  ]);
-
-  const rows = (villagesRes.data ?? []) as unknown as VillageRow[];
-  const villages: ShellVillage[] = rows
+/** Dörfer mit Besitzer, Zähler und letzter Änderung; das eigene Dorf steht zuerst. */
+export function toShellVillages(rows: VillageRow[], meId: string): ShellVillage[] {
+  return rows
     .filter((v) => v.owner)
     .map((v) => {
       const artifacts = v.houses.flatMap((h) => h.artifacts);
@@ -164,25 +96,132 @@ export async function loadShell(
         houseCount: v.houses.filter((h) => h.kind !== "zentrale").length,
         objectCount: artifacts.length,
         last: last ?? null,
-        mine: v.owner_id === profile.id,
+        mine: v.owner_id === meId,
       };
     })
-    // Eigenes Dorf zuerst
     .sort((a, b) => Number(b.mine) - Number(a.mine));
+}
 
-  let own: ShellOwn | null = null;
+/** Die andere Person einer Freundschaft. */
+export function otherPartyId(row: FriendshipRow, meId: string): string {
+  return row.requester_id === meId ? row.addressee_id : row.requester_id;
+}
+
+/** Freundschaften mit Profil der Gegenseite; Einträge ohne sichtbares Profil entfallen. */
+export function toShellFriends(
+  rows: FriendshipRow[],
+  profiles: ProfileRow[],
+  meId: string,
+): ShellFriend[] {
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  return rows.flatMap((r) => {
+    const otherId = otherPartyId(r, meId);
+    const p = byId.get(otherId);
+    if (!p) return [];
+    const status: ShellFriend["status"] =
+      r.status === "accepted" ? "freund" : r.requester_id === meId ? "ausgehend" : "eingehend";
+    return [
+      {
+        friendshipId: r.id,
+        otherId,
+        username: p.username,
+        displayName: p.display_name,
+        status,
+        since: r.responded_at ?? r.created_at,
+      },
+    ];
+  });
+}
+
+export function toShellLinks(rows: LinkRow[]): ShellLink[] {
+  return rows.map((l) => ({
+    id: l.id,
+    expiresAt: l.expires_at,
+    maxUses: l.max_uses,
+    uses: l.uses,
+  }));
+}
+
+export function toShellTokens(rows: TokenRow[]): ShellToken[] {
+  return rows.map((t) => ({
+    id: t.id,
+    label: t.label,
+    createdAt: t.created_at,
+    lastUsedAt: t.last_used_at ?? null,
+  }));
+}
+
+/** Freundschaften und Anfragen der angemeldeten Person (leer, falls die Tabelle noch fehlt). */
+async function loadFriends(supabase: SupabaseClient, meId: string): Promise<ShellFriend[]> {
+  const { data, error } = await supabase
+    .from("friendships")
+    .select("id, requester_id, addressee_id, status, created_at, responded_at")
+    .order("created_at");
+  const rows = (data ?? []) as FriendshipRow[];
+  if (error || !rows.length) return [];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, username, display_name")
+    .in(
+      "id",
+      rows.map((r) => otherPartyId(r, meId)),
+    );
+  return toShellFriends(rows, (profiles ?? []) as ProfileRow[], meId);
+}
+
+/** Eigene, noch gültige Freundschaftslinks (leer, falls die Tabelle noch fehlt). */
+async function loadLinks(supabase: SupabaseClient): Promise<ShellLink[]> {
+  const { data, error } = await supabase
+    .from("friend_links")
+    .select("id, expires_at, max_uses, uses")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return toShellLinks((data ?? []) as LinkRow[]);
+}
+
+/** Aktive Connector-Tokens der Person (leer, falls die Tabelle fehlt). */
+async function loadTokens(supabase: SupabaseClient): Promise<ShellToken[]> {
+  const { data, error } = await supabase
+    .from("mcp_tokens")
+    .select("id, label, created_at, last_used_at")
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return toShellTokens((data ?? []) as TokenRow[]);
+}
+
+/**
+ * Lädt alles für Start-, Reise-, Einstellungs- und Hinzufügen-Dialoge. Läuft mit dem RLS-Client:
+ * Dörfer und Freundschaften sehen nur die Beteiligten.
+ */
+export async function loadShell(
+  supabase: SupabaseClient,
+  profile: { id: string; username: string; display_name: string },
+): Promise<ShellData> {
+  const [villagesRes, ownRes, modulesRes, friends, links, tokens] = await Promise.all([
+    supabase
+      .from("villages")
+      .select(
+        "id, name, owner_id, owner:profiles!villages_owner_id_fkey(username, display_name), houses(id, kind, created_at, artifacts(created_at))",
+      )
+      .order("created_at"),
+    supabase.from("villages").select("id, zentrale_style").eq("owner_id", profile.id).maybeSingle(),
+    supabase.from("module_catalog").select("code, title").order("title"),
+    loadFriends(supabase, profile.id),
+    loadLinks(supabase),
+    loadTokens(supabase),
+  ]);
+
+  const villages = toShellVillages((villagesRes.data ?? []) as unknown as VillageRow[], profile.id);
   const ownVillage = ownRes.data;
-  if (ownVillage) {
-    const { data: modules } = await supabase
-      .from("module_catalog")
-      .select("code, title")
-      .order("title");
-    own = {
-      villageId: ownVillage.id,
-      zentraleStyle: ownVillage.zentrale_style,
-      modules: modules ?? [],
-    };
-  }
+  const own: ShellOwn | null = ownVillage
+    ? {
+        villageId: ownVillage.id,
+        zentraleStyle: ownVillage.zentrale_style,
+        modules: modulesRes.data ?? [],
+      }
+    : null;
 
   return {
     me: { id: profile.id, username: profile.username, displayName: profile.display_name },

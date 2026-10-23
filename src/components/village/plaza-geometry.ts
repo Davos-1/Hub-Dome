@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { isInPlot, polar, type PlazaPoly, type VillageLayout } from "@/lib/layout";
+import { polar } from "@/lib/geometry";
+import { isInPlot, type PlazaPoly, type VillageLayout } from "@/lib/layout";
 import { distanceToPolyline } from "@/lib/paths";
 import { box, cyl, gable, mergeParts, type Part } from "./geo";
 import { darken, STONE, WOOD } from "./models/common";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FACH_ORDER } from "./fachbereiche";
 import { computeLayout, type LayoutHouse } from "./layout";
-import { distanceToPolyline, polylineDistance } from "./paths";
+import { distanceToPolyline, pointAlong, polylineDistance } from "./paths";
 
 function make(n: number, spread: number): LayoutHouse[] {
   return [
@@ -87,5 +87,28 @@ describe("computePaths", () => {
         }
       }
     }
+  });
+});
+
+describe("pointAlong", () => {
+  it("liegt bei Bogenlänge s auf dem Linienzug", () => {
+    const pts = [
+      { x: 0, z: 0 },
+      { x: 0, z: 4 },
+      { x: 3, z: 4 },
+    ];
+    expect(pointAlong(pts, 2)).toEqual({ x: 0, z: 2, angle: 0 });
+    expect(pointAlong(pts, 5)).toMatchObject({ x: 1, z: 4 });
+    expect(pointAlong(pts, 99)).toMatchObject({ x: 3, z: 4 });
+  });
+
+  it("liefert bei einem Teilstück der Länge 0 keine NaN-Werte", () => {
+    const pts = [
+      { x: 1, z: 1 },
+      { x: 1, z: 1 },
+      { x: 1, z: 3 },
+    ];
+    const p = pointAlong(pts, 0);
+    expect(p).toEqual({ x: 1, z: 1, angle: 0 });
   });
 });

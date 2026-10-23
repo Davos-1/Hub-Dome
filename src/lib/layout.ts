@@ -5,10 +5,11 @@
  */
 
 import { FACH_ORDER, FACHBEREICHE, type FachbereichId } from "./fachbereiche";
+import { angleDiff, distPointToSegment, normalizeAngle, polar, type Pt, TAU } from "./geometry";
 import { computePaths, type VillagePath } from "./paths";
 import { ARTIFACT_KINDS, type ArtifactKind } from "./types";
 
-export type LayoutItem = { id: string; kind: ArtifactKind };
+type LayoutItem = { id: string; kind: ArtifactKind };
 export type LayoutHouse = {
   id: string;
   kind: "zentrale" | "modul" | "thema";
@@ -27,7 +28,7 @@ export type PlotSlot = LayoutItem & {
   x: number;
   z: number;
 };
-export type Plot = { hw: number; front: number; back: number; slots: PlotSlot[] };
+type Plot = { hw: number; front: number; back: number; slots: PlotSlot[] };
 
 export type HouseLayout = {
   id: string;
@@ -103,16 +104,13 @@ export function houseTier(artifactCount: number): Tier {
 export const TIER_FOOTPRINT: Record<Tier, number> = { 1: 1.1, 2: 1.25, 3: 1.4 };
 export const ZENTRALE_FOOTPRINT = 2.3;
 /** Kleinster Apothem des Hauptplatzes. */
-export const PLAZA_MIN = 9.4;
+const PLAZA_MIN = 9.4;
 /** Terrasse ohne Objekte; erster Objekt-Ring der Zentrale und Abstand zwischen den Ringen. */
 export const TERRACE_MIN = 4.95;
 export const ZENTRALE_RING_R = 6.2;
 const RING_STEP = 1.3;
 /** Vorne (+z) bleibt ein Bogen frei für Figur und Treppe. */
 const RING_FRONT_GAP = 0.6;
-/** Breite der Hauptwege und der Hauswege. */
-export const MAIN_PATH_WIDTH = 1.9;
-export const HOUSE_PATH_WIDTH = 1.5;
 /** Farben der Quartiere (Weg, Kante, Platz). */
 export const QUARTER_COLORS = [
   { main: "#d3c9b0", edge: "#a99f86", plaza: "#c6bca2" },
@@ -124,27 +122,25 @@ export const QUARTER_COLORS = [
   { main: "#cad2b2", edge: "#a2ab88", plaza: "#bcc5a3" },
 ];
 
-const TAU = Math.PI * 2;
 const round = (n: number) => Math.round(n * 1000) / 1000;
-const normA = (a: number) => ((a % TAU) + TAU) % TAU;
-const angDiff = (a: number, b: number) => {
-  const d = Math.abs(normA(a) - normA(b));
-  return Math.min(d, TAU - d);
-};
-export const polar = (a: number, r: number) => ({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+
+/** Objekte nach Kategorie sortiert (Kopie, Eingabe bleibt unverändert). */
+function sortByKind(items: LayoutItem[]): LayoutItem[] {
+  return items
+    .slice()
+    .sort((a, b) => ARTIFACT_KINDS.indexOf(a.kind) - ARTIFACT_KINDS.indexOf(b.kind));
+}
 
 /**
  * Grundstück eines Hauses: Objekte nach Kategorie sortiert, links und rechts des Gartenwegs in
  * Reihen (1/2/3 Spalten je Seite). Die Mitte bleibt für den Weg frei.
  */
-export function plotFor(fp: number, tier: Tier, items: LayoutItem[]): Plot {
+function plotFor(fp: number, tier: Tier, items: LayoutItem[]): Plot {
   const n = items.length;
   const cols = n <= 2 ? 1 : n <= 4 ? 2 : 3;
   const left = Math.ceil(n / 2);
   const rows = Math.ceil(left / cols) || 0;
-  const sorted = items
-    .slice()
-    .sort((a, b) => ARTIFACT_KINDS.indexOf(a.kind) - ARTIFACT_KINDS.indexOf(b.kind));
+  const sorted = sortByKind(items);
   const slots: PlotSlot[] = sorted.map((item, i) => {
     const side: -1 | 1 = i < left ? -1 : 1;
     const j = i < left ? i : i - left;
@@ -169,10 +165,8 @@ export function plotFor(fp: number, tier: Tier, items: LayoutItem[]): Plot {
  * Objekt-Plätze der Zentrale: nach Kategorie sortiert im Kreis um die Zentrale, beginnend hinten,
  * vorne bleibt ein Bogen frei. Volle Ringe werden durch einen weiteren, grösseren ergänzt.
  */
-export function zentraleRing(items: LayoutItem[]): PlotSlot[] {
-  const sorted = items
-    .slice()
-    .sort((a, b) => ARTIFACT_KINDS.indexOf(a.kind) - ARTIFACT_KINDS.indexOf(b.kind));
+function zentraleRing(items: LayoutItem[]): PlotSlot[] {
+  const sorted = sortByKind(items);
   const out: PlotSlot[] = [];
   let i = 0;
   for (let row = 0; i < sorted.length; row++) {
@@ -197,12 +191,10 @@ export function zentraleRing(items: LayoutItem[]): PlotSlot[] {
 }
 
 /** Aussenradius des Objekt-Rings (0 ohne Objekte). */
-export function ringOuter(ring: PlotSlot[] | null): number {
+function ringOuter(ring: PlotSlot[] | null): number {
   if (!ring || ring.length === 0) return 0;
   return ZENTRALE_RING_R + Math.max(...ring.map((s) => s.row)) * RING_STEP;
 }
-
-type Pt = { x: number; z: number };
 
 /** Ecken eines Grundstücks in Weltkoordinaten. */
 export function plotCorners(x: number, z: number, ang: number, p: Plot): Pt[] {
@@ -241,8 +233,8 @@ export function satOverlap(A: Pt[], B: Pt[], m = 0.4): boolean {
  * Vieleck: jeder Weg bekommt eine eigene Seite. Die Drehung wird so gewählt, dass die Summe der
  * quadrierten Winkelabweichungen minimal ist. `asg[i]` = Seitenwinkel für den Weg i.
  */
-export function polyAssign(angles: number[], n: number): { rot: number; asg: number[] } {
-  const order = angles.map((a, i) => ({ a: normA(a), i })).sort((p, q) => p.a - q.a);
+function polyAssign(angles: number[], n: number): { rot: number; asg: number[] } {
+  const order = angles.map((a, i) => ({ a: normalizeAngle(a), i })).sort((p, q) => p.a - q.a);
   let best: { rot: number; asg: number[]; cost: number } | null = null;
   for (const cand of order) {
     const used = new Set<number>();
@@ -253,7 +245,7 @@ export function polyAssign(angles: number[], n: number): { rot: number; asg: num
       let bd = Infinity;
       for (let k = 0; k < n; k++) {
         if (used.has(k)) continue;
-        const d = angDiff(o.a, cand.a + (TAU * k) / n);
+        const d = angleDiff(o.a, cand.a + (TAU * k) / n);
         if (d < bd) {
           bd = d;
           bk = k;
@@ -298,37 +290,27 @@ function arrangeQuarter(info: Info[], rp: number) {
   return { pos, radius };
 }
 
-function distSeg(px: number, pz: number, a: Pt, b: Pt) {
-  const dx = b.x - a.x;
-  const dz = b.z - a.z;
-  const l2 = dx * dx + dz * dz;
-  const t = l2 ? Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / l2)) : 0;
-  return Math.hypot(px - (a.x + t * dx), pz - (a.z + t * dz));
+/** Die Zentrale steht im Dorfmittelpunkt; ihre Objekte bilden einen Ring. */
+function zentraleLayout(zentrale: LayoutHouse): HouseLayout {
+  return {
+    id: zentrale.id,
+    x: 0,
+    z: 0,
+    angle: 0,
+    tier: 3,
+    footprint: ZENTRALE_FOOTPRINT,
+    plot: null,
+    ring: zentrale.items.length ? zentraleRing(zentrale.items) : null,
+    quarterId: null,
+    side: 0,
+  };
 }
 
-export function computeLayout(houses: LayoutHouse[]): VillageLayout {
-  const result: Record<string, HouseLayout> = {};
-  const zentrale = houses.find((h) => h.kind === "zentrale");
-  if (zentrale) {
-    result[zentrale.id] = {
-      id: zentrale.id,
-      x: 0,
-      z: 0,
-      angle: 0,
-      tier: 3,
-      footprint: ZENTRALE_FOOTPRINT,
-      plot: null,
-      ring: zentrale.items.length ? zentraleRing(zentrale.items) : null,
-      quarterId: null,
-      side: 0,
-    };
-  }
-  const others = houses.filter((h) => h.kind !== "zentrale");
-
-  // Gruppen nach Fachbereich in fester Reihenfolge
+/** Gruppen nach Fachbereich in fester Reihenfolge, leere Fachbereiche entfallen. */
+function buildGroups(houses: LayoutHouse[]): Group[] {
   const groups: Group[] = [];
   for (const id of FACH_ORDER) {
-    const mine = others.filter((h) => h.fach === id);
+    const mine = houses.filter((h) => h.fach === id);
     if (mine.length === 0) continue;
     const info = mine.map((h) => {
       const tier = houseTier(h.items.length);
@@ -339,83 +321,107 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
     const { pos, radius } = arrangeQuarter(info, rp);
     groups.push({ id, index: groups.length, info, rp, radius, pos, cx: 0, cz: 0 });
   }
+  return groups;
+}
 
-  const ringR = zentrale ? ringOuter(result[zentrale.id].ring) : 0;
-  const k = groups.length;
-  const polyN = Math.max(5, k);
-  // Hauptplatz: genug Platz für den Weg jedes Quartiers und für alle Häuser
-  const plaza = Math.max(
-    PLAZA_MIN,
-    round((others.length * 1.95) / TAU),
-    round(3.2 / Math.tan(Math.PI / polyN)),
-    // Objekt-Ring der Zentrale samt Terrasse, Brunnen und Bänken
-    ringR ? round(ringR + 5.2) : 0,
-  );
-  const terrace = ringR ? round(ringR + 0.9) : TERRACE_MIN;
+/** Kleinster Abstand eines Quartiermittelpunkts vom Dorfmittelpunkt. */
+function minCenterDistance(g: Group, plaza: number): number {
+  return plaza + g.rp + 4 + g.radius * 0.45;
+}
 
-  // Kompakt: Winkelanteil pro Quartier ∝ Radius, Start vorne (+z)
-  const minD = (g: Group) => plaza + g.rp + 4 + g.radius * 0.45;
+/** Kompakt: Winkelanteil pro Quartier ∝ Radius, Start vorne (+z). */
+function placeInitialCenters(groups: Group[], plaza: number): void {
   const total = groups.reduce((s, g) => s + g.radius, 0);
   let cum = 0;
   const centers = groups.map((g) => {
     const th = Math.PI / 2 + (TAU * (cum + g.radius / 2)) / total;
     cum += g.radius;
-    return polar(th, minD(g));
+    return polar(th, minCenterDistance(g, plaza));
   });
   groups.forEach((g, i) => {
     g.cx = centers[i].x;
     g.cz = centers[i].z;
   });
+}
 
-  // Überlappungen auflösen: Inseln auseinander, Mindestabstand halten, Hauptwege frei lassen
-  for (let it = 0; it < 400; it++) {
-    let moved = false;
-    for (let i = 0; i < k; i++) {
-      for (let j = i + 1; j < k; j++) {
-        const A = groups[i];
-        const B = groups[j];
-        const d = Math.hypot(A.cx - B.cx, A.cz - B.cz);
-        const need = A.radius + B.radius + 1.5;
-        if (d < need) {
-          const far = Math.hypot(A.cx, A.cz) > Math.hypot(B.cx, B.cz) ? A : B;
-          const l = Math.hypot(far.cx, far.cz);
-          far.cx += (far.cx / l) * (need - d + 0.05);
-          far.cz += (far.cz / l) * (need - d + 0.05);
-          moved = true;
-        }
-      }
-    }
-    for (const g of groups) {
-      const l = Math.hypot(g.cx, g.cz);
-      const mn = minD(g);
-      if (l < mn - 1e-6) {
-        g.cx *= mn / l;
-        g.cz *= mn / l;
+/** Schiebt überlappende Inseln auseinander. Gibt zurück, ob sich etwas bewegt hat. */
+function separateIslands(groups: Group[]): boolean {
+  let moved = false;
+  for (let i = 0; i < groups.length; i++) {
+    for (let j = i + 1; j < groups.length; j++) {
+      const A = groups[i];
+      const B = groups[j];
+      const d = Math.hypot(A.cx - B.cx, A.cz - B.cz);
+      const need = A.radius + B.radius + 1.5;
+      if (d < need) {
+        const far = Math.hypot(A.cx, A.cz) > Math.hypot(B.cx, B.cz) ? A : B;
+        const l = Math.hypot(far.cx, far.cz);
+        far.cx += (far.cx / l) * (need - d + 0.05);
+        far.cz += (far.cz / l) * (need - d + 0.05);
         moved = true;
       }
     }
-    for (const A of groups) {
-      for (const B of groups) {
-        if (A === B || Math.hypot(A.cx, A.cz) >= Math.hypot(B.cx, B.cz)) continue;
-        if (distSeg(A.cx, A.cz, { x: 0, z: 0 }, { x: B.cx, z: B.cz }) < A.radius + 1.2) {
-          const sgn = B.cx * A.cz - B.cz * A.cx > 0 ? -1 : 1;
-          const rot = 0.03 * sgn;
-          const cs = Math.cos(rot);
-          const sn = Math.sin(rot);
-          const nx = B.cx * cs - B.cz * sn;
-          const nz = B.cx * sn + B.cz * cs;
-          B.cx = nx;
-          B.cz = nz;
-          moved = true;
-        }
+  }
+  return moved;
+}
+
+/** Hält den Mindestabstand zum Dorfmittelpunkt ein. Gibt zurück, ob sich etwas bewegt hat. */
+function enforceMinDistance(groups: Group[], plaza: number): boolean {
+  let moved = false;
+  for (const g of groups) {
+    const l = Math.hypot(g.cx, g.cz);
+    const mn = minCenterDistance(g, plaza);
+    if (l < mn - 1e-6) {
+      g.cx *= mn / l;
+      g.cz *= mn / l;
+      moved = true;
+    }
+  }
+  return moved;
+}
+
+/** Dreht Quartiere weg, die auf dem Hauptweg eines weiter aussen liegenden Quartiers stehen. */
+function clearMainPaths(groups: Group[]): boolean {
+  let moved = false;
+  const origin: Pt = { x: 0, z: 0 };
+  for (const A of groups) {
+    for (const B of groups) {
+      if (A === B || Math.hypot(A.cx, A.cz) >= Math.hypot(B.cx, B.cz)) continue;
+      if (distPointToSegment(A.cx, A.cz, origin, { x: B.cx, z: B.cz }) < A.radius + 1.2) {
+        const sgn = B.cx * A.cz - B.cz * A.cx > 0 ? -1 : 1;
+        const rot = 0.03 * sgn;
+        const cs = Math.cos(rot);
+        const sn = Math.sin(rot);
+        const nx = B.cx * cs - B.cz * sn;
+        const nz = B.cx * sn + B.cz * cs;
+        B.cx = nx;
+        B.cz = nz;
+        moved = true;
       }
     }
-    if (!moved) break;
   }
+  return moved;
+}
 
-  // Häuser in Weltkoordinaten
+/** Überlappungen auflösen: Inseln auseinander, Mindestabstand halten, Hauptwege frei lassen. */
+function resolveOverlaps(groups: Group[], plaza: number): void {
+  for (let it = 0; it < 400; it++) {
+    const separated = separateIslands(groups);
+    const pushed = enforceMinDistance(groups, plaza);
+    const rotated = clearMainPaths(groups);
+    if (!separated && !pushed && !rotated) break;
+  }
+}
+
+/**
+ * Quartiere und Häuser in Weltkoordinaten. Trägt die Häuser in `result` ein und liefert zusätzlich
+ * den Winkel jedes Hauses vom Quartiermittelpunkt aus (für die Wegeinmündung am Nebenplatz).
+ */
+function toWorld(
+  groups: Group[],
+  result: Record<string, HouseLayout>,
+): { quarters: QuarterLayout[]; phiOf: Map<string, number> } {
   const quarters: QuarterLayout[] = [];
-  const houseQuarter = new Map<string, QuarterLayout>();
   const phiOf = new Map<string, number>();
   for (const g of groups) {
     const th = Math.atan2(g.cz, g.cx);
@@ -451,29 +457,41 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
         side: 0,
       };
       q.houseIds.push(p.info.h.id);
-      houseQuarter.set(p.info.h.id, q);
       phiOf.set(p.info.h.id, Math.atan2(z - g.cz, x - g.cx));
     }
   }
+  return { quarters, phiOf };
+}
 
-  // Vielecke: am Hauptplatz ein Weg pro Quartier, am Nebenplatz ein Weg pro Haus plus Hauptweg
-  const polys: PlazaPoly[] = [];
+/**
+ * Vielecke: am Hauptplatz ein Weg pro Quartier, am Nebenplatz ein Weg pro Haus plus Hauptweg.
+ * Setzt dabei `mainSide`/`entrySide` der Quartiere und `side` der Häuser.
+ */
+function assignPlazaPolys(
+  quarters: QuarterLayout[],
+  result: Record<string, HouseLayout>,
+  phiOf: Map<string, number>,
+  plaza: number,
+  polyN: number,
+): PlazaPoly[] {
   const mainAssign = polyAssign(
     quarters.map((q) => q.theta),
     polyN,
   );
   quarters.forEach((q, i) => (q.mainSide = mainAssign.asg[i]));
-  polys.push({
-    x: 0,
-    z: 0,
-    a: plaza,
-    n: polyN,
-    rot: mainAssign.rot,
-    used: mainAssign.asg,
-    gap: 3.6,
-    main: true,
-    quarterId: null,
-  });
+  const polys: PlazaPoly[] = [
+    {
+      x: 0,
+      z: 0,
+      a: plaza,
+      n: polyN,
+      rot: mainAssign.rot,
+      used: mainAssign.asg,
+      gap: 3.6,
+      main: true,
+      quarterId: null,
+    },
+  ];
   for (const q of quarters) {
     const dirs = [q.theta + Math.PI, ...q.houseIds.map((id) => phiOf.get(id)!)];
     const n = Math.max(5, q.houseIds.length + 1);
@@ -492,6 +510,32 @@ export function computeLayout(houses: LayoutHouse[]): VillageLayout {
       quarterId: q.id,
     });
   }
+  return polys;
+}
+
+export function computeLayout(houses: LayoutHouse[]): VillageLayout {
+  const result: Record<string, HouseLayout> = {};
+  const zentrale = houses.find((h) => h.kind === "zentrale");
+  if (zentrale) result[zentrale.id] = zentraleLayout(zentrale);
+  const others = houses.filter((h) => h.kind !== "zentrale");
+
+  const groups = buildGroups(others);
+  const ringR = zentrale ? ringOuter(result[zentrale.id].ring) : 0;
+  const polyN = Math.max(5, groups.length);
+  // Hauptplatz: genug Platz für den Weg jedes Quartiers und für alle Häuser
+  const plaza = Math.max(
+    PLAZA_MIN,
+    round((others.length * 1.95) / TAU),
+    round(3.2 / Math.tan(Math.PI / polyN)),
+    // Objekt-Ring der Zentrale samt Terrasse, Brunnen und Bänken
+    ringR ? round(ringR + 5.2) : 0,
+  );
+  const terrace = ringR ? round(ringR + 0.9) : TERRACE_MIN;
+
+  placeInitialCenters(groups, plaza);
+  resolveOverlaps(groups, plaza);
+  const { quarters, phiOf } = toWorld(groups, result);
+  const polys = assignPlazaPolys(quarters, result, phiOf, plaza, polyN);
 
   const extent = Math.max(8, ...quarters.map((q) => Math.hypot(q.x, q.z) + q.radius)) + 6;
   const layout: VillageLayout = {

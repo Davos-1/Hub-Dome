@@ -4,7 +4,7 @@ import { computeLayout, type VillageLayout } from "./layout";
 import type { Artifact, ArtifactKind, House } from "./types";
 
 /** Objekte, die jünger als sieben Tage sind, gelten als «neu». */
-export const NEW_DAYS = 7;
+const NEW_DAYS = 7;
 
 export function isNew(createdAt: string, now: number): boolean {
   return now - Date.parse(createdAt) < NEW_DAYS * 24 * 3600 * 1000;

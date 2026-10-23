@@ -1,30 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   artifactSchema,
-  artifactUrlSchema,
+  firstIssue,
   houseSchema,
   onboardingSchema,
   safeNextPath,
 } from "./validation";
-
-describe("artifactUrlSchema", () => {
-  it("akzeptiert die Form des getesteten Links (claude.ai/artifact/<id>)", () => {
-    expect(
-      artifactUrlSchema.safeParse("https://claude.ai/artifact/Cb5DRf6Fx8K2CWsKKrbBxo").success,
-    ).toBe(true);
-  });
-  it("akzeptiert claude.ai-Links", () => {
-    expect(artifactUrlSchema.safeParse("https://claude.ai/public/artifacts/abc").success).toBe(
-      true,
-    );
-  });
-  it.each([
-    "http://claude.ai/x",
-    "https://evil.com/claude.ai/",
-    "https://claude.ai.evil.com/x",
-    "kein-link",
-  ])("lehnt %s ab", (u) => expect(artifactUrlSchema.safeParse(u).success).toBe(false));
-});
 
 describe("onboardingSchema", () => {
   it("normalisiert den Benutzernamen", () => {
@@ -33,6 +14,16 @@ describe("onboardingSchema", () => {
   });
   it.each(["ab", "mit leerzeichen", "ümlaut", "a".repeat(25)])("lehnt %j ab", (username) => {
     expect(onboardingSchema.safeParse({ username, displayName: "X" }).success).toBe(false);
+  });
+});
+
+describe("firstIssue", () => {
+  it("liefert die erste Fehlermeldung", () => {
+    const r = onboardingSchema.safeParse({ username: "ab", displayName: "" });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(firstIssue(r.error)).toBe("3–24 Zeichen: Kleinbuchstaben, Zahlen, _ und -.");
+    }
   });
 });
 

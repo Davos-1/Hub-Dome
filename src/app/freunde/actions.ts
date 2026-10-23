@@ -8,6 +8,7 @@ import { siteUrl } from "@/lib/site-url";
 import { FRIEND_LINK_DAYS, friendLinkSchema, friendTokenFrom } from "@/lib/friend-links";
 import { generateToken, hashToken } from "@/lib/tokens";
 import type { ActionState } from "@/lib/types";
+import { firstIssue } from "@/lib/validation";
 
 const usernameSchema = z
   .string()
@@ -21,7 +22,7 @@ const idSchema = z.uuid({ message: "Ungültige Anfrage." });
 /** Freundschaftsanfrage an einen Benutzernamen senden. */
 export async function sendFriendRequest(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = usernameSchema.safeParse(formData.get("username"));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("send_friend_request", { p_username: parsed.data });
   if (error) return { error: error.message };
@@ -35,7 +36,7 @@ export async function respondFriendRequest(
   formData: FormData,
 ): Promise<ActionState> {
   const id = idSchema.safeParse(formData.get("id"));
-  if (!id.success) return { error: id.error.issues[0].message };
+  if (!id.success) return { error: firstIssue(id.error) };
   const accept = formData.get("accept") === "1";
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("respond_friend_request", {
@@ -53,7 +54,7 @@ export async function cancelFriendRequest(
   formData: FormData,
 ): Promise<ActionState> {
   const id = idSchema.safeParse(formData.get("id"));
-  if (!id.success) return { error: id.error.issues[0].message };
+  if (!id.success) return { error: firstIssue(id.error) };
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("cancel_friend_request", { p_id: id.data });
   if (error) return { error: error.message };
@@ -64,7 +65,7 @@ export async function cancelFriendRequest(
 /** Freundschaft beenden: beide verlieren den Zugriff auf das Dorf der anderen Person. */
 export async function removeFriend(_: ActionState, formData: FormData): Promise<ActionState> {
   const other = idSchema.safeParse(formData.get("otherId"));
-  if (!other.success) return { error: other.error.issues[0].message };
+  if (!other.success) return { error: firstIssue(other.error) };
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("remove_friend", { p_other: other.data });
   if (error) return { error: "Die Freundschaft konnte nicht beendet werden." };
@@ -75,7 +76,7 @@ export async function removeFriend(_: ActionState, formData: FormData): Promise<
 /** Freundschaftslink erzeugen (7 Tage, 1–100 Personen). Der Klartext steht nur in dieser Antwort. */
 export async function createFriendLink(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = friendLinkSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
   const { supabase, user } = await requireUser();
   const token = generateToken();
   const { error } = await supabase.from("friend_links").insert({
@@ -93,7 +94,7 @@ export async function createFriendLink(_: ActionState, formData: FormData): Prom
 /** Freundschaftslink widerrufen. */
 export async function deleteFriendLink(_: ActionState, formData: FormData): Promise<ActionState> {
   const id = idSchema.safeParse(formData.get("id"));
-  if (!id.success) return { error: id.error.issues[0].message };
+  if (!id.success) return { error: firstIssue(id.error) };
   const { supabase } = await requireUser();
   const { error } = await supabase.from("friend_links").delete().eq("id", id.data);
   if (error) return { error: "Der Freundschaftslink konnte nicht widerrufen werden." };
