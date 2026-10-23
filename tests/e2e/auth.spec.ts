@@ -15,18 +15,25 @@ test("Login-Formular lehnt ungültige E-Mail ab", async ({ page }) => {
   await expect(page.locator("input:invalid, [role=alert]").first()).toBeVisible();
 });
 
-test("Eingabefelder bleiben im Dunkelmodus lesbar", async ({ page }) => {
-  await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/login");
-  const style = await page.getByLabel("E-Mail-Adresse").evaluate((el) => {
-    const s = getComputedStyle(el);
-    return {
-      bg: s.backgroundColor,
-      color: s.color,
-      body: getComputedStyle(document.body).backgroundColor,
-    };
+// Oberfläche «Rauchglas» (Phase 4g): dunkle Felder mit heller Schrift, egal ob das System hell oder dunkel ist
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`Eingabefelder sind lesbar (System ${colorScheme === "dark" ? "dunkel" : "hell"})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.goto("/login");
+    const style = await page.getByLabel("E-Mail-Adresse").evaluate((el) => {
+      const s = getComputedStyle(el);
+      return {
+        bg: s.backgroundColor,
+        color: s.color,
+        body: getComputedStyle(document.body).backgroundColor,
+        scheme: s.colorScheme,
+      };
+    });
+    expect(style.color).toBe("rgb(244, 244, 245)");
+    expect(style.bg).toBe("rgba(0, 0, 0, 0.25)");
+    expect(style.body).toBe("rgb(20, 20, 23)");
+    expect(style.scheme).toBe("dark");
   });
-  expect(style.bg).toBe("rgb(255, 255, 255)");
-  expect(style.color).toBe("rgb(28, 27, 25)");
-  expect(style.body).toBe("rgb(255, 255, 255)");
-});
+}
