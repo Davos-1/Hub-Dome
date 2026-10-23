@@ -2,8 +2,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
+import { envSiteUrl } from "@/lib/site-url";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
-import { emailSchema, safeNextPath } from "@/lib/validation";
+import { emailSchema, firstIssue, safeNextPath } from "@/lib/validation";
 
 /**
  * Anmelde-Link per Mail anfordern. Bewusst serverseitig und ohne PKCE (`flowType: "implicit"`):
@@ -15,10 +16,10 @@ export async function sendMagicLink(
   next: string | undefined,
 ): Promise<{ error?: string }> {
   const parsed = emailSchema.safeParse(email.trim());
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
 
   const h = await headers();
-  const origin = h.get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const origin = h.get("origin") ?? envSiteUrl();
   const callback = new URL("/auth/callback", origin);
   // `next` immer setzen: die Mail-Vorlage hängt `&token_hash=…` an diese Adresse an.
   callback.searchParams.set("next", safeNextPath(next));

@@ -24,7 +24,7 @@ const PLACE_DESCRIPTION =
   "Bei unbekanntem Haus gibt es einen Fehler mit den vorhandenen Häusern (es wird nichts automatisch angelegt).";
 
 /** Baut den MCP-Server für genau einen Aufruf; `ctx` enthält die Identität des Token-Besitzers. */
-export function buildMcpServer(ctx: McpContext) {
+function buildMcpServer(ctx: McpContext) {
   const server = new McpServer({ name: "hub-dome", version: "1.0.0" });
 
   server.registerTool(

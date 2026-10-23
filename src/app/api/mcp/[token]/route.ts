@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { authenticateToken, countCalls, hitRateLimit, RATE_LIMIT_PER_HOUR } from "@/lib/mcp/auth";
 import { handleMcpRequest } from "@/lib/mcp/server";
 import { refreshArtifactMeta } from "@/lib/previews.server";
+import { envSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Maximale Grösse einer Anfrage (Schutz vor Missbrauch). */
@@ -51,7 +52,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/mcp/
     {
       db,
       userId: identity.userId,
-      siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+      siteUrl: envSiteUrl(),
       afterPlace: (id) => after(() => refreshArtifactMeta(id, identity.userId)),
     },
     body,

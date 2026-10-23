@@ -4,7 +4,7 @@ import { hashMcpToken, MCP_TOKEN_PATTERN } from "@/lib/tokens";
 /** Aufrufe (tools/call) pro Token und Stunde. */
 export const RATE_LIMIT_PER_HOUR = 60;
 
-export type McpIdentity = { tokenId: string; userId: string };
+type McpIdentity = { tokenId: string; userId: string };
 
 /**
  * Prüft ein Connector-Token: Format, Hash (HMAC mit Pepper) und nicht widerrufen. Gibt die Identität des

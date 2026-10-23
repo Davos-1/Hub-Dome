@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { emailSchema } from "@/lib/validation";
+import { emailSchema, firstIssue } from "@/lib/validation";
 import { sendMagicLink } from "./actions";
 
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_LOGIN === "true";
@@ -40,7 +40,7 @@ export function LoginForm({ next }: { next?: string }) {
     e.preventDefault();
     setError(null);
     const parsed = emailSchema.safeParse(email.trim());
-    if (!parsed.success) return setError(parsed.error.issues[0].message);
+    if (!parsed.success) return setError(firstIssue(parsed.error));
 
     setStatus("sending");
     const { error } = await sendMagicLink(parsed.data, next);

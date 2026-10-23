@@ -1,5 +1,9 @@
-import { fnv } from "./fachbereiche";
-import { HOUSE_PATH_WIDTH, MAIN_PATH_WIDTH, type VillageLayout } from "./layout";
+import { distPointToSegment, fnv, type Pt } from "./geometry";
+import type { VillageLayout } from "./layout";
+
+/** Breite der Hauptwege und der Hauswege. */
+const MAIN_PATH_WIDTH = 1.9;
+const HOUSE_PATH_WIDTH = 1.5;
 
 /** Ein Weg als Linienzug: Hauptweg (Hauptplatz → Nebenplatz) oder Hausweg (Nebenplatz → Gartentor). */
 export type VillagePath = {
@@ -14,16 +18,6 @@ export type VillagePath = {
   /** Phase der leichten Breitenschwankung. */
   seed: number;
 };
-
-type Pt = { x: number; z: number };
-
-function distPointToSegment(px: number, pz: number, a: Pt, b: Pt) {
-  const dx = b.x - a.x;
-  const dz = b.z - a.z;
-  const l2 = dx * dx + dz * dz;
-  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / l2));
-  return Math.hypot(px - (a.x + t * dx), pz - (a.z + t * dz));
-}
 
 /** Kleinster Abstand eines Punktes zu einem Linienzug. */
 export function distanceToPolyline(x: number, z: number, pts: Pt[]): number {
@@ -46,12 +40,13 @@ export function polylineDistance(a: Pt[], b: Pt[]): number {
  * Sanfter Bogen (Hermite-Kurve) von S nach G mit Anfangsrichtung dS und Endrichtung dG.
  * `amp` biegt die Mitte seitlich aus (`sign` = Seite).
  */
-export function hermite(S: Pt, dS: Pt, G: Pt, dG: Pt, amp: number, sign: number): Pt[] {
+function hermite(S: Pt, dS: Pt, G: Pt, dG: Pt, amp: number, sign: number): Pt[] {
   const D = Math.hypot(G.x - S.x, G.z - S.z);
   const N = Math.max(20, Math.round(D * 3));
   const kk = D * 0.5;
-  const nx = -(G.z - S.z) / D;
-  const nz = (G.x - S.x) / D;
+  // Start gleich Ziel: keine Seitenrichtung, kein NaN
+  const nx = D === 0 ? 0 : -(G.z - S.z) / D;
+  const nz = D === 0 ? 0 : (G.x - S.x) / D;
   const pts: Pt[] = [];
   for (let k = 0; k <= N; k++) {
     const t = k / N;
@@ -72,6 +67,11 @@ export function hermite(S: Pt, dS: Pt, G: Pt, dG: Pt, amp: number, sign: number)
 
 const dir = (a: number): Pt => ({ x: Math.cos(a), z: Math.sin(a) });
 
+/** Wegende am Rand eines Platzes (Mittelpunkt `c`, Apothem `apothem`) in Richtung `d`. */
+function plazaEdge(c: Pt, d: Pt, apothem: number): Pt {
+  return { x: c.x + d.x * (apothem - 0.35), z: c.z + d.z * (apothem - 0.35) };
+}
+
 /** Wege des Dorfs: ein Hauptweg pro Quartier, ein Hausweg pro Haus. */
 export function computePaths(layout: Omit<VillageLayout, "paths">): VillagePath[] {
   const out: VillagePath[] = [];
@@ -79,6 +79,7 @@ export function computePaths(layout: Omit<VillageLayout, "paths">): VillagePath[
   for (const q of layout.quarters) {
     const s0 = dir(q.mainSide);
     const e0 = dir(q.entrySide);
+    const quarterCenter: Pt = { x: q.x, z: q.z };
     out.push({
       id: `haupt-${q.id}`,
       kind: "haupt",
@@ -87,9 +88,9 @@ export function computePaths(layout: Omit<VillageLayout, "paths">): VillagePath[
       width: MAIN_PATH_WIDTH,
       seed: 1,
       points: hermite(
-        { x: s0.x * (plaza - 0.35), z: s0.z * (plaza - 0.35) },
+        plazaEdge({ x: 0, z: 0 }, s0, plaza),
         s0,
-        { x: q.x + e0.x * (q.rp - 0.35), z: q.z + e0.z * (q.rp - 0.35) },
+        plazaEdge(quarterCenter, e0, q.rp),
         { x: -e0.x, z: -e0.z },
         0,
         1,
@@ -100,16 +101,17 @@ export function computePaths(layout: Omit<VillageLayout, "paths">): VillagePath[
       if (!h.plot) continue;
       const sd = dir(h.side);
       const f = { x: Math.sin(h.angle), z: Math.cos(h.angle) };
-      const sign = (fnv(h.id) >>> 6) % 2 ? 1 : -1;
+      const hash = fnv(h.id);
+      const sign = (hash >>> 6) % 2 ? 1 : -1;
       out.push({
         id: `haus-${h.id}`,
         kind: "haus",
         ownerId: h.id,
         quarterIndex: q.index,
         width: HOUSE_PATH_WIDTH,
-        seed: (fnv(h.id) % 100) / 10,
+        seed: (hash % 100) / 10,
         points: hermite(
-          { x: q.x + sd.x * (q.rp - 0.35), z: q.z + sd.z * (q.rp - 0.35) },
+          plazaEdge(quarterCenter, sd, q.rp),
           sd,
           { x: h.x + f.x * h.plot.front, z: h.z + f.z * h.plot.front },
           { x: -f.x, z: -f.z },
@@ -138,7 +140,7 @@ export function pointAlong(pts: Pt[], s: number): { x: number; z: number; angle:
     const dz = pts[i + 1].z - pts[i].z;
     const l = Math.hypot(dx, dz);
     if (acc + l >= s) {
-      const t = (s - acc) / l;
+      const t = l === 0 ? 0 : (s - acc) / l;
       return { x: pts[i].x + dx * t, z: pts[i].z + dz * t, angle: Math.atan2(dx, dz) };
     }
     acc += l;

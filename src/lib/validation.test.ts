@@ -1,30 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   artifactSchema,
-  artifactUrlSchema,
+  firstIssue,
   houseSchema,
   onboardingSchema,
   safeNextPath,
 } from "./validation";
-
-describe("artifactUrlSchema", () => {
-  it("akzeptiert die Form des getesteten Links (claude.ai/artifact/<id>)", () => {
-    expect(
-      artifactUrlSchema.safeParse("https://claude.ai/artifact/Cb5DRf6Fx8K2CWsKKrbBxo").success,
-    ).toBe(true);
-  });
-  it("akzeptiert claude.ai-Links", () => {
-    expect(artifactUrlSchema.safeParse("https://claude.ai/public/artifacts/abc").success).toBe(
-      true,
-    );
-  });
-  it.each([
-    "http://claude.ai/x",
-    "https://evil.com/claude.ai/",
-    "https://claude.ai.evil.com/x",
-    "kein-link",
-  ])("lehnt %s ab", (u) => expect(artifactUrlSchema.safeParse(u).success).toBe(false));
-});
 
 describe("onboardingSchema", () => {
   it("normalisiert den Benutzernamen", () => {
@@ -36,9 +17,20 @@ describe("onboardingSchema", () => {
   });
 });
 
+describe("firstIssue", () => {
+  it("liefert die erste Fehlermeldung", () => {
+    const r = onboardingSchema.safeParse({ username: "ab", displayName: "" });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(firstIssue(r.error)).toBe("3–24 Zeichen: Kleinbuchstaben, Zahlen, _ und -.");
+    }
+  });
+});
+
 describe("safeNextPath", () => {
   it("lässt interne Pfade zu", () => expect(safeNextPath("/einladung/abc")).toBe("/einladung/abc"));
-  it("lässt Query und Fragment zu", () => expect(safeNextPath("/freund/x?a=1#b")).toBe("/freund/x?a=1#b"));
+  it("lässt Query und Fragment zu", () =>
+    expect(safeNextPath("/freund/x?a=1#b")).toBe("/freund/x?a=1#b"));
   it.each([
     "https://evil.com",
     "//evil.com",
@@ -49,9 +41,7 @@ describe("safeNextPath", () => {
     "/x\\y",
     "evil",
     null,
-  ])("blockt %j", (n) =>
-    expect(safeNextPath(n)).toBe("/start"),
-  );
+  ])("blockt %j", (n) => expect(safeNextPath(n)).toBe("/start"));
 });
 
 describe("houseSchema", () => {

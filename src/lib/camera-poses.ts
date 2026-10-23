@@ -15,7 +15,7 @@ export const overviewPose = (extent: number): Pose => ({
   target: [0, 0, 0],
 });
 
-export const mapPose = (extent: number): Pose => ({
+const mapPose = (extent: number): Pose => ({
   position: [0, extent * 1.75 + 8, 0.05],
   target: [0, 0, 0],
 });
@@ -24,7 +24,7 @@ export const mapPose = (extent: number): Pose => ({
 export const overviewDistance = (extent: number) => Math.hypot(extent + 11, extent * 1.38 + 16);
 
 /** Quartier wie einen Ordner öffnen: Blick auf Nebenplatz und Häuser von der Seite der Zentrale. */
-export function quarterPose(layout: VillageLayout, id: FachbereichId, view: ViewMode): Pose {
+function quarterPose(layout: VillageLayout, id: FachbereichId, view: ViewMode): Pose {
   const q = layout.quarters.find((x) => x.id === id);
   if (!q) return view === "karte" ? mapPose(layout.extent) : overviewPose(layout.extent);
   let cx = q.x;
@@ -85,7 +85,7 @@ function blockedByBoard(
  * Haus von vorne aus der Vogelperspektive: vor dem Gartentor, etwas weiter draussen und höher, und so hoch,
  * dass die Blickachse sicher über die grosse Quartiertafel hinwegführt (kein Verdecken je nach Winkel).
  */
-export function housePose(layout: VillageLayout, id: string, view: ViewMode): Pose {
+function housePose(layout: VillageLayout, id: string, view: ViewMode): Pose {
   const h = layout.houses[id];
   if (!h) return view === "karte" ? mapPose(layout.extent) : overviewPose(layout.extent);
   if (view === "karte") return { position: [h.x, 30, h.z + 0.01], target: [h.x, 0, h.z] };

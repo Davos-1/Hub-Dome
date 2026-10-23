@@ -17,7 +17,7 @@ export function hashToken(token: string) {
 export const MCP_TOKEN_PATTERN = /^hdm_[A-Za-z0-9_-]{43}$/;
 
 export function generateMcpToken() {
-  return `hdm_${randomBytes(32).toString("base64url")}`;
+  return `hdm_${generateToken()}`;
 }
 
 /**

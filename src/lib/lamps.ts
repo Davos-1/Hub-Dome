@@ -1,10 +1,9 @@
+import { angleDiff, TAU } from "./geometry";
 import { isInPlot, type VillageLayout } from "./layout";
 import { distanceToPolyline, pathLength, pointAlong } from "./paths";
 import { seededRandom } from "./random";
 
-export type LampSpot = { x: number; z: number };
-
-const TAU = Math.PI * 2;
+type LampSpot = { x: number; z: number };
 
 /**
  * Strassenlaternen: am Hauptplatz an jeder Wegeinmündung zwei, an den Nebenplätzen an zufälligen Ecken
@@ -23,9 +22,7 @@ export function computeLamps(layout: VillageLayout): LampSpot[] {
       const side = 2 * p.a * Math.tan(Math.PI / p.n);
       for (let k = 0; k < p.n; k++) {
         const a = p.rot + (TAU * k) / p.n;
-        const used = p.used.some(
-          (u) => Math.abs(Math.atan2(Math.sin(u - a), Math.cos(u - a))) < 0.02,
-        );
+        const used = p.used.some((u) => angleDiff(u, a) < 0.02);
         const c = { x: Math.cos(a), z: Math.sin(a) };
         const t = { x: -c.z, z: c.x };
         const d = p.a - 0.75;

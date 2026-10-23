@@ -18,7 +18,7 @@ export const TIME_DOTS: Record<TimeSetting, string> = {
   auto: "#9aa2aa",
 };
 
-export type TimePreset = {
+type TimePreset = {
   /** Himmel oben / Mitte / unten (= Nebel). */
   sky: [string, string, string];
   sun: string;
@@ -62,7 +62,7 @@ export const TIMES: Record<TimeKey, TimePreset> = {
 };
 
 /** Auto: Morgen 5–10 Uhr, Mittag 10–18 Uhr, sonst Abend. */
-export function timeKeyForHour(hour: number): TimeKey {
+function timeKeyForHour(hour: number): TimeKey {
   if (hour >= 5 && hour < 10) return "morgen";
   if (hour >= 10 && hour < 18) return "mittag";
   return "abend";

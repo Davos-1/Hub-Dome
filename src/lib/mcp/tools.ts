@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { LINK_ITEM_TYPES } from "@/lib/item-types";
 import { ARTIFACT_KINDS } from "@/lib/types";
-import { artifactSchema } from "@/lib/validation";
+import { artifactSchema, firstIssue } from "@/lib/validation";
 
 /**
  * Kernlogik der MCP-Tools. Läuft mit dem Service-Role-Client (umgeht RLS) und filtert deshalb **jede** Abfrage
@@ -21,6 +21,10 @@ export type McpContext = {
 export type ToolResult = { ok: boolean; text: string; data?: unknown };
 
 const fail = (text: string): ToolResult => ({ ok: false, text });
+const invalidInput = (error: { issues: { message: string }[] }) =>
+  fail(`Ungültige Eingabe: ${firstIssue(error)}`);
+const noVillage = () =>
+  fail("Dein Dorf wurde noch nicht angelegt. Schliesse zuerst die Einrichtung auf der Website ab.");
 
 /** Die Eingaben der Tools (deutsche Namen, wie in PLAN.md Abschnitt 8.1). */
 export const placeInputShape = {
@@ -49,7 +53,8 @@ export const placeInputShape = {
   tags: z
     .array(z.string().max(30, "Ein Tag darf höchstens 30 Zeichen haben."))
     .max(5, "Höchstens 5 Tags.")
-    .optional().describe("1–3 kurze Tags, höchstens 5."),
+    .optional()
+    .describe("1–3 kurze Tags, höchstens 5."),
   haus_id: z.string().max(64).optional().describe("ID eines Hauses aus dorf_haeuser_auflisten."),
   haus_titel: z
     .string()
@@ -67,8 +72,7 @@ export const placeInputShape = {
       "Für alle angemeldeten Hub-Dome-Nutzer sichtbar machen (nur bei shared). Nur setzen, wenn der User es ausdrücklich sagt.",
     ),
 };
-export const placeInput = z.object(placeInputShape);
-export type PlaceInput = z.infer<typeof placeInput>;
+const placeInput = z.object(placeInputShape);
 
 export const createHouseInputShape = {
   titel: z.string().max(80, "Maximal 80 Zeichen.").describe("Titel des Hauses (max. 80 Zeichen)."),
@@ -80,16 +84,16 @@ export const createHouseInputShape = {
       "Optionaler Modulcode aus dem Katalog (z.B. TA.BA_BAUSTATIK1). Ohne Code entsteht ein Themenhaus.",
     ),
 };
-export const createHouseInput = z.object(createHouseInputShape);
+const createHouseInput = z.object(createHouseInputShape);
 
 export const recentInputShape = {
   anzahl: z.number().int().min(1).max(20).optional().describe("Wie viele (1–20, Standard 5)."),
 };
-export const recentInput = z.object(recentInputShape);
+const recentInput = z.object(recentInputShape);
 
 type HouseRow = { id: string; kind: string; title: string; module_code: string | null };
 
-async function loadVillage(ctx: McpContext) {
+async function loadOwnVillage(ctx: McpContext) {
   const { data: village } = await ctx.db
     .from("villages")
     .select("id")
@@ -120,11 +124,8 @@ const houseList = (houses: HouseRow[]) =>
 
 /** `dorf_haeuser_auflisten`: Häuser des Users mit Anzahl der Objekte. */
 export async function listHouses(ctx: McpContext): Promise<ToolResult> {
-  const village = await loadVillage(ctx);
-  if (!village)
-    return fail(
-      "Dein Dorf wurde noch nicht angelegt. Schliesse zuerst die Einrichtung auf der Website ab.",
-    );
+  const village = await loadOwnVillage(ctx);
+  if (!village) return noVillage();
   const { data: rows } = await ctx.db
     .from("artifacts")
     .select("house_id")
@@ -138,7 +139,7 @@ export async function listHouses(ctx: McpContext): Promise<ToolResult> {
   const houses = village.houses.map((h) => ({
     id: h.id,
     titel: houseLabel(h),
-    art: h.kind === "zentrale" ? "zentrale" : h.kind === "modul" ? "modul" : "thema",
+    art: h.kind,
     modul_code: h.module_code,
     anzahl_objekte: counts.get(h.id) ?? 0,
   }));
@@ -158,14 +159,11 @@ export async function placeArtifact(
   retried = false,
 ): Promise<ToolResult> {
   const input = placeInput.safeParse(rawInput);
-  if (!input.success) return fail(`Ungültige Eingabe: ${input.error.issues[0].message}`);
+  if (!input.success) return invalidInput(input.error);
   const i = input.data;
 
-  const village = await loadVillage(ctx);
-  if (!village)
-    return fail(
-      "Dein Dorf wurde noch nicht angelegt. Schliesse zuerst die Einrichtung auf der Website ab.",
-    );
+  const village = await loadOwnVillage(ctx);
+  if (!village) return noVillage();
 
   // Haus nur aus den eigenen Häusern wählen (nie fremde IDs akzeptieren)
   let house: HouseRow | undefined;
@@ -200,7 +198,7 @@ export async function placeArtifact(
     tags: (i.tags ?? []).join(","),
     visibility: i.sichtbarkeit ?? "shared",
   });
-  if (!parsed.success) return fail(`Ungültige Eingabe: ${parsed.error.issues[0].message}`);
+  if (!parsed.success) return invalidInput(parsed.error);
   const a = parsed.data;
 
   const { data: existing } = await ctx.db
@@ -264,12 +262,9 @@ export async function placeArtifact(
 /** `haus_erstellen`: Modul- oder Themenhaus. Gibt es den Titel schon, gibt es einen Fehler. */
 export async function createHouse(ctx: McpContext, rawInput: unknown): Promise<ToolResult> {
   const input = createHouseInput.safeParse(rawInput);
-  if (!input.success) return fail(`Ungültige Eingabe: ${input.error.issues[0].message}`);
-  const village = await loadVillage(ctx);
-  if (!village)
-    return fail(
-      "Dein Dorf wurde noch nicht angelegt. Schliesse zuerst die Einrichtung auf der Website ab.",
-    );
+  if (!input.success) return invalidInput(input.error);
+  const village = await loadOwnVillage(ctx);
+  if (!village) return noVillage();
 
   let title = input.data.titel.trim();
   let moduleCode: string | null = null;
@@ -319,12 +314,9 @@ export async function createHouse(ctx: McpContext, rawInput: unknown): Promise<T
 /** `letzte_artifacts`: die zuletzt platzierten Objekte. */
 export async function recentArtifacts(ctx: McpContext, rawInput: unknown): Promise<ToolResult> {
   const input = recentInput.safeParse(rawInput ?? {});
-  if (!input.success) return fail(`Ungültige Eingabe: ${input.error.issues[0].message}`);
-  const village = await loadVillage(ctx);
-  if (!village)
-    return fail(
-      "Dein Dorf wurde noch nicht angelegt. Schliesse zuerst die Einrichtung auf der Website ab.",
-    );
+  if (!input.success) return invalidInput(input.error);
+  const village = await loadOwnVillage(ctx);
+  if (!village) return noVillage();
   const { data } = await ctx.db
     .from("artifacts")
     .select("id, title, url, kind, item_type, house_id, created_at")
