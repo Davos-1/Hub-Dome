@@ -195,9 +195,11 @@ function LandscapeCard({ world }: { world: WorldProps }) {
         </div>
         {outdated && (
           <p className="hd-note">
-            Die neue Version bringt mehr Abwechslung: Flüsse durchs Dorf, Seen, Buchten und
-            Hochplateaus, Mühlen, Kapellen und andere Fundstücke. Dein Seed bleibt, deine Häuser
-            behalten ihre Plätze, wo es passt; du siehst alles zuerst als Vorschau.
+            {w.version < 2
+              ? "Die neue Version bringt mehr Abwechslung: Flüsse durchs Dorf, Seen, Buchten und Hochplateaus, Mühlen, Kapellen und andere Fundstücke, dazu Wegformen je Quartier und Bäume, die du versetzen kannst."
+              : "Die neue Version bringt Wegformen je Quartier (Ring, Halbkreis, Intelligent), Eckpunkte in Wegen und Bäume an festen Plätzen, die du im Bau-Modus versetzen kannst. Die Landschaft bleibt gleich, einzelne Bäume stehen danach anders."}{" "}
+            Dein Seed bleibt, deine Häuser behalten ihre Plätze, wo es passt; du siehst alles zuerst
+            als Vorschau.
           </p>
         )}
       </div>

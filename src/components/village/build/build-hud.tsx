@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DEKO, DEKO_GRUPPEN, DEKO_TYPEN, type DekoGruppe, type DekoTyp } from "@/lib/world/catalog";
 import { ANBAUTEN, GAERTEN, type Anbau, type Garten } from "@/lib/world/doc";
 import {
@@ -603,6 +603,15 @@ export function BuildHud({
 }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const rail = useRef<HTMLDivElement>(null);
+  // Fokus beim Öffnen auf das aktive Werkzeug, beim Schliessen zurück zum Auslöser (z.B. «Bauen»)
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    rail.current
+      ?.querySelector<HTMLElement>('[aria-pressed="true"]')
+      ?.focus({ preventScroll: true });
+    return () => previous?.focus?.({ preventScroll: true });
+  }, []);
   const btool = useBuild(build, (s) => s.btool);
   const tool = useBuild(build, (s) => s.tool);
   const house = useBuild(build, (s) => s.house);
@@ -760,6 +769,7 @@ export function BuildHud({
 
       {/* Werkzeuge links */}
       <div
+        ref={rail}
         role="toolbar"
         aria-label="Werkzeuge"
         aria-orientation="vertical"

@@ -27,16 +27,33 @@ const STANDARD_SEEDS = [
   "z30m2gui", // Hochplateau
   "et8zs32l", // Hügelland
 ];
-/** Datenmengen: h = Häuser (ohne Zentrale), o = Objekte pro Haus, deko = Beispiel-Deko (`deko=1`). */
-const DATEN: Record<string, { h: number; o: number; deko?: boolean }> = {
+/**
+ * Datenmengen: h = Häuser (ohne Zentrale), o = Objekte pro Haus, deko = Beispiel-Deko (`deko=1`); seit Phase 4h
+ * die Wegformen (Generator v3) in allen Quartieren (`wege=…`, 10 bzw. 20 Häuser).
+ */
+const DATEN: Record<string, { h: number; o: number; deko?: boolean; wege?: string }> = {
   leer: { h: 0, o: 0 },
   "3h": { h: 3, o: 4 },
   "10h": { h: 10, o: 6 },
   "20h": { h: 20, o: 12 },
   deko: { h: 10, o: 6, deko: true },
+  ring: { h: 10, o: 6, wege: "ring" },
+  halbkreis: { h: 10, o: 6, wege: "halbkreis" },
+  intelligent: { h: 20, o: 6, wege: "intelligent" },
 };
-type DatenName = "leer" | "3h" | "10h" | "20h" | "deko";
-const DATEN_NAMEN: DatenName[] = ["leer", "3h", "10h", "20h", "deko"];
+type DatenName = "leer" | "3h" | "10h" | "20h" | "deko" | "ring" | "halbkreis" | "intelligent";
+const DATEN_NAMEN: DatenName[] = [
+  "leer",
+  "3h",
+  "10h",
+  "20h",
+  "deko",
+  "ring",
+  "halbkreis",
+  "intelligent",
+];
+/** Phase 4h: Wegformen je Seed (Übersicht und Vogel bei Mittag, die ersten vier Seeds; alle mit VISUAL_FULL). */
+const WEGFORMEN: DatenName[] = ["ring", "halbkreis", "intelligent"];
 /** Volle Kombination nur über diese Datenmengen (deko hat eigene Bilder, s. unten). */
 const VOLL_DATEN: DatenName[] = ["leer", "3h", "10h", "20h"];
 const ZEITEN = ["mittag", "abend", "nacht"] as const;
@@ -136,6 +153,11 @@ function baueMatrix(seeds: readonly string[], voll: boolean): Eintrag[] {
     for (const zeit of voll || i < 2 ? ZEITEN : (["mittag"] as const))
       matrix.push({ seed, daten: "10h", zeit, kamera: PANORAMA });
     matrix.push({ seed, daten: "10h", zeit: "mittag", kamera: WEG });
+    // Wegformen (Generator v3)
+    if (voll || i < 4)
+      for (const daten of WEGFORMEN)
+        for (const kamera of ["uebersicht", "vogel"])
+          matrix.push({ seed, daten, zeit: "mittag", kamera });
     // Zentrale je Stil (Seed 1; alle Seeds mit VISUAL_FULL=1)
     if (voll || i === 0)
       for (const kamera of ZENTRALEN) matrix.push({ seed, daten: "10h", zeit: "mittag", kamera });
@@ -178,12 +200,12 @@ if (MATRIX.length === 0) {
 
 const dateiname = (e: Eintrag) => `${e.seed}-${e.daten}-${e.zeit}-${e.kamera}.png`;
 const urlVon = (e: Eintrag) => {
-  const { h, o, deko } = DATEN[e.daten];
+  const { h, o, deko, wege } = DATEN[e.daten];
   // zentrale-<stil> → kamera=zentrale&zentrale=<stil>
   const kamera = e.kamera.startsWith("zentrale-")
     ? `zentrale&zentrale=${e.kamera.slice("zentrale-".length)}`
     : e.kamera;
-  return `/dev/dorf?seed=${e.seed}&h=${h}&o=${o}&zeit=${e.zeit}&kamera=${kamera}&bewegung=0${deko ? "&deko=1" : ""}`;
+  return `/dev/dorf?seed=${e.seed}&h=${h}&o=${o}&zeit=${e.zeit}&kamera=${kamera}&bewegung=0${deko ? "&deko=1" : ""}${wege ? `&wege=${wege}` : ""}`;
 };
 
 // Szenen-Statistik der Seite (siehe window.__hubDome in village-scene.tsx); hier lokal typisiert

@@ -742,7 +742,7 @@ function VillageShell(props: Props) {
             />
           )}
           {empty && props.isOwner && !tafelOpen && !building && (
-            <div className="hd-box hd-rise pointer-events-auto absolute top-16 left-1/2 flex w-[min(420px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-2 px-5 py-4">
+            <div className="hd-box hd-rise pointer-events-auto absolute top-16 left-4 flex w-[min(380px,calc(100vw-32px))] flex-col gap-2 px-5 py-4">
               <span className="hd-kicker">Leeres Dorf</span>
               <span className="text-[15px] font-bold">Lege dein erstes Haus an</span>
               <span className="text-[13px] text-hd-muted">

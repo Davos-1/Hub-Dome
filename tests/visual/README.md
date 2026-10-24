@@ -18,7 +18,7 @@ Der Dev-Server startet bei Bedarf selbst (`npm run dev`). In Cloud-Umgebungen oh
 Jedes Bild ruft `/dev/dorf?seed=…&h=…&o=…&zeit=…&kamera=…&bewegung=0` auf (Bewegung eingefroren), wartet auf `window.__hubDome.ready === true` (höchstens 90 s) plus 300 ms und macht den Screenshot. Seitenfehler (`pageerror`) lassen den Test scheitern.
 
 - **Seeds:** feste Liste von 16 (siehe `STANDARD_SEEDS` in `matrix.spec.ts`): 8 aus Phase 4f und 8 aus Phase 4g mit allen sieben Landschaftstypen des Generators v2 (Fluss-, See- und Berg-Extreme).
-- **Datenmengen:** `leer` (0 Häuser), `3h` (3 Häuser × 4 Objekte), `10h` (10 × 6), `20h` (20 × 12), `deko` (10 × 6 mit Beispiel-Deko aller Katalog-Typen, `deko=1`, Häuser fixiert).
+- **Datenmengen:** `leer` (0 Häuser), `3h` (3 Häuser × 4 Objekte), `10h` (10 × 6), `20h` (20 × 12), `deko` (10 × 6 mit Beispiel-Deko aller Katalog-Typen, `deko=1`, Häuser fixiert); seit Phase 4h die Wegformen des Generators v3 in allen Quartieren: `ring` und `halbkreis` (10 × 6), `intelligent` (20 × 6), jeweils für die ersten vier Seeds in Übersicht und Vogel bei Mittag.
 - **Tageszeiten:** `mittag`, `abend`, `nacht`.
 - **Kameras:** `uebersicht`, `vogel`, `strasse`, `ufer` (Brücke, See oder Teich aus der Nähe); Nahaufnahme je Haustyp `haus-<typ>` (werkstatt, block, solar, atelier, stadt, haus, turm, digital, baustelle); seit Phase 4g `panorama` (Blick zum Horizont, jeder Seed, Seed 1 und 2 zu jeder Tageszeit), `weg` (Wegnahaufnahme, jeder Seed) und `zentrale-<stil>` (alle sechs Zentrale-Stile für Seed 1, mit `VISUAL_FULL=1` für alle).
 

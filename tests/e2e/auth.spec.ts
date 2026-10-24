@@ -15,7 +15,8 @@ test("Login-Formular lehnt ungültige E-Mail ab", async ({ page }) => {
   await expect(page.locator("input:invalid, [role=alert]").first()).toBeVisible();
 });
 
-// Oberfläche «Rauchglas» (Phase 4g): dunkle Felder mit heller Schrift, egal ob das System hell oder dunkel ist
+// Oberfläche «Werkbank» (Phase 4h): dunkle Felder mit heller Schrift, egal ob das System hell oder dunkel ist.
+// Verglichen wird mit den Design-Tokens selbst (nicht mit festen Werten).
 for (const colorScheme of ["light", "dark"] as const) {
   test(`Eingabefelder sind lesbar (System ${colorScheme === "dark" ? "dunkel" : "hell"})`, async ({
     page,
@@ -24,16 +25,25 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.goto("/login");
     const style = await page.getByLabel("E-Mail-Adresse").evaluate((el) => {
       const s = getComputedStyle(el);
-      return {
+      // Token-Farben über ein Hilfselement auflösen
+      const probe = document.createElement("div");
+      document.body.appendChild(probe);
+      const token = (name: string) => {
+        probe.style.color = `var(${name})`;
+        return getComputedStyle(probe).color;
+      };
+      const out = {
         bg: s.backgroundColor,
         color: s.color,
-        body: getComputedStyle(document.body).backgroundColor,
         scheme: s.colorScheme,
+        ink: token("--hd-ink"),
+        field: token("--hd-field"),
       };
+      probe.remove();
+      return out;
     });
-    expect(style.color).toBe("rgb(244, 244, 245)");
-    expect(style.bg).toBe("rgba(0, 0, 0, 0.25)");
-    expect(style.body).toBe("rgb(20, 20, 23)");
+    expect(style.color).toBe(style.ink);
+    expect(style.bg).toBe(style.field);
     expect(style.scheme).toBe("dark");
   });
 }
