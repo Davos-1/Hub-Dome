@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { DEKO, DEKO_GRUPPEN, DEKO_TYPEN, type DekoGruppe, type DekoTyp } from "@/lib/world/catalog";
 import { ANBAUTEN, GAERTEN, type Anbau, type Garten } from "@/lib/world/doc";
 import {
@@ -610,7 +610,12 @@ export function BuildHud({
     rail.current
       ?.querySelector<HTMLElement>('[aria-pressed="true"]')
       ?.focus({ preventScroll: true });
-    return () => previous?.focus?.({ preventScroll: true });
+    // Der Auslöser («Bauen») entsteht erst im selben Wechsel neu und wird von der Ansicht fokussiert; hier nur
+    // zurück, wenn das Element noch da ist (sonst landet der Fokus auf dem Seitenanfang)
+    return () => {
+      if (previous?.isConnected && previous !== document.body)
+        previous.focus({ preventScroll: true });
+    };
   }, []);
   const btool = useBuild(build, (s) => s.btool);
   const tool = useBuild(build, (s) => s.tool);
@@ -669,15 +674,16 @@ export function BuildHud({
           case "e":
           case "E":
             return (build.nudge(0, 0, 15), true);
-          case "Enter":
-            // Enter auf dem gewählten Katalog-Element setzt es; andere Knöpfe behalten ihr Verhalten
-            if (
-              t &&
-              /^(BUTTON|A)$/.test(t.tagName) &&
-              t.getAttribute("data-bau-tool") !== build.get().tool
-            )
-              return false;
+          case "Enter": {
+            // Enter setzt nur, wenn etwas abzulegen ist: ein Haus oder Quartier beim Ziehen, ein Element beim
+            // Versetzen oder das gewählte Katalog-Element (dort ist der Fokus auf seinem Knopf). Sonst behalten
+            // Knöpfe ihr Verhalten (Wählen, Speichern, Abbrechen, Wegform …).
+            const s = build.get();
+            const placing =
+              !!s.drag || s.moving || (!!s.tool && t?.getAttribute("data-bau-tool") === s.tool);
+            if (t && /^(BUTTON|A)$/.test(t.tagName) && !placing) return false;
             return (build.enter(), true);
+          }
           case "Delete":
           case "Backspace":
             return (build.remove(), true);
@@ -697,10 +703,11 @@ export function BuildHud({
 
   const homes = model.houses.filter((h) => h.kind !== "zentrale");
   const quarters = new Set(homes.map((h) => model.layout.houses[h.id]?.quarterId).filter(Boolean));
-  const text =
-    error ?? dragText ?? (ghostBad && tool ? `Hier nicht möglich: ${ghostBad}` : message);
-  const isBad =
-    !!error || (dragText !== null ? !/passt/i.test(dragText) : (!!ghostBad && !!tool) || bad);
+  // Ein Fehler (z.B. beim Speichern) steht für sich als Warnung; die Hinweiszeile schweigt dann
+  const text = error
+    ? ""
+    : (dragText ?? (ghostBad && tool ? `Hier nicht möglich: ${ghostBad}` : message));
+  const isBad = dragText !== null ? !/passt/i.test(dragText) : (!!ghostBad && !!tool) || bad;
   const none = !quarter && btool !== "deko" && btool !== "weg";
 
   return (
@@ -866,20 +873,36 @@ export function BuildHud({
         </span>
       </section>
 
-      {/* Meldung unten */}
-      {text && (
+      {/* Meldungen unten (schmale Fenster: über dem Panel). Die Hinweiszeile ist immer da und wechselt nur
+          ihren Text: nachträglich eingefügte Live-Regionen sagen Bildschirmleser oft nicht an. */}
+      <div
+        className="pointer-events-none absolute left-1/2 z-30 flex w-[min(560px,calc(100%-32px))] -translate-x-1/2 flex-col items-center gap-1.5 bottom-[var(--bau-ansage)] max-md:bottom-[calc(42vh+16px)]"
+        style={{ "--bau-ansage": `${BUILD_HUD.bottom - 46}px` } as CSSProperties}
+      >
+        {error && (
+          <p
+            role="alert"
+            data-testid="bau-fehler"
+            className="max-w-full rounded-hd-panel border border-hd-danger bg-hd-surface px-3.5 py-2 text-center text-[13px] font-semibold break-words text-hd-danger"
+          >
+            {error}
+          </p>
+        )}
         <p
           role="status"
           aria-live="polite"
           data-testid="bau-ansage"
-          className={`pointer-events-none absolute left-1/2 z-30 max-w-[min(560px,calc(100%-32px))] -translate-x-1/2 truncate rounded-hd-panel border bg-hd-surface px-3.5 py-2 text-[13px] font-semibold max-md:hidden ${
-            isBad ? "border-hd-danger text-hd-danger" : "border-hd-line text-hd-ink"
-          }`}
-          style={{ bottom: BUILD_HUD.bottom - 46 }}
+          className={
+            text
+              ? `max-w-full rounded-hd-panel border bg-hd-surface px-3.5 py-2 text-center text-[13px] font-semibold break-words ${
+                  isBad ? "border-hd-danger text-hd-danger" : "border-hd-line text-hd-ink"
+                }`
+              : "sr-only"
+          }
         >
           {text}
         </p>
-      )}
+      </div>
     </>
   );
 }

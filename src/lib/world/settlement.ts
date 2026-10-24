@@ -524,6 +524,46 @@ function bentSpur(lane: Lane, pose: { x: number; z: number; angle: number }, ben
   return resample([gate, bend, spurEnd(lane, bend)], 0.5);
 }
 
+/** v3: Mindestabstand des Teilstücks Tor → Eckpunkt zu eigener Achse und Kernweg (Mitte zu Mitte). */
+const BEND_CLEAR = LANE_WIDTH / 2 + SPUR_WIDTH / 2;
+
+/**
+ * v3: Darf der Weg über einen Eckpunkt so verlaufen? `spurIgnore` nimmt eigene Achse, Kernweg und Platz aus,
+ * weil jeder Stichweg dort mündet. Das Teilstück Tor → Eckpunkt (`leg`) darf sie aber nicht queren (nach dem
+ * ersten Stück aus dem Tor), und der ganze Weg betritt nach dem Tor das eigene Grundstück nicht mehr.
+ */
+export function bendClear(
+  lane: Axis & { primary: boolean; core?: Pt[][] },
+  pose: { x: number; z: number; angle: number },
+  leg: Pt[],
+  pts: Pt[],
+): boolean {
+  const node = at(lane, lane.nodeT);
+  const nodeR = NODE_RP / Math.cos(Math.PI / NODE_N) + SPUR_WIDTH / 2;
+  let s = 0;
+  for (let i = 1; i < leg.length; i++) {
+    s += Math.hypot(leg[i].x - leg[i - 1].x, leg[i].z - leg[i - 1].z);
+    if (s < 0.8) continue;
+    const p = leg[i];
+    if (distPointPolyline(p.x, p.z, lane.axis) < BEND_CLEAR) return false;
+    if (lane.core?.some((c) => distPointPolyline(p.x, p.z, c) < BEND_CLEAR)) return false;
+    if (lane.primary && Math.hypot(p.x - node.x, p.z - node.z) < nodeR) return false;
+  }
+  const sn = Math.sin(pose.angle);
+  const cs = Math.cos(pose.angle);
+  s = 0;
+  for (let i = 1; i < pts.length; i++) {
+    s += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+    if (s < 1.2) continue;
+    const dx = pts[i].x - pose.x;
+    const dz = pts[i].z - pose.z;
+    const lz = dx * sn + dz * cs;
+    const lx = dx * cs - dz * sn;
+    if (Math.max(Math.abs(lx) - PLOT.hw, lz - PLOT.front, -PLOT.back - lz) < 0.2) return false;
+  }
+  return true;
+}
+
 /** Was ein Weg vom Tor eines Hauses nicht prüft: eigenes Grundstück, eigene Achse, Platz, Kernweg. */
 function spurIgnore(lane: Lane, houseId: string): Set<string> {
   const ign = new Set([
@@ -554,10 +594,13 @@ function polarSpur(
   if (lane.road?.form === "intelligent" && lane.frame) {
     const front = { x: Math.sin(pose.angle), z: Math.cos(pose.angle) };
     const trunks = ctx.trunks.get(lane.quarterId) ?? [];
+    // Mit Eckpunkt: erst ein Meter gerade aus dem Tor, dann zum Eckpunkt (wie smartPaths)
+    const leg = bend ? resample([gate, { x: gate.x + front.x, z: gate.z + front.z }, bend], 0.5) : [];
     // Die eigene Achse hinter dem Platz bleibt frei (dort führt die Gasse für weitere Häuser hinaus)
     const axis = slice(lane, lane.nodeT + NODE_RP + 1, lane.acc[lane.acc.length - 1]);
     for (const c of smartPaths(lane.frame, gate, front, roadCurve(lane.road), trunks, bend)) {
       const end = c.merge ? 3.0 : 1.0;
+      if (bend && !bendClear(lane, pose, leg, c.pts)) continue;
       if (ctx.space.pathConflict(c.pts, SPUR_WIDTH / 2, ign, 0, end, false, 0.3)) continue;
       const inner = c.pts.slice(0, Math.max(1, c.pts.length - Math.ceil(end / 0.5)));
       if (
@@ -570,6 +613,7 @@ function polarSpur(
   }
   const spur = coreSpur(gate, lane.core ?? [], bend);
   if (!spur) return null;
+  if (bend && !bendClear(lane, pose, resample([gate, bend], 0.5), spur)) return false;
   return ctx.space.pathConflict(spur, SPUR_WIDTH / 2, ign, 0, 0.6, false, 0.3) ? false : spur;
 }
 
@@ -654,6 +698,7 @@ function claimSpur(
     const bent = bentSpur(lane, pose, bend);
     if (
       onBuilt(lane, bent[bent.length - 1]) &&
+      bendClear(lane, pose, resample([bent[0], bend], 0.5), bent) &&
       !ctx.space.pathConflict(bent, SPUR_WIDTH / 2, spurIgnore(lane, houseId), 0, 0.6, false, 0.3)
     )
       spur = bent;
@@ -1219,11 +1264,15 @@ export function placeSettlement(
   }
   ctx.pinning = false;
   const pinned = new Set<string>();
-  // Bauplätze zuerst, dann freie Lagen (jede Reihenfolge gibt dasselbe Ergebnis, die Prüfungen sind symmetrisch)
+  // Bauplätze zuerst, dann freie Lagen. v2: jede Reihenfolge gibt dasselbe Ergebnis (symmetrische Prüfungen).
+  // v3: Wege bei «Intelligent» münden in schon gesetzte Wege, also feste Reihenfolge wie im automatischen
+  // Durchlauf (Browser und Server laden die Häuser verschieden sortiert).
   const pinOrder = houses
     .filter((h) => pins.haeuser?.[h.id])
     .sort(
-      (a, b) => Number(isFreePin(pins.haeuser![a.id])) - Number(isFreePin(pins.haeuser![b.id])),
+      (a, b) =>
+        Number(isFreePin(pins.haeuser![a.id])) - Number(isFreePin(pins.haeuser![b.id])) ||
+        (ctx.v3 ? a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : 0),
     );
   for (const h of pinOrder) {
     const pin = pins.haeuser![h.id];

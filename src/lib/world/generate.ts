@@ -77,8 +77,10 @@ export type World = {
   };
   /** Hühnerhof (eingezäunt, die Hühner bleiben darin), falls Platz ist. */
   chickenRun: { x: number; z: number; r: number } | null;
-  /** v3: versetzte Bäume (Nummern), die an ihrer neuen Lage nicht passen. */
+  /** v3: versetzte Bäume (Nummern), die an ihrer neuen Lage nicht passen (sie stehen am Seed-Platz). */
   invalidTreeMoves: number[];
+  /** v3: Register, gegen das Pflanzen geprüft werden (mit Laternen, Hühnerhof, Platz-Ausstattung). */
+  vegSpace: Space;
 };
 
 /** Objekt-Plätze im Garten: je Seite zwei Spalten und drei Reihen (12), ab 13 Objekten ein Archivschrank. */
@@ -272,6 +274,7 @@ export function generateWorld(input: WorldInput): World {
     plazaProps,
     chickenRun,
     invalidTreeMoves: veg?.invalidMoves ?? [],
+    vegSpace: space,
   };
 }
 
@@ -440,7 +443,8 @@ function toLayout(
       const h = node.entry + Math.PI;
       const used = [node.entry];
       const lane = s.lanes.find((l) => l.quarterId === q && l.primary)!;
-      if (lane.builtT > lane.nodeT + NODE_RP) used.push(h);
+      // Gasse ab dem Platz (v3 bei Ring und Halbkreis beginnt sie erst am Kernweg, dazwischen ist Wiese)
+      if (lane.gStart === undefined && lane.builtT > lane.nodeT + NODE_RP) used.push(h);
       if (lane.slots.p0) used.push(h + Math.PI / 2);
       if (lane.slots.p1) used.push(h - Math.PI / 2);
       // v3: Wege, die am Platz enden (Intelligent, Speichen des Halbkreises), öffnen den Randstein

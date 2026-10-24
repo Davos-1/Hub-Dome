@@ -80,3 +80,37 @@ export function pruneDoc(doc: WorldDoc, houseIds: ReadonlySet<string>): WorldDoc
   if (doc.treeMoves) out.treeMoves = doc.treeMoves;
   return out;
 }
+
+/**
+ * v3: Eckpunkte und versetzte Bäume, die der Besitzer gespeichert hat und die erst später ungültig wurden (z. B.
+ * steht auf dem Baum inzwischen ein neues Haus), still entfernen. Nur unveränderte Einträge: Was im Entwurf neu
+ * oder anders ist, prüft der Server weiterhin streng. `null` = nichts zu entfernen.
+ */
+export function dropStale(
+  doc: WorldDoc,
+  stored: WorldDoc,
+  droppedBends: readonly string[],
+  invalidTrees: readonly number[],
+): WorldDoc | null {
+  const same = (a?: { x: number; z: number }, b?: { x: number; z: number }) =>
+    !!a && !!b && a.x === b.x && a.z === b.z;
+  const bends = droppedBends.filter((id) => same(doc.roadBends?.[id], stored.roadBends?.[id]));
+  const trees = invalidTrees
+    .map(String)
+    .filter((k) => same(doc.treeMoves?.[k], stored.treeMoves?.[k]));
+  if (!bends.length && !trees.length) return null;
+  const out: WorldDoc = { ...doc };
+  if (bends.length) {
+    const rb = { ...doc.roadBends };
+    for (const id of bends) delete rb[id];
+    if (Object.keys(rb).length) out.roadBends = rb;
+    else delete out.roadBends;
+  }
+  if (trees.length) {
+    const tm = { ...doc.treeMoves };
+    for (const k of trees) delete tm[k];
+    if (Object.keys(tm).length) out.treeMoves = tm;
+    else delete out.treeMoves;
+  }
+  return out;
+}

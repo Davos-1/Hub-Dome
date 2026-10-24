@@ -483,3 +483,16 @@ export function planPose(cx: number, cz: number, r: number, frame: Frame, aspect
   const tz = cz + fy * d * ty;
   return { position: [tx, d, tz + 0.01], target: [tx, 0, tz] };
 }
+
+/**
+ * Gleiche Pose (Position und Blickziel je Achse innerhalb `eps`)? Der Bau-Modus erzeugt bei jeder Änderung
+ * des Entwurfs neue Welt- und Layout-Objekte; die Pose bleibt dabei meist gleich und darf keine Fahrt auslösen
+ * (sonst springt die Kamera bei jedem Platzieren zurück und Zoom und Verschiebung gehen verloren).
+ */
+export function samePose(a: Pose, b: Pose, eps = 1e-3): boolean {
+  for (let i = 0; i < 3; i++) {
+    if (Math.abs(a.position[i] - b.position[i]) > eps) return false;
+    if (Math.abs(a.target[i] - b.target[i]) > eps) return false;
+  }
+  return true;
+}

@@ -617,8 +617,8 @@ export function vegetationVisible(
   }
   const bad = new Set(invalid);
   const trees = cands.trees.map((t) => {
-    const m = moves[t.i];
-    if (m) return !bad.has(t.i);
+    // Gültig versetzt: steht am neuen Ort. Passt der neue Ort nicht (mehr), gilt der Seed-Platz wie für alle
+    if (moves[t.i] && !bad.has(t.i)) return true;
     if (t.keep >= opts.density) return false;
     const rad = treeRadius(t.kind, t.s);
     if (!moved.free(t.x, t.z, rad, 0.15)) return false;
@@ -664,11 +664,12 @@ export function placeVegetationV3(
     rot: s.rot,
     color: s.color,
   });
+  const bad = new Set(vis.invalid);
   return {
     trees: cands.trees
       .filter((t) => vis.trees[t.i])
       .map((t) => {
-        const m = opts.moves?.[t.i];
+        const m = bad.has(t.i) ? undefined : opts.moves?.[t.i];
         const p = m ?? t;
         return {
           x: p.x,

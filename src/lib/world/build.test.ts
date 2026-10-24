@@ -17,6 +17,7 @@ import {
   setVariante,
   startHistory,
   undo,
+  unpinHouses,
 } from "./build";
 import { DEKO_TYPEN } from "./catalog";
 import { worldDocSchema } from "./doc";
@@ -132,4 +133,31 @@ describe("Bau-Modus: Haus umsetzen", () => {
       }
     }
   }, 60_000);
+});
+
+describe("v3: Eckpunkte und versetzte Bäume im Entwurf", () => {
+  const P = { x: 1, z: 2 };
+
+  it("Automatik entfernt den Eckpunkt des Hauses (er gehört zum alten Weg)", () => {
+    const d = draftFromDoc({ v: 1, roadBends: { a: P, b: P } });
+    expect(unpinHouses(d, ["a"]).bends).toEqual({ b: P });
+  });
+
+  it("Start und Speichern lassen Eckpunkte und Bäume weg, die in der Welt nicht gelten", () => {
+    const doc = { v: 1 as const, roadBends: { a: P, b: P }, treeMoves: { "3": P, "7": P } };
+    const w = generateWorld({ version: 3, seed: "abcd1234", houses: houses(4), lowDetail: true });
+    const settlement = { ...w.settlement, droppedBends: ["a"] };
+    const d = draftFromDoc(doc, settlement, [7]);
+    expect(d.bends).toEqual({ b: P });
+    expect(d.trees).toEqual({ "3": P });
+    const saved = docForSave(draftFromDoc(doc), settlement, [7]);
+    expect(saved.roadBends).toEqual({ b: P });
+    expect(saved.treeMoves).toEqual({ "3": P });
+  });
+
+  it("Baum-Nummern ohne führende Null (sonst zwei Einträge für denselben Baum)", () => {
+    const ok = (k: string) => worldDocSchema.safeParse({ v: 1, treeMoves: { [k]: P } }).success;
+    expect(["0", "9", "1234"].map(ok)).toEqual([true, true, true]);
+    expect(["09", "00", "12345", "-1"].map(ok)).toEqual([false, false, false, false]);
+  });
 });

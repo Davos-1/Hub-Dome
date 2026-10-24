@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardClutter, planPose, poseFor, navUp, overviewPose } from "./camera-poses";
+import { boardClutter, planPose, poseFor, navUp, overviewPose, samePose } from "./camera-poses";
 import { FACH_ORDER } from "./fachbereiche";
 import { computeLayout } from "./layout";
 
@@ -120,5 +120,23 @@ describe("planPose (Bau-Modus von oben)", () => {
       expect(ny).toBeGreaterThanOrEqual(frame.bottom - 1e-9);
       expect(ny).toBeLessThanOrEqual(frame.top + 1e-9);
     }
+  });
+});
+
+describe("samePose", () => {
+  const a = {
+    position: [1, 200, 3] as [number, number, number],
+    target: [1, 0, 2.99] as [number, number, number],
+  };
+
+  it("gleiche Werte, auch als neues Objekt, und Abweichung unter eps gelten als gleich", () => {
+    expect(samePose(a, { position: [...a.position], target: [...a.target] })).toBe(true);
+    expect(samePose(a, { position: [1.0004, 200, 3], target: a.target })).toBe(true);
+  });
+
+  it("eine Abweichung über eps bei Position oder Ziel ist eine andere Pose", () => {
+    expect(samePose(a, { position: [1, 200.01, 3], target: a.target })).toBe(false);
+    expect(samePose(a, { position: a.position, target: [1, 0, 3.5] })).toBe(false);
+    expect(samePose(a, { position: [1, 200.01, 3], target: a.target }, 0.1)).toBe(true);
   });
 });

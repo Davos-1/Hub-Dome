@@ -281,7 +281,7 @@ describe("Generator v3: Bäume bleiben am Seed-Platz", () => {
     for (const seed of SEEDS.slice(0, 8)) {
       const hs = village(5, DISTS.gemischt, seed);
       const w = generateWorld({ version: 3, seed, houses: hs });
-      // Mitten in ein Haus: ungültig, der Baum fehlt (kein Ersatz an anderer Stelle)
+      // Mitten in ein Haus: ungültig, der Baum bleibt an seinem Seed-Platz
       const house = Object.values(w.settlement.houses)[0];
       const other = w.vegetation.trees.find((x) => x.kind !== "obst")!;
       const bad = generateWorld({
@@ -291,7 +291,9 @@ describe("Generator v3: Bäume bleiben am Seed-Platz", () => {
         doc: { v: 1, treeMoves: { [String(other.i)]: { x: house.x, z: house.z } } },
       });
       expect(bad.invalidTreeMoves).toEqual([other.i]);
-      expect(bad.vegetation.trees.some((x) => x.i === other.i)).toBe(false);
+      const back = bad.vegetation.trees.find((x) => x.i === other.i)!;
+      expect([back.x, back.z]).toEqual([other.x, other.z]);
+      expect(violations(bad)).toEqual([]);
       // Wenig verschoben in der Wiese: gültig, steht genau dort
       for (const t of w.vegetation.trees.filter((x) => Math.hypot(x.x, x.z) > 45).slice(0, 6)) {
         const to = { x: t.x + 0.5, z: t.z - 0.25 };
@@ -310,5 +312,18 @@ describe("Generator v3: Bäume bleiben am Seed-Platz", () => {
       }
     }
     expect(valid).toBeGreaterThan(4);
+  }, 60_000);
+});
+
+describe("Wegformen: Quartierplatz", () => {
+  it("Ring: Randstein zur Aussenseite bleibt zu, solange dort keine Gasse beginnt", () => {
+    for (const seed of SEEDS.slice(0, 6)) {
+      const hs = oneQuarter("grundlagen", 3, 2, seed);
+      const { world } = withForms(seed, hs, { grundlagen: { form: "ring", radius: 9 } });
+      const node = world.settlement.nodes.find((n) => n.quarterId === "grundlagen")!;
+      const poly = world.layout.polys.find((p) => p.quarterId === "grundlagen" && !p.main)!;
+      const out = node.entry + Math.PI;
+      expect(poly.used.some((a) => angDiff(a, out) < 0.05), seed).toBe(false);
+    }
   }, 60_000);
 });

@@ -265,11 +265,26 @@ function VillageShell(props: Props) {
     if (isDev) window.__hubDomeDev = { world: model.world, build };
   }, [isDev, model, build]);
   useEffect(() => store.set({ building, buildFocus: null }), [store, building]);
+  // Bau-Modus beendet (Speichern, Abbrechen): Fokus zurück auf «Bauen». Der Knopf entsteht erst mit diesem
+  // Wechsel neu (oben rechts wird nur ausserhalb des Bau-Modus gezeichnet), darum fokussiert ihn die Ansicht
+  // und nicht `BuildHud`. Nur wenn der Fokus verloren ging (Knopf «Speichern» ist weg), nichts wegnehmen.
+  const wasBuilding = useRef(false);
+  useEffect(() => {
+    if (wasBuilding.current && !building) {
+      const a = document.activeElement;
+      if (!a || a === document.body)
+        document
+          .querySelector<HTMLElement>('[aria-keyshortcuts="B"]')
+          ?.focus({ preventScroll: true });
+    }
+    wasBuilding.current = building;
+  }, [building]);
   // Bau-Modus: Haus oder Quartier gewählt → Kamera zum Quartier (beim Abwählen bleibt sie dort)
   useEffect(() => {
     const off = build.subscribe(() => {
       const s = build.get();
-      // Während des Ziehens bleibt die Kamera stehen (sonst wandert der Punkt unter dem Zeiger)
+      // Während des Ziehens bleibt die Kamera stehen (sonst wandert der Punkt unter dem Zeiger); eine schon
+      // laufende Fahrt beendet `CameraRig`, sobald die Steuerung fürs Ziehen gesperrt wird
       if (s.drag || s.point) return;
       const q =
         s.quarter ?? (s.house ? (model.world.settlement.houses[s.house]?.quarterId ?? null) : null);
@@ -307,7 +322,11 @@ function VillageShell(props: Props) {
     build.start(props.world.doc);
   }, [store, build, props.world.doc]);
   const saveBuild = async () => {
-    const doc = docForSave(build.get().history.present, model.world.settlement);
+    const doc = docForSave(
+      build.get().history.present,
+      model.world.settlement,
+      model.world.invalidTreeMoves,
+    );
     build.saving(true);
     const res = await worldActions.save(doc);
     if ("error" in res) {

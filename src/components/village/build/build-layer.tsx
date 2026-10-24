@@ -371,6 +371,8 @@ export function BuildLayer({ build, world }: { build: BuildStore; world: World }
   );
   const dragging = useRef(false);
   const pointDrag = useRef(false);
+  /** Wo das Ziehen eines Eckpunkts oder Baums begann; `neu` = Eckpunkt eben erst gesetzt. */
+  const pointStart = useRef<{ x: number; z: number; neu: boolean } | null>(null);
   const justDropped = useRef(false);
   const getThree = useThree((s) => s.get);
   const setOrbit = (on: boolean) => {
@@ -429,6 +431,10 @@ export function BuildLayer({ build, world }: { build: BuildStore; world: World }
     setOrbit(false);
     const up = () => {
       setOrbit(true);
+      // Losgelassen ausserhalb des Plans (über dem HUD oder ausserhalb des Fensters): abbrechen, sonst
+      // hinge der Punkt bzw. das Haus am Zeiger
+      const s = build.get();
+      if ((pointDrag.current && s.point) || (dragging.current && s.drag)) build.escape();
       press.current = null;
       dragging.current = false;
       pointDrag.current = false;
@@ -458,6 +464,8 @@ export function BuildLayer({ build, world }: { build: BuildStore; world: World }
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.02, 0]}
         onPointerDown={(e) => {
+          // Nach einem Ziehen per Touch folgt kein Klick: Die Sperre gilt nur für den Klick direkt danach
+          justDropped.current = false;
           const s = build.get();
           if (e.button !== 0 || s.tool || s.moving || s.drag || s.point) return;
           const p = at(e);
@@ -468,6 +476,7 @@ export function BuildLayer({ build, world }: { build: BuildStore; world: World }
               : (build.addBendAt(p.x, p.z), !!build.get().point);
             if (ok) {
               pointDrag.current = true;
+              pointStart.current = { ...p, neu: !b };
               hold();
             }
             return;
@@ -476,6 +485,7 @@ export function BuildLayer({ build, world }: { build: BuildStore; world: World }
             const i = treeAt(p);
             if (i !== undefined && build.startTreeDrag(i)) {
               pointDrag.current = true;
+              pointStart.current = { ...p, neu: false };
               hold();
             }
             return;
@@ -513,11 +523,16 @@ export function BuildLayer({ build, world }: { build: BuildStore; world: World }
             e.stopPropagation();
             pointDrag.current = false;
             justDropped.current = true;
-            build.dropPoint(p.x, p.z);
+            const st = pointStart.current;
+            pointStart.current = null;
+            // Nur angeklickt (nicht gezogen): bestehender Eckpunkt bzw. Baum bleibt, kein Schritt im Verlauf
+            if (st && !st.neu && Math.hypot(p.x - st.x, p.z - st.z) < 0.3) build.releasePoint();
+            else build.dropPoint(p.x, p.z);
             return;
           }
           if (!dragging.current) return;
           e.stopPropagation();
+          dragging.current = false;
           justDropped.current = true;
           build.drop(p.x, p.z);
         }}

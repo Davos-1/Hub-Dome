@@ -58,4 +58,16 @@ describe("Quartier umziehen", () => {
         .sort(),
     );
   });
+
+  it("v3: der Eckpunkt des umziehenden Hauses entfällt, andere bleiben", () => {
+    const seed = SEEDS[0];
+    const hs = village(6, DISTS.gemischt, seed);
+    const before = generateWorld({ version: 3, seed, houses: hs, lowDetail: true });
+    const [a, b] = hs.slice(1, 3).map((h) => h.id);
+    const P = { x: 1, z: 2 };
+    expect(relocateDoc(before, { v: 1, roadBends: { [a]: P, [b]: P } }, a).roadBends).toEqual({
+      [b]: P,
+    });
+    expect("roadBends" in relocateDoc(before, { v: 1, roadBends: { [a]: P } }, a)).toBe(false);
+  });
 });

@@ -121,7 +121,8 @@ export const worldDocSchema = z.object({
     .optional(),
   /** v3: versetzte Bäume aus dem Seed (Nummer → Lage). */
   treeMoves: z
-    .record(z.string().regex(/^\d{1,4}$/), z.object({ x: coord, z: coord }))
+    // Ohne führende Null: Die Welt liest den Schlüssel als Zahl («09» wäre ein zweiter Eintrag für Baum 9)
+    .record(z.string().regex(/^(0|[1-9]\d{0,3})$/), z.object({ x: coord, z: coord }))
     .refine((r) => Object.keys(r).length <= MAX_TREE_MOVES, "Zu viele versetzte Bäume.")
     .optional(),
   deko: z.array(dekoItemSchema).max(MAX_DEKO).optional(),

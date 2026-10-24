@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { generateWorld } from "./generate";
-import { pruneDoc, toLayoutHouses, type ArtifactRow, type HouseRow } from "./layout-houses";
+import {
+  dropStale,
+  pruneDoc,
+  toLayoutHouses,
+  type ArtifactRow,
+  type HouseRow,
+} from "./layout-houses";
 import type { WorldDoc } from "./doc";
 
 const house = (id: string, created_at: string, extra: Partial<HouseRow> = {}): HouseRow => ({
@@ -159,5 +165,24 @@ describe("pruneDoc", () => {
   it("legt fehlende Felder nicht an", () => {
     expect(pruneDoc({ v: 1 }, new Set(["h1"]))).toEqual({ v: 1 });
     expect(Object.keys(pruneDoc({ v: 1, deko: [] }, new Set()))).toEqual(["v", "deko"]);
+  });
+});
+
+describe("dropStale (v3)", () => {
+  const P = { x: 1, z: 2 };
+  const Q = { x: 3, z: 4 };
+  it("entfernt nur Eckpunkte und Bäume, die unverändert gespeichert waren", () => {
+    const stored: WorldDoc = { v: 1, roadBends: { a: P, b: P }, treeMoves: { "1": P, "2": P } };
+    const doc: WorldDoc = { v: 1, roadBends: { a: P, b: Q }, treeMoves: { "1": P, "2": Q } };
+    const out = dropStale(doc, stored, ["a", "b"], [1, 2])!;
+    // Unverändert und ungültig: still weg; neu gesetzt und ungültig: bleibt (der Server lehnt ab)
+    expect(out.roadBends).toEqual({ b: Q });
+    expect(out.treeMoves).toEqual({ "2": Q });
+  });
+  it("nichts zu tun: null; leere Listen fallen ganz weg", () => {
+    const doc: WorldDoc = { v: 1, roadBends: { a: P }, treeMoves: { "1": P } };
+    expect(dropStale(doc, doc, [], [])).toBeNull();
+    const out = dropStale(doc, doc, ["a"], [1])!;
+    expect("roadBends" in out || "treeMoves" in out).toBe(false);
   });
 });

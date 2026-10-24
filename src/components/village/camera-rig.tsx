@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { planFlight, type Flight, type Obstacle } from "@/lib/camera-flight";
-import { planPose, poseFor, shiftPose, type Pose, type PoseOpts } from "@/lib/camera-poses";
+import {
+  planPose,
+  poseFor,
+  samePose,
+  shiftPose,
+  type Pose,
+  type PoseOpts,
+} from "@/lib/camera-poses";
 import type { VillageLayout } from "@/lib/layout";
 import { buildFrame, hudLayout } from "./hud/layout";
 import type { OverlayStore } from "./overlay-store";
@@ -31,6 +38,9 @@ function fitPortrait(p: Pose, aspect: number, maxK: number): Pose {
 
 type Controls = {
   target: THREE.Vector3;
+  /** Gesperrt (z.B. beim Ziehen im Bau-Modus, siehe `BuildLayer`): die Kamera gehört dem Zeiger. */
+  enabled?: boolean;
+  maxDistance: number;
   update: () => void;
   addEventListener: (type: string, fn: () => void) => void;
   removeEventListener: (type: string, fn: () => void) => void;
@@ -73,6 +83,17 @@ function lens(camera: THREE.PerspectiveCamera, on: boolean, width: number, heigh
   camera.updateProjectionMatrix();
 }
 
+/**
+ * Kamera nachführen, ohne die Abstandsgrenze: eine Fahrt darf ausserhalb der normalen Grenze beginnen (Ausstieg
+ * aus dem Bau-Plan, der weiter weg liegt als die Übersicht), sonst schnappt die Kamera im ersten Bild heran.
+ */
+function updateUnbounded(controls: Controls) {
+  const max = controls.maxDistance;
+  controls.maxDistance = Infinity;
+  controls.update();
+  controls.maxDistance = max;
+}
+
 export function CameraRig({
   layout,
   store,
@@ -113,7 +134,7 @@ export function CameraRig({
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const aspect = width / Math.max(1, height);
-  const pose: Pose = useMemo(() => {
+  const computed: Pose = useMemo(() => {
     if (devPose) return fitPortrait(devPose, aspect, 2);
     if (building) {
       const q = focus ? layout.quarters.find((x) => x.id === focus) : undefined;
@@ -163,6 +184,16 @@ export function CameraRig({
     inv,
     flyNonce,
   ]);
+  // Bau-Modus: Jede Änderung am Entwurf erzeugt ein neues Layout und damit eine neue Pose mit meist gleichen
+  // Werten. Nur eine andere Pose löst eine Fahrt aus (sonst springt die Kamera bei jedem Platzieren zurück
+  // und Zoom und Verschiebung gehen verloren). Ausserhalb des Bau-Modus startet jede neue Pose eine Fahrt
+  // (auch dieselbe), ebenso ein neues `flyNonce`.
+  const [last, setLast] = useState({ pose: computed, building, flyNonce });
+  const keep =
+    building && last.building && last.flyNonce === flyNonce && samePose(last.pose, computed);
+  const pose = keep ? last.pose : computed;
+  if (pose !== last.pose || building !== last.building || flyNonce !== last.flyNonce)
+    setLast({ pose, building, flyNonce });
 
   const anim = useRef<{ t: number; flight: Flight } | null>(null);
   const first = useRef(true);
@@ -225,12 +256,18 @@ export function CameraRig({
   useFrame((_, delta) => {
     const a = anim.current;
     if (!a || !controls) return;
+    // Zeiger zieht etwas (die Steuerung ist gesperrt): die Fahrt endet hier, sonst wandert der Punkt unter dem Zeiger
+    if (controls.enabled === false) {
+      anim.current = null;
+      overlay.set({ flying: false });
+      return;
+    }
     // Lange Frames (Tab im Hintergrund) nicht als Sprung übernehmen
     a.t = Math.min(1, a.t + Math.min(delta, 0.1) / a.flight.duration);
     const p = a.flight.at(a.t);
     controls.target.set(...p.target);
     camera.position.set(...p.position);
-    controls.update();
+    updateUnbounded(controls);
     if (a.t >= 1) {
       anim.current = null;
       overlay.set({ flying: false, arrived: navHouse() });

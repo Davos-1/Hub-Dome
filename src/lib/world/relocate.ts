@@ -21,7 +21,12 @@ export function relocateDoc(current: World, doc: WorldDoc, houseId: string): Wor
   const quartiere = Object.fromEntries(
     Object.entries(pins.quartiere).filter(([q]) => remaining.has(q as FachbereichId)),
   ) as typeof pins.quartiere;
-  return { ...doc, quartiere, haeuser: pins.haeuser };
+  // Der Eckpunkt gehört zum alten Weg (wie beim Versetzen im Bau-Modus)
+  const roadBends = { ...(doc.roadBends ?? {}) };
+  delete roadBends[houseId];
+  const out: WorldDoc = { ...doc, quartiere, haeuser: pins.haeuser, roadBends };
+  if (!Object.keys(roadBends).length) delete out.roadBends;
+  return out;
 }
 
 /** Ergebnis eines Umzugs: wo das Haus jetzt steht bzw. warum es nicht geht. */

@@ -37,17 +37,25 @@ const MAX_UNDO = 60;
  * Entwurf aus dem gespeicherten Dokument. Mit `settlement` werden alle heutigen Quartiere und Häuser fixiert:
  * Im Bau-Modus bewegt sich dann nur, was der Besitzer selbst bewegt.
  */
-export function draftFromDoc(doc: WorldDoc, settlement?: Settlement): Draft {
+export function draftFromDoc(
+  doc: WorldDoc,
+  settlement?: Settlement,
+  invalidTrees: readonly number[] = [],
+): Draft {
   const pins = settlement
     ? pinsFromSettlement(settlement)
     : { quartiere: { ...(doc.quartiere ?? {}) }, haeuser: { ...(doc.haeuser ?? {}) } };
+  // Eckpunkte und versetzte Bäume, die in der heutigen Welt nicht mehr passen (z. B. steht dort inzwischen ein
+  // neues Haus), fallen weg: Die Welt zeigt sie nicht, also sollen sie das Speichern nicht blockieren
+  const trees = { ...(doc.treeMoves ?? {}) };
+  for (const i of invalidTrees) delete trees[String(i)];
   return {
     deko: [...(doc.deko ?? [])],
     varianten: { ...(doc.varianten ?? {}) },
     pins,
     roads: { ...(doc.quarterRoads ?? {}) },
-    bends: { ...(doc.roadBends ?? {}) },
-    trees: { ...(doc.treeMoves ?? {}) },
+    bends: withoutBends({ ...(doc.roadBends ?? {}) }, settlement?.droppedBends ?? []),
+    trees,
   };
 }
 
@@ -88,7 +96,7 @@ export function pinHouse(d: Draft, houseId: string, pin: HousePin): Draft {
 export function unpinHouses(d: Draft, ids: readonly string[]): Draft {
   const haeuser = { ...d.pins.haeuser };
   for (const id of ids) delete haeuser[id];
-  return { ...d, pins: { ...d.pins, haeuser } };
+  return { ...d, pins: { ...d.pins, haeuser }, bends: withoutBends(d.bends, ids) };
 }
 
 /** Quartier verschieben (v2): alle Häuser auf ihre neue freie Lage, die eigene Deko des Quartiers mit. */
@@ -244,13 +252,21 @@ export function setVariante(d: Draft, houseId: string, patch: Partial<Variante>)
  * Dokument zum Speichern: Entwurf plus Fixierung aller heutigen Quartiere und Häuser (sonst könnte eine neue
  * Bank ein automatisch gesetztes Haus verschieben).
  */
-export function docForSave(d: Draft, settlement: Settlement): WorldDoc {
+export function docForSave(
+  d: Draft,
+  settlement: Settlement,
+  invalidTrees: readonly number[] = [],
+): WorldDoc {
+  // Eckpunkte und versetzte Bäume, die in der Entwurfswelt nicht gelten, nicht speichern (die Szene zeigt den
+  // Weg ohne Eckpunkt bzw. den Baum am Seed-Platz; der Server würde sie ablehnen)
+  const trees = { ...d.trees };
+  for (const i of invalidTrees) delete trees[String(i)];
   return {
     v: 1,
     ...pinsFromSettlement(settlement),
     deko: d.deko,
     varianten: d.varianten,
-    ...extras(d),
+    ...extras({ ...d, bends: withoutBends(d.bends, settlement.droppedBends), trees }),
   };
 }
 

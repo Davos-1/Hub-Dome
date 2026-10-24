@@ -7,7 +7,7 @@ import { FACHBEREICHE, type FachbereichId } from "@/lib/fachbereiche";
 import { worldDocSchema, type WorldDoc } from "@/lib/world/doc";
 import { generateWorld, type World } from "@/lib/world/generate";
 import { checkVarianten } from "@/lib/world/kit";
-import { pruneDoc } from "@/lib/world/layout-houses";
+import { dropStale, pruneDoc } from "@/lib/world/layout-houses";
 import { pinsFromSettlement } from "@/lib/world/settlement";
 import { GENERATOR_VERSION, seedSchema } from "@/lib/world/seed";
 import { loadOwnWorld, writeWorld } from "@/lib/world/server-data";
@@ -77,15 +77,23 @@ export async function saveWorld(input: unknown): Promise<SaveWorldResult> {
   const own = await loadOwnWorld(supabase, user.id);
   if (!own.ok) return { error: loadError(own.reason, TXT.keineTabelleSpeichern) };
 
-  const doc = pruneDoc(parsed.data, new Set(own.houses.map((h) => h.id)));
+  let doc = pruneDoc(parsed.data, new Set(own.houses.map((h) => h.id)));
   if (JSON.stringify(doc).length > MAX_DOC_CHARS) return { error: TXT.zuGross };
 
-  const world = generateWorld({
-    seed: own.world.seed,
-    version: own.world.version,
-    houses: own.houses,
+  const gen = (d: WorldDoc) =>
+    generateWorld({ seed: own.world.seed, version: own.world.version, houses: own.houses, doc: d });
+  let world = gen(doc);
+  // Gespeicherte Eckpunkte und Bäume, die erst durch spätere Häuser ungültig wurden, blockieren nicht
+  const fresh = dropStale(
     doc,
-  });
+    own.world.doc,
+    world.settlement.droppedBends,
+    world.invalidTreeMoves,
+  );
+  if (fresh) {
+    doc = fresh;
+    world = gen(doc);
+  }
   const abgewiesen = [...rejections(world), ...checkVarianten(own.houses, doc.varianten)];
   if (abgewiesen.length) return { error: TXT.passtNicht, abgewiesen };
 

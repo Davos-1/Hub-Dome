@@ -208,14 +208,31 @@ export function createBuildStore(doc: WorldDoc) {
     return null;
   };
 
+  /**
+   * Eigene Deko verdrängt sonst Bäume; ein versetzter Baum ist aber eine bewusste Wahl (wie in
+   * `vegetationVisible`: 0.4 m Abstand zum Baumkreis).
+   */
+  const onMovedTree = (g: Ghost): Ghost => {
+    if (!g.ok || !world) return g;
+    const shape = dekoShape(g.item);
+    for (const [k, m] of Object.entries(state.history.present.trees)) {
+      const t = world.vegetation.trees.find((v) => v.i === Number(k));
+      if (t && pointShapeDist(m.x, m.z, shape) < treeRadius(t.kind, t.s) + 0.4)
+        return { ...g, ok: false, grund: "auf einem versetzten Baum" };
+    }
+    return g;
+  };
+
   /** Prüft das Element an (x, z): neues Element des Werkzeugs oder das gerade versetzte. */
   const probe = (x: number, z: number): Ghost | null => {
     if (!world) return null;
     if (state.tool) {
-      return ghostAt(world.editSpace, { id: "neu", typ: state.tool, x, z, r: state.rot });
+      return onMovedTree(
+        ghostAt(world.editSpace, { id: "neu", typ: state.tool, x, z, r: state.rot }),
+      );
     }
     const it = state.moving ? selectedItem() : undefined;
-    return it ? ghostAt(world.editSpace, { ...it, x, z }) : null;
+    return it ? onMovedTree(ghostAt(world.editSpace, { ...it, x, z })) : null;
   };
 
   /** Vorschau beim Ziehen an (x, z). */
@@ -243,18 +260,23 @@ export function createBuildStore(doc: WorldDoc) {
   const isV2 = () => (world?.map.version ?? 1) >= 2;
   const isV3 = () => (world?.version ?? 1) >= 3;
 
-  /** Baum an (x, z): passt er? (Register nach Häusern, Wegen und Deko, wie beim Erzeugen.) */
+  /** Baum an (x, z): passt er? (Register samt Laternen, Hühnerhof und Platz-Ausstattung, wie beim Erzeugen.) */
   const treeOk = (i: number, x: number, z: number) => {
     const t = world?.vegetation.trees.find((v) => v.i === i);
     if (!world || !t) return false;
-    if (!treeFits(world.editSpace, t, x, z)) return false;
-    // Nicht in einen anderen Baum
+    if (!treeFits(world.vegSpace, t, x, z)) return false;
+    // Nicht in einen anderen Baum (0.15 m Luft wie zwischen versetzten Bäumen)
     return !world.vegetation.trees.some(
       (o) =>
         o.i !== i &&
-        Math.hypot(o.x - x, o.z - z) < treeRadius(o.kind, o.s) + treeRadius(t.kind, t.s),
+        Math.hypot(o.x - x, o.z - z) < treeRadius(o.kind, o.s) + treeRadius(t.kind, t.s) + 0.15,
     );
   };
+  /** Neue ungültige Bäume bzw. Eckpunkte in der Probewelt (gegenüber der heutigen Entwurfswelt)? */
+  const newInvalid = (w: World) => ({
+    trees: w.invalidTreeMoves.some((i) => !world?.invalidTreeMoves.includes(i)),
+    bends: w.settlement.droppedBends.some((id) => !world?.settlement.droppedBends.includes(id)),
+  });
 
   const build = {
     get: () => state,
@@ -274,7 +296,7 @@ export function createBuildStore(doc: WorldDoc) {
       set({
         ...initial(d),
         // Heutige Lage aller Quartiere und Häuser fixieren: im Bau-Modus bewegt sich nur, was man selbst bewegt
-        history: startHistory(draftFromDoc(d, world?.settlement)),
+        history: startHistory(draftFromDoc(d, world?.settlement, world?.invalidTreeMoves)),
         active: true,
         message: "Haus ziehen oder Quartier-Griff ziehen",
       }),
@@ -654,22 +676,28 @@ export function createBuildStore(doc: WorldDoc) {
       change({ ...state.history.present, trees: {} }, "Alle Bäume am Seed-Platz", {
         point: null,
       }),
+    /** Eckpunkt oder Baum nur angeklickt, nicht gezogen: nichts ändern. */
+    releasePoint: () => set({ point: null, bad: false }),
     /** Baum oder Eckpunkt ablegen: an der Probewelt prüfen, sonst zurücksetzen. */
     dropPoint: (x: number, z: number) => {
       const p = state.point;
       if (!p) return;
+      const d = state.history.present;
+      const was = p.kind === "baum" ? d.trees[String(p.i)] : d.bends[p.houseId];
+      if (was && Math.hypot(was.x - x, was.z - z) < 0.01)
+        return set({ point: null, message: "", bad: false });
       if (p.kind === "baum") {
         if (!treeOk(p.i, x, z))
           return fail("Zurückgesetzt: nicht auf Haus, Weg oder Baum", { point: null });
-        const next = moveTree(state.history.present, p.i, { x, z });
+        const next = moveTree(d, p.i, { x, z });
         const w = trial(next);
-        if (w?.invalidTreeMoves.includes(p.i))
+        if (!w || newInvalid(w).trees)
           return fail("Zurückgesetzt: Der Baum passt dort nicht.", { point: null });
         return change(next, "Baum versetzt", { point: null });
       }
-      const next = setBend(state.history.present, p.houseId, { x, z });
+      const next = setBend(d, p.houseId, { x, z });
       const w = trial(next);
-      if (!w || w.settlement.droppedBends.includes(p.houseId) || problem(w))
+      if (!w || w.settlement.droppedBends.includes(p.houseId) || newInvalid(w).bends || problem(w))
         return fail("Zurückgesetzt: Der Weg über diesen Eckpunkt geht nicht.", { point: null });
       change(next, "Weg angepasst", { point: null });
     },

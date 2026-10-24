@@ -334,7 +334,9 @@ export default function VillageScene(props: SceneProps) {
     () => [0, layout.extent * 1.0 + 11, layout.extent * 1.38 + 16] as [number, number, number],
     [layout.extent],
   );
-  const maxDistance = layout.extent * 2.4 + 30;
+  // Bau-Modus: Der Plan von oben braucht mehr Abstand als die Übersicht (Hochformat bis ~6 × Ausdehnung);
+  // sonst kürzt `controls.update()` die Kamera auf die Grenze und der Kreis passt nicht in den Ausschnitt
+  const maxDistance = layout.extent * (building ? 8 : 2.4) + 30;
 
   return (
     <Canvas
@@ -350,10 +352,11 @@ export default function VillageScene(props: SceneProps) {
       }}
       onPointerMissed={(e) => onMissed?.(e)}
     >
+      {/* Bau-Modus: wie die Karte ohne Dunst (aus 250 m Abstand und mehr würde er den Plan ausbleichen) */}
       <Daylight
         time={timeKey}
         extent={layout.extent}
-        map={map}
+        map={map || building}
         lowDetail={lowDetail}
         tint={world.map.params?.tint ?? 0}
       />

@@ -410,4 +410,15 @@ describe("saveWorld (v3: Wegformen, Eckpunkte, Bäume)", () => {
     expect(ids.some((id) => id.startsWith("eckpunkt:"))).toBe(true);
     expect(mocks.writeWorld).not.toHaveBeenCalled();
   });
+
+  it("ein gespeicherter Baum, auf dem inzwischen ein Haus steht, blockiert das Speichern nicht", async () => {
+    const w = generateWorld({ seed, version: 3, houses });
+    const house = Object.values(w.settlement.houses)[0];
+    const tree = w.vegetation.trees[0];
+    // So gespeichert (damals gültig), heute steht dort ein Haus: unverändert → still entfernt
+    const moves = { [String(tree.i)]: { x: house.x, z: house.z } };
+    mocks.loadOwnWorld.mockResolvedValue(own(seed, { v: 1, treeMoves: moves }, true, 3));
+    expect(await saveWorld(pinned({ treeMoves: moves }))).toEqual({ ok: true });
+    expect(mocks.writeWorld.mock.calls[0][2].placements.treeMoves).toBeUndefined();
+  });
 });
