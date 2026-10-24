@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createTestUser, deleteTestUser, loginAs, type E2EUser } from "./helpers";
 
-// Abnahme Freundschaftslink: A erzeugt einen Link, B öffnet ihn, nimmt an und landet in A's Dorf;
+// Abnahme Freundschaftslink: A erzeugt einen Link (Reise-Karte), B öffnet ihn, nimmt an und landet in A's Dorf;
 // danach ist der Link mit einer Nutzung aufgebraucht, ein Dritter sieht die klare Meldung.
 
 let a: E2EUser;
@@ -27,31 +27,36 @@ test("Freundschaftslink erzeugen, annehmen, aufgebraucht und widerrufen", async 
   const pc = await ctxC.newPage();
   pa.on("dialog", (d) => d.accept());
 
-  // A: Link erzeugen (eine Person)
-  await pa.goto(`/dorf/${a.username}?d=reise&t=freunde`);
-  const dlgA = pa.getByRole("dialog", { name: "Reise und Freunde" });
-  await expect(dlgA).toBeVisible({ timeout: 30_000 });
+  // A: Reise-Karte öffnen (Leiste unten), Link erzeugen (eine Person)
+  await pa.goto(`/dorf/${a.username}`);
+  await expect(pa.locator("canvas")).toBeVisible({ timeout: 60_000 });
+  await pa.getByRole("button", { name: /^Reise und Freunde/ }).click();
+  const dlgA = pa.getByRole("dialog", { name: "Reise", exact: true });
+  await expect(dlgA).toBeVisible();
   await dlgA.getByRole("button", { name: "Link erstellen" }).click();
   const url = await dlgA.getByLabel("Link", { exact: true }).inputValue();
   expect(url).toContain("/freund/");
   await expect(dlgA.getByText(/0\/1 genutzt/)).toBeVisible({ timeout: 20_000 });
 
-  // B: öffnet den Link, sieht den Absender, nimmt an und landet in A's Dorf
+  // B: öffnet den Link, sieht den Absender, nimmt an und landet in A's Dorf (Besuchsband)
   await pb.goto(new URL(url).pathname);
   const dlgB = pb.getByRole("dialog", { name: "Freundschaftsanfrage" });
   await expect(dlgB.getByText(`@${a.username}`).first()).toBeVisible({ timeout: 30_000 });
   await dlgB.getByRole("button", { name: "Freundschaft annehmen" }).click();
   await expect(pb).toHaveURL(new RegExp(`/dorf/${a.username}$`), { timeout: 30_000 });
-  await expect(pb.getByRole("status").getByText("nur zum Ansehen")).toBeVisible({
-    timeout: 30_000,
-  });
+  const band = pb.getByRole("status").filter({ hasText: "Zurück in mein Dorf" });
+  await expect(band.getByText("nur ansehen")).toBeVisible({ timeout: 30_000 });
+  await expect(band.getByText("Du besuchst")).toBeVisible();
 
-  // A: B ist jetzt Freund, der Link ist aufgebraucht
-  await pa.goto(`/dorf/${a.username}?d=reise&t=freunde`);
-  await expect(pa.getByRole("dialog").getByText(/Deine Freunde \(1\)/)).toBeVisible({
+  // A: B ist jetzt Freund (Insel auf der Reise-Karte), der Link ist aufgebraucht
+  await pa.goto(`/dorf/${a.username}`);
+  await expect(pa.locator("canvas")).toBeVisible({ timeout: 60_000 });
+  await pa.getByRole("button", { name: /^Reise und Freunde/ }).click();
+  const dlgA2 = pa.getByRole("dialog", { name: "Reise", exact: true });
+  await expect(dlgA2.getByRole("button", { name: new RegExp(`Dorf von ${b.name}`) })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(pa.getByRole("dialog").getByText(/1\/1 genutzt/)).toBeVisible();
+  await expect(dlgA2.getByText(/1\/1 genutzt/)).toBeVisible();
 
   // C: der aufgebrauchte Link zeigt eine klare Meldung und nimmt nichts an
   await pc.goto(new URL(url).pathname);

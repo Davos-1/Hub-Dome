@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createTestUser, deleteTestUser, loginAs, type E2EUser } from "./helpers";
 
 // Abnahme Phase 5b: B übernimmt ein Objekt von A ins eigene Dorf (mit neuem Modulhaus), verknüpft eine
@@ -26,7 +26,9 @@ test.beforeAll(async () => {
   ]);
   moduleTitle = mod!.title;
   // Freundschaft direkt anlegen (Ablauf selbst testet freigabe.spec)
-  await admin.from("friendships").insert({ requester_id: a.id, addressee_id: b.id, status: "accepted" });
+  await admin
+    .from("friendships")
+    .insert({ requester_id: a.id, addressee_id: b.id, status: "accepted" });
   await admin.from("village_access").insert([
     { village_id: va!.id, viewer_id: b.id },
     { village_id: vb!.id, viewer_id: a.id },
@@ -62,36 +64,53 @@ const opened = async () =>
       .eq("event", "geoeffnet")
   ).data?.length ?? 0;
 
+/** Welt eines Dorfs laden, Objekt über die Suche (Strg+K) öffnen: die Tafel zeigt das Objekt. */
+async function openObject(page: Page, username: string) {
+  await page.goto(`/dorf/${username}`);
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 60_000 });
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Suchen" });
+  await palette.getByRole("combobox").fill("Spannungsrechner");
+  await palette.getByRole("option").first().click();
+  const tafel = page.getByRole("dialog", { name: "Spannungsrechner", exact: true });
+  await expect(tafel).toBeVisible({ timeout: 30_000 });
+  return tafel;
+}
+
 test("Übernehmen mit neuem Modulhaus, eigene Version verknüpfen", async ({ browser }) => {
   test.setTimeout(240_000);
   const ctx = await browser.newContext();
   await loginAs(ctx, b);
   const page = await ctx.newPage();
 
-  await page.goto(`/dorf/${a.username}?d=liste`);
-  const list = page.getByRole("dialog", { name: "Liste" });
-  await expect(list.getByText("Spannungsrechner")).toBeVisible({ timeout: 30_000 });
-  await list.getByRole("button", { name: "In mein Dorf" }).click();
-  await list.getByRole("button", { name: `Haus «${moduleTitle}» anlegen und übernehmen` }).click();
-  await expect(list.getByText(`In «${moduleTitle}» übernommen`)).toBeVisible({ timeout: 30_000 });
+  // Fremdes Objekt: «In mein Dorf» steht in der Objekt-Tafel, mit Hausvorschlag (gleiches Modul)
+  const theirs = await openObject(page, a.username);
+  await theirs.getByRole("button", { name: /^In mein Dorf/ }).click();
+  await theirs
+    .getByRole("button", { name: `Haus «${moduleTitle}» anlegen und übernehmen` })
+    .click();
+  await expect(theirs.getByText(`In «${moduleTitle}» übernommen`)).toBeVisible({
+    timeout: 30_000,
+  });
 
-  await page.goto(`/dorf/${b.username}?d=liste`);
-  const mine = page.getByRole("dialog", { name: "Liste" });
+  // Eigenes Dorf: das Objekt zeigt seine Herkunft
+  const mine = await openObject(page, b.username);
   await expect(mine.getByText(`übernommen von @${a.username}`)).toBeVisible({ timeout: 30_000 });
 
-  await mine.getByRole("button", { name: "Bearbeiten", exact: true }).click();
-  const edit = page.getByRole("dialog", { name: "Objekt bearbeiten" });
+  // Bei einer Übernahme heisst «Bearbeiten» «Eigene Version»: Link der eigenen Version verknüpfen (Schritt 1)
+  await mine.getByRole("button", { name: "Eigene Version", exact: true }).click();
+  const edit = page.getByRole("dialog", { name: "Spannungsrechner", exact: true });
   await expect(edit.getByText("Eigene Version verknüpfen:")).toBeVisible();
+  await edit.getByRole("tab", { name: /^1 Link/ }).click();
   await edit
-    .getByLabel("Link")
+    .getByRole("textbox", { name: /^Link/ })
     .fill(`https://claude.ai/artifact/${randomBytes(8).toString("hex")}`);
   await edit.getByRole("button", { name: "Speichern" }).click();
-  await expect(edit).toHaveCount(0, { timeout: 30_000 });
+  // Danach zeigt die Tafel wieder das Objekt (ohne Formular)
+  await expect(edit.getByText("Eigene Version verknüpfen:")).toHaveCount(0, { timeout: 30_000 });
 
-  await page.goto(`/dorf/${b.username}?d=liste`);
-  await expect(
-    page.getByRole("dialog", { name: "Liste" }).getByText(`basiert auf @${a.username}`),
-  ).toBeVisible({ timeout: 30_000 });
+  const based = await openObject(page, b.username);
+  await expect(based.getByText(`basiert auf @${a.username}`)).toBeVisible({ timeout: 30_000 });
   await ctx.close();
 });
 

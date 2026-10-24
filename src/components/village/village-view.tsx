@@ -721,7 +721,7 @@ function VillageShell(props: Props) {
                 <ZoomSlider
                   overlay={overlay}
                   over={over}
-                  onInventory={props.isOwner ? openInv : () => {}}
+                  onInventory={props.isOwner ? openInv : undefined}
                 />
               )}
               <HintCard

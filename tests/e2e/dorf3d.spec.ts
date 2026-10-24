@@ -92,9 +92,10 @@ test("grosses Dorf: Szene rendert, Aufwand bleibt klein, Navigation Dorf › Qua
   const time = page.getByRole("button", { name: /^Tageszeit:/ });
   // Der erste Klick auf die Tageszeit heisst «Fest» und wird im Profil gespeichert (Server Action)
   const persisted = page
-    .waitForResponse((r) => r.request().method() === "POST" && "next-action" in r.request().headers(), {
-      timeout: 20_000,
-    })
+    .waitForResponse(
+      (r) => r.request().method() === "POST" && "next-action" in r.request().headers(),
+      { timeout: 20_000 },
+    )
     .catch(() => null);
   for (let i = 0; i < 5; i++) {
     if (/^Tageszeit: Abend\./.test((await time.getAttribute("aria-label")) ?? "")) break;

@@ -40,7 +40,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const pending = useRef<Pending | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const frame = useRef(0);
   const seq = useRef(0);
 
   const flush = useCallback(() => {
@@ -50,13 +50,25 @@ export function UiProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const show = useCallback((t: Omit<Toast, "id">, ms: number, onEnd?: () => void) => {
-    if (timer.current) clearTimeout(timer.current);
+    cancelAnimationFrame(frame.current);
     const id = ++seq.current;
     setToast({ ...t, id });
-    timer.current = setTimeout(() => {
-      setToast((cur) => (cur?.id === id ? null : cur));
-      onEnd?.();
-    }, ms);
+    // Gezählt wird nur sichtbare Zeit: je gezeichnetem Bild höchstens 100 ms. Nach Löschen oder Verschieben baut
+    // sich die Welt neu auf; das blockiert auf langsamen Geräten Sekunden, die sonst von «Rückgängig» abgingen.
+    // Im Hintergrund-Tab ruht die Zeit (Ausstehendes läuft spätestens beim Verlassen der Seite).
+    let elapsed = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      elapsed += Math.min(Math.max(0, now - last), 100);
+      last = now;
+      if (elapsed >= ms) {
+        setToast((cur) => (cur?.id === id ? null : cur));
+        onEnd?.();
+        return;
+      }
+      frame.current = requestAnimationFrame(tick);
+    };
+    frame.current = requestAnimationFrame(tick);
   }, []);
 
   const say = useCallback<Ui["say"]>(
@@ -75,7 +87,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       const undo = () => {
         if (pending.current?.ids === ids) pending.current = null;
         setHidden((h) => new Set([...h].filter((x) => !ids.includes(x))));
-        if (timer.current) clearTimeout(timer.current);
+        cancelAnimationFrame(frame.current);
         setToast(null);
       };
       show({ text, undo }, ms, flush);
@@ -88,6 +100,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
     window.addEventListener("pagehide", flush);
     return () => {
       window.removeEventListener("pagehide", flush);
+      cancelAnimationFrame(frame.current);
       flush();
     };
   }, [flush]);

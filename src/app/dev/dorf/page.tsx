@@ -175,7 +175,7 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
           house_id: h.id,
           owner_id: "u",
           url: `https://example.com/${hi}/${i}`,
-          title: `Objekt ${hi + 1}.${i + 1}`,
+          title: `Objekt ${hi}.${i + 1}`, // Haus N trägt «Objekt N.x» (Index 0 ist die Zentrale)
           description: null,
           kind: KINDS[i % KINDS.length],
           item_type: TYPES[(hi + i) % TYPES.length],

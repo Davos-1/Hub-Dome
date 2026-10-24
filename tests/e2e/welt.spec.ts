@@ -180,7 +180,9 @@ test("Liste als Seitenleiste: Suche, Kategorie, Tastenkürzel und Haus zeigen", 
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("navigation", { name: "Ebene im Dorf" }).getByRole("button")).toHaveCount(1);
+    await expect(
+      page.getByRole("navigation", { name: "Ebene im Dorf" }).getByRole("button"),
+    ).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(list).toHaveCount(0);
   } finally {
@@ -208,10 +210,9 @@ test("Haus löschen lässt sich rückgängig machen", async ({ browser }) => {
       .getByRole("button", { name: /löschen$/ })
       .click();
 
-    // Die Meldung steht nur 5 s und die Welt baut sich dabei neu auf: das Klick-Ereignis direkt auslösen, ohne zu warten,
-    // bis der Knopf «still steht»
+    // Die 5 s für «Rückgängig» laufen erst, wenn die Meldung zu sehen ist (auch wenn sich die Welt lange neu aufbaut)
     const gone = page.getByRole("status").filter({ hasText: "Haus «Haus 1» gelöscht" });
-    await gone.getByRole("button", { name: "Rückgängig" }).dispatchEvent("click");
+    await gone.getByRole("button", { name: "Rückgängig" }).click();
     await expect(gone).toHaveCount(0);
 
     // Haus und Objekt sind wieder da, auch nach dem Neuladen (so lange hätte das Löschen gedauert)

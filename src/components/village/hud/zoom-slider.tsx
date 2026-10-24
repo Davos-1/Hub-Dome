@@ -8,7 +8,8 @@ export const ZOOM_END = 0.985;
 /**
  * Zoomregler rechts (Phase 4h): halb durchsichtig, beim Darüberfahren voll. Plus, Spur mit Knopf (oben = nah),
  * Minus und am Ende «INV»: Herauszoomen bis zum Anschlag öffnet das Inventar. `over` (0–100) füllt den
- * Hinweis, solange am Anschlag weiter herausgezoomt wird.
+ * Hinweis, solange am Anschlag weiter herausgezoomt wird. Ohne `onInventory` (Besucher) gibt es kein Inventar:
+ * kein «INV», Minus am Anschlag ist gesperrt.
  */
 export function ZoomSlider({
   overlay,
@@ -17,7 +18,7 @@ export function ZoomSlider({
 }: {
   overlay: OverlayStore;
   over: number;
-  onInventory: () => void;
+  onInventory?: () => void;
 }) {
   const zoom = useOverlay(overlay, (s) => s.zoom);
   const atEnd = zoom >= ZOOM_END;
@@ -49,25 +50,28 @@ export function ZoomSlider({
       </div>
       <button
         type="button"
-        aria-label={atEnd ? "Inventar öffnen" : "Weiter weg"}
-        className={btn}
-        onClick={() => (atEnd ? onInventory() : overlay.zoomBy(1.25))}
+        aria-label={atEnd && onInventory ? "Inventar öffnen" : "Weiter weg"}
+        className={`${btn} disabled:cursor-default disabled:opacity-45`}
+        disabled={atEnd && !onInventory}
+        onClick={() => (atEnd ? onInventory?.() : overlay.zoomBy(1.25))}
       >
         −
       </button>
-      <button
-        type="button"
-        onClick={onInventory}
-        aria-label="Inventar"
-        className={`hd-mono cursor-pointer rounded-hd-ctl border px-1.5 py-[5px] text-[9.5px] font-semibold tracking-[0.06em] ${
-          atEnd
-            ? "border-hd-accent bg-hd-accent text-hd-accent-ink"
-            : "border-hd-line bg-hd-surface text-hd-muted"
-        }`}
-      >
-        INV
-      </button>
-      {atEnd && over > 0 && (
+      {onInventory && (
+        <button
+          type="button"
+          onClick={onInventory}
+          aria-label="Inventar"
+          className={`hd-mono cursor-pointer rounded-hd-ctl border px-1.5 py-[5px] text-[9.5px] font-semibold tracking-[0.06em] ${
+            atEnd
+              ? "border-hd-accent bg-hd-accent text-hd-accent-ink"
+              : "border-hd-line bg-hd-surface text-hd-muted"
+          }`}
+        >
+          INV
+        </button>
+      )}
+      {onInventory && atEnd && over > 0 && (
         <div
           role="status"
           className="absolute right-[46px] bottom-0 flex w-[190px] flex-col gap-1.5 rounded-hd-ctl bg-hd-accent px-2.5 py-2 text-[12.5px] font-bold text-hd-accent-ink"
