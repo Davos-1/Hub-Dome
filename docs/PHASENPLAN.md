@@ -1,12 +1,12 @@
 # Hub Dome – Phasenplan (aktueller Stand, Reihenfolge verbindlich)
 
-Dieses Dokument fasst `PLAN.md`, `PLAN-ERWEITERUNG.md` und `PLAN-ERWEITERUNG-2.md` zu **einer** Reihenfolge zusammen. Details stehen in den jeweiligen Plänen, Entscheidungen in `docs/ENTSCHEIDUNGEN.md`. Stand: 2026-10-23 (Phase 4f eingefügt).
+Dieses Dokument fasst `PLAN.md`, `PLAN-ERWEITERUNG.md` und `PLAN-ERWEITERUNG-2.md` zu **einer** Reihenfolge zusammen. Details stehen in den jeweiligen Plänen, Entscheidungen in `docs/ENTSCHEIDUNGEN.md`. Stand: 2026-10-24 (Phase 4h abgeschlossen, Fokusregel gilt wieder).
 
 ## Fokusregel bis zum Pilot
 
 Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** (Tiere, Modelle, Effekte, neue Stile). Erlaubt sind Fehlerbehebungen, Performance und Barrierefreiheit. Vorrang hat, was den Alltagsnutzen bringt: Freunde verbinden, Objekte aus Claude platzieren, Objekte öffnen. Funktionale Kennzeichnungen, die eine Phase verlangt (z.B. das Übernahme-Band in 5b), gelten nicht als Gestaltung.
 
-**Ausnahme Phase 4f und 4g (Entscheid Gian, 2026-10-23) sowie 4h (Entscheid Gian, 2026-10-24):** Für diese Phasen ist bzw. war die Fokusregel aufgehoben (Begründung im Entscheidungslog). Nach dem Abschluss von 4h gilt sie wieder bis zum Pilot-Feedback.
+**Ausnahme Phase 4f und 4g (Entscheid Gian, 2026-10-23) sowie 4h (Entscheid Gian, 2026-10-24):** Für diese Phasen war die Fokusregel aufgehoben (Begründung im Entscheidungslog). **4h ist abgeschlossen; die Fokusregel gilt wieder** bis zum Pilot-Feedback.
 
 
 ## Reihenfolge
@@ -25,7 +25,7 @@ Bis Pilot-Feedback vorliegt (Phase 6): **keine neuen 3D-Gestaltungsfunktionen** 
 | 5b | Übernehmen + Nutzungsdaten (`/o/<id>`, `copy_artifact`, `item_events`) | PLAN-ERWEITERUNG-2.md Teil A | **fertig 2026-10-22** (Migration eingespielt, RLS 71/71, E2E grün) |
 | **4f** | **Die Welt auf das nächste Level:** Regelwerk mit Footprints und Property-Tests, Seed pro Dorf («Welt neu würfeln»), stabile Slots (neue Häuser verschieben nichts), Bau-Modus mit Live-Prüfung, mehr Detail, Nacht, Baukasten pro Haus, Deko-Katalog | docs/PHASE-4F-KONZEPT.md, docs/WELT-ANLEITUNG.md | **Code fertig 2026-10-23**, auf `main`, Migration `village_worlds` eingespielt; offen: E2E mit Datenbank nach Korrektur der Playwright-Konfiguration erneut laufen lassen |
 | **4g** | **Feinschliff der Welt:** Häuser frei im Quartier ziehen, Quartier verschieben, Wege mit Rückgrat und Stichwegen, Generator v2 (vielfältigere Landschaft, präsenter Fluss, Seed-Objekte), Berg-Panorama, ruhige Kamera, Zentrale ganz im Bild, neue Oberfläche | docs/PHASE-4G-KONZEPT.md | **Code fertig 2026-10-23** (Etappen 0–6, Oberfläche «Rauchglas» nach Gians Wahl); offen: Migration `20261023000200_world_v2_default.sql` einspielen, E2E mit Datenbank und RLS-Tests laufen lassen, Leistung der Unschärfe auf echter GPU prüfen |
-| **4h** | **Oberfläche «Werkbank»:** Petrol-Tokens, Hausauswahl mit Sucher und Kacheln, Tafeln am Haus, Liste mit Griff, Inventar mit Massenaktionen, Einstellungen und Reise als Vollbild, Bau-Modus als Plan mit Wegformen | docs/PHASE-4H-KONZEPT.md, docs/design_handoff_4h | **in Arbeit** (Start 2026-10-24) |
+| **4h** | **Oberfläche «Werkbank»:** Petrol-Tokens, Hausauswahl mit Sucher und Kacheln, Tafeln am Haus, Liste mit Griff, Inventar mit Massenaktionen, Einstellungen und Reise als Vollbild, Bau-Modus als Plan mit Wegformen | docs/PHASE-4H-KONZEPT.md, docs/design_handoff_4h, docs/WELT-ANLEITUNG.md | **Code fertig 2026-10-24** (Phasen A–E, Abschnitt 3, Generator v3 mit Wegformen, Eckpunkten und festen Bäumen); offen für Gian: Migrationen `20261023000200_world_v2_default.sql`, `20261024000100_quarter_override.sql`, `20261024000200_time_mode.sql`, `20261024000300_world_v3_default.sql` einspielen, danach RLS-Tests und E2E mit Datenbank (dorf3d, welt, freigabe, freundeslink, objekttypen, uebernehmen) laufen lassen; Handy-Ansicht folgt später |
 | 6 | Deployment, Pilot (vorher: eigener Mailversand, Google-Freigabe, nDSG-Hinweis, Konto löschen) | PLAN.md, docs/DEPLOYMENT.md | **Code fertig 2026-10-22** (Datenschutz, Konto löschen, RLS 74/74); offen: Dashboards (Gian), Deploy, Pilot |
 | 6b | Topdorf (erst ab ca. 10 aktiven Nutzern, bis dahin hinter `NEXT_PUBLIC_TOPDORF=true`) | PLAN-ERWEITERUNG-2.md Teil B | offen |
 | 7 | OAuth, Gruppendörfer, Likes, Saison-Bestenliste, Haus-Freigabe, eigene Modelle nur mit Prüfung | PLAN.md, PLAN-ERWEITERUNG-2.md Teil D | später |
