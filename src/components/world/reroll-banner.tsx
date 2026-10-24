@@ -53,12 +53,15 @@ export function RerollBanner({
     <div
       role="dialog"
       aria-label={upgrade ? "Vorschau: neue Welt-Version" : "Vorschau: neue Welt"}
-      className="hd-pop-in pointer-events-auto absolute top-16 left-1/2 z-30 flex w-[min(560px,calc(100vw-24px))] -translate-x-1/2 flex-col gap-2 hd-panel p-4"
+      className="hd-pop-in hd-box pointer-events-auto absolute top-16 left-1/2 z-30 flex w-[min(540px,calc(100vw-24px))] -translate-x-1/2 flex-col gap-2.5 p-4"
     >
-      <div className="hd-kicker !text-hd-muted">Vorschau · noch nicht gespeichert</div>
+      <div className="hd-kicker">Vorschau · noch nicht gespeichert</div>
       <div className="text-[17px] font-bold text-hd-ink">
         {upgrade ? "Neue Welt-Version" : "Neue Landschaft"}: {describeMap(model.world.map)}
       </div>
+      <p className="text-[12.5px] text-hd-muted">
+        Bäume und Gelände sind neu, deine Häuser behalten ihre Plätze, wo es passt.
+      </p>
       <label className="flex items-center gap-2 text-[13.5px] text-hd-ink-2">
         <input
           type="checkbox"
@@ -69,7 +72,7 @@ export function RerollBanner({
         Auch eigene Deko und Hausvarianten zurücksetzen
       </label>
       {lost > 0 && (
-        <p className="rounded-lg bg-hd-new px-3 py-2 text-[13px] text-hd-new-ink">
+        <p className="rounded-hd-ctl bg-hd-accent-soft px-3 py-2 text-[13px] text-hd-ink">
           {lost === 1 ? "1 eigenes Element passt" : `${lost} eigene Elemente passen`} nicht in die
           neue Landschaft und
           {lost === 1 ? " wird" : " werden"} beim Übernehmen entfernt.
@@ -78,7 +81,7 @@ export function RerollBanner({
       {error && (
         <p
           role="alert"
-          className="rounded-lg bg-hd-danger-soft px-3 py-2 text-[13px] text-hd-danger"
+          className="rounded-hd-ctl bg-hd-danger-soft px-3 py-2 text-[13px] text-hd-danger"
         >
           {error}
         </p>

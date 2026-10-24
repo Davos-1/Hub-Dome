@@ -32,6 +32,8 @@ export type SceneState = {
   listW: number;
   /** Inventar offen (Welt nur noch als Streifen oben). */
   inv: boolean;
+  /** Einstellungen offen: Welt ebenfalls nur als Streifen oben. */
+  strip: boolean;
   /** Kamera bleibt beim nächsten Ebenenwechsel stehen (Klick auf den Rasen hebt nur die Auswahl auf). */
   camHold: boolean;
   /** Erhöhen erzwingt eine neue Fahrt zur Pose der aktuellen Ebene (z.B. «Dorf» in den Brotkrumen). */
@@ -60,6 +62,7 @@ export const initialSceneState: SceneState = {
   tafel: null,
   listW: 0,
   inv: false,
+  strip: false,
   camHold: false,
   flyNonce: 0,
   intro: false,

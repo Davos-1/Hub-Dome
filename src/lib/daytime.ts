@@ -84,6 +84,19 @@ export function timeKeyForHour(hour: number): TimeKey {
 /** Leuchten Laternen und Fenster (Abend, Nacht)? */
 export const isDark = (t: TimeKey) => t === "abend" || t === "nacht";
 
+const ZURICH_HOUR = new Intl.DateTimeFormat("de-CH", {
+  hour: "numeric",
+  hourCycle: "h23",
+  timeZone: "Europe/Zurich",
+});
+
+/** Stunde (0–23) in Zürich: «Auto» folgt der Uhrzeit dort, nicht der des Geräts (Phase 4h). */
+export function zurichHour(date: Date = new Date()): number {
+  // formatToParts: «de-CH» schreibt «14 Uhr»
+  const h = Number(ZURICH_HOUR.formatToParts(date).find((p) => p.type === "hour")?.value);
+  return Number.isFinite(h) ? h % 24 : date.getHours();
+}
+
 export function resolveTime(setting: TimeSetting, hour: number): TimeKey {
   return setting === "auto" ? timeKeyForHour(hour) : setting;
 }

@@ -61,3 +61,24 @@ export async function requestAccountDeletion(
   await supabase.auth.signOut();
   redirect("/login?loeschung=1");
 }
+
+const timeModeSchema = z.enum(["auto", "fest"]);
+
+/**
+ * Tageszeit-Modus der Person (Phase 4h): «auto» folgt der Uhrzeit in Zürich, «fest» behält die Wahl aus der
+ * Leiste. Gilt für alle Geräte (Spalte `profiles.time_mode`).
+ */
+export async function setTimeMode(input: unknown): Promise<ActionState> {
+  const mode = timeModeSchema.safeParse(input);
+  if (!mode.success) return { error: "Ungültige Eingabe." };
+  const { supabase, user } = await requireUser();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ time_mode: mode.data })
+    .eq("id", user.id)
+    .select("id");
+  if (error?.code === "PGRST204" || error?.code === "42703")
+    return { error: "Die Tageszeit lässt sich erst nach dem Datenbank-Update speichern." };
+  if (error || !data?.length) return { error: "Die Tageszeit konnte nicht gespeichert werden." };
+  return { ok: true };
+}

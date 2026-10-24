@@ -9,15 +9,17 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  useTransition,
   type ReactNode,
 } from "react";
 import { signOut } from "@/app/doerfer/actions";
+import { setTimeMode } from "@/app/einstellungen/actions";
 import type { ItemExtras } from "@/lib/item-extras";
 import type { ShellData } from "@/lib/shell-data";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { devPose } from "@/lib/camera-poses";
-import { resolveTime, type TimeKey } from "@/lib/daytime";
+import { resolveTime, zurichHour, type TimeKey } from "@/lib/daytime";
 import { buildVillageModel, type VillageModel, type WorldParams } from "@/lib/village-model";
 import { GENERATOR_VERSION } from "@/lib/world/seed";
 import { rerollWorld, saveWorld } from "@/app/dorf/welt-actions";
@@ -28,7 +30,6 @@ import { randomSeed } from "../world/world-settings";
 import type { FriendLinkInfo } from "../world/friend-link-dialog";
 import { useDialog } from "../world/use-dialog";
 import { ItemExtrasProvider } from "../world/item-extras";
-import { WelcomeBanner } from "../world/welcome-banner";
 import { WorldDialogs } from "../world/world-dialogs";
 import { BottomBar } from "./hud/bottom-bar";
 import { Breadcrumb } from "./hud/breadcrumb";
@@ -39,6 +40,7 @@ import { Selection } from "./hud/selection";
 import { TafelHost } from "./hud/tafel-host";
 import { Inventory } from "./hud/inventory";
 import { HouseTooltip } from "./hud/tooltip";
+import { TravelLoader, VisitBand } from "./hud/visit-band";
 import { TopRight } from "./hud/top-right";
 import { ToastView, UiProvider, useUi } from "./hud/ui-context";
 import { ZOOM_END, ZoomSlider } from "./hud/zoom-slider";
@@ -199,8 +201,10 @@ function VillageShell(props: Props) {
       ? null
       : dialog.id;
 
+  // Einstellungen und Reise sind Vollbild-Bereiche: die Oberfläche der Welt tritt zurück
+  const screen = active === "einstellungen" || active === "reise" ? active : null;
   const [now] = useState(() => Date.now());
-  const [hour] = useState(() => new Date().getHours());
+  const [hour] = useState(() => zurichHour());
   // «Welt neu würfeln»: Vorschau mit neuem Seed (Fixierungen entfallen; Deko bleibt, ausser «zurücksetzen»)
   const [preview, setPreview] = useState<string | null>(null);
   const [resetPlacements, setResetPlacements] = useState(false);
@@ -244,6 +248,9 @@ function VillageShell(props: Props) {
   const time = useScene(store, (s) => s.time);
   const navLevel = useScene(store, (s) => s.nav.level);
   const [palette, setPalette] = useState(false);
+  const [timeMode, setMode] = useState(shell.me.timeMode);
+  const [traveling, startTravel] = useTransition();
+  const [travelTo, setTravelTo] = useState("");
   const [over, setOver] = useState(0);
   const overTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerDown = useRef<{ x: number; y: number } | null>(null);
@@ -338,12 +345,22 @@ function VillageShell(props: Props) {
       store.set({ time: devZeit });
       return;
     }
-    store.set(loadSettings());
+    // Tageszeit: «Auto» (Profil) folgt Zürich; «Fest» behält die zuletzt gewählte Zeit dieses Browsers
+    const loaded = loadSettings();
+    if (shell.me.timeMode === "auto") loaded.time = "auto";
+    else if (!loaded.time || loaded.time === "auto")
+      loaded.time = resolveTime("auto", zurichHour());
+    store.set(loaded);
     return store.subscribe(() => {
       const s = store.get();
       saveSettings({ view: s.view, time: s.time, filter: s.filter });
     });
+    // Nur beim Laden: der Modus kommt aus dem Profil
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, devZeit]);
+
+  // Einstellungen offen: Welt als Streifen oben (wie im Inventar)
+  useEffect(() => store.set({ strip: active === "einstellungen" }), [store, active]);
 
   // Entwickler-Vorschau: feste Kamerapose (Übersicht, Vogel, Strasse, Quartier, Haus eines Typs)
   useEffect(() => {
@@ -407,6 +424,14 @@ function VillageShell(props: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector("[data-hd-dialog]")) return;
+      // Vollbild-Bereiche: Esc schliesst, alles andere gehört dem Bereich
+      if (screen) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          dialog.close();
+        }
+        return;
+      }
       // Im Bau-Modus gehören Pfeile, Enter und Esc der Werkzeugleiste
       if (store.get().building) return;
       const target = e.target as HTMLElement | null;
@@ -460,7 +485,18 @@ function VillageShell(props: Props) {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [store, actions, toggleList, toggleInv, closeInv, startBuild, props.isOwner, preview]);
+  }, [
+    store,
+    actions,
+    toggleList,
+    toggleInv,
+    closeInv,
+    startBuild,
+    props.isOwner,
+    preview,
+    screen,
+    dialog,
+  ]);
 
   // Weiter herauszoomen am Anschlag füllt den Hinweis; voll = Inventar (nur Besitzer)
   const onWheel = (e: React.WheelEvent) => {
@@ -493,6 +529,16 @@ function VillageShell(props: Props) {
     [props.extras, props.isOwner, houses],
   );
   const timeKey = resolveTime(time, hour);
+  /** Tageszeit-Modus wechseln (Einstellungen) und im Profil speichern (nicht in der Entwickler-Vorschau). */
+  const changeMode = (m: "auto" | "fest") => {
+    setMode(m);
+    store.set({ time: m === "auto" ? "auto" : resolveTime(store.get().time, zurichHour()) });
+    if (!props.dev) void setTimeMode(m).then((r) => r.error && ui.say(r.error, { error: true }));
+  };
+  const travel = (username: string) => {
+    setTravelTo(username);
+    startTravel(() => router.push(`/dorf/${encodeURIComponent(username)}`));
+  };
   const openSettings = (tab = "profil") => dialog.open("einstellungen", { tab });
   const openTravel = () => dialog.open("reise");
   const addHouse = props.isOwner ? () => actions.openLooseTafel("hausneu") : undefined;
@@ -569,7 +615,7 @@ function VillageShell(props: Props) {
           inert={hudHidden}
           aria-hidden={hudHidden || undefined}
         >
-          {!building && (
+          {!building && !screen && (
             <>
               <ListPanel
                 model={model}
@@ -638,7 +684,17 @@ function VillageShell(props: Props) {
                   actions={actions}
                   timeKey={timeKey}
                   timeAuto={time === "auto"}
-                  onTime={(next) => store.set({ time: next })}
+                  onTime={(next) => {
+                    store.set({ time: next });
+                    // Ein Klick auf die Tageszeit heisst «Fest»
+                    if (timeMode === "auto") {
+                      setMode("fest");
+                      if (!props.dev)
+                        void setTimeMode("fest").then(
+                          (r) => r.error && ui.say(r.error, { error: true }),
+                        );
+                    }
+                  }}
                   friendRequests={friendRequests}
                   onTravel={openTravel}
                   onSettings={() => openSettings()}
@@ -714,15 +770,12 @@ function VillageShell(props: Props) {
               }}
             />
           )}
-          {/* Begrüssung für Besucher (nicht in fixen Entwickler-Ansichten, sie verdeckt die Szene) */}
-          {!props.isOwner && active === null && !devKamera && (
-            <WelcomeBanner
+          {/* Besuchsband (nicht in fixen Entwickler-Ansichten, es verdeckt die Szene) */}
+          {!props.isOwner && !screen && !devKamera && (
+            <VisitBand
               villageName={props.villageName}
               ownerName={props.ownerName}
-              ownerUsername={ownerUsername}
-              onHome={() => {
-                router.push(ownVillage ? `/dorf/${ownVillage.ownerUsername}` : "/start");
-              }}
+              onHome={() => travel(ownVillage?.ownerUsername ?? shell.me.username)}
             />
           )}
           <ToastView />
@@ -754,7 +807,11 @@ function VillageShell(props: Props) {
             actions.openLooseTafel("hausneu");
           }}
           onPreviewSeed={setPreview}
+          timeMode={timeMode}
+          onTimeMode={changeMode}
+          onTravel={travel}
         />
+        {traveling && <TravelLoader to={travelTo} />}
       </div>
     </ItemExtrasProvider>
   );

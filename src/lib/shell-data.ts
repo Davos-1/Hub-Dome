@@ -46,7 +46,8 @@ export type ShellOwn = {
 };
 
 export type ShellData = {
-  me: { id: string; username: string; displayName: string };
+  /** `timeMode`: Tageszeit «auto» (Uhrzeit in Zürich) oder «fest» (Wahl in der Leiste), Phase 4h. */
+  me: { id: string; username: string; displayName: string; timeMode: "auto" | "fest" };
   villages: ShellVillage[];
   friends: ShellFriend[];
   links: ShellLink[];
@@ -132,7 +133,7 @@ async function loadTokens(supabase: SupabaseClient): Promise<ShellToken[]> {
  */
 export async function loadShell(
   supabase: SupabaseClient,
-  profile: { id: string; username: string; display_name: string },
+  profile: { id: string; username: string; display_name: string; time_mode?: string | null },
 ): Promise<ShellData> {
   const [villagesRes, ownRes, friends, links, tokens] = await Promise.all([
     supabase
@@ -185,7 +186,12 @@ export async function loadShell(
   }
 
   return {
-    me: { id: profile.id, username: profile.username, displayName: profile.display_name },
+    me: {
+      id: profile.id,
+      username: profile.username,
+      displayName: profile.display_name,
+      timeMode: profile.time_mode === "fest" ? "fest" : "auto",
+    },
     villages,
     friends,
     links,

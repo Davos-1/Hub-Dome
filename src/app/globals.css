@@ -545,6 +545,24 @@ body {
     animation: none;
   }
 }
+/* Ladebalken beim Reisen: läuft von links nach rechts (bei reduzierter Bewegung steht er) */
+@keyframes hd-travel {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+.hd-travel-bar {
+  animation: hd-travel 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hd-travel-bar {
+    animation: none;
+    width: 100%;
+  }
+}
 /* Bewegungen der Oberfläche: Auftritt der Kacheln mit leichtem Federn */
 @keyframes hd-rise {
   from {

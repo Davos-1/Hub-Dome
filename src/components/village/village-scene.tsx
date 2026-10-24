@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { isDark, resolveTime, TIMES } from "@/lib/daytime";
+import { isDark, resolveTime, TIMES, zurichHour } from "@/lib/daytime";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { VillageModel } from "@/lib/village-model";
 import { Boards } from "./boards";
@@ -277,7 +277,7 @@ export default function VillageScene(props: SceneProps) {
   const view = useScene(store, (s) => s.view);
   const building = useScene(store, (s) => s.building);
   const map = view === "karte";
-  const [hour] = useState(() => new Date().getHours());
+  const [hour] = useState(() => zurichHour());
   const timeKey = resolveTime(time, hour);
 
   const world = model.world;

@@ -11,7 +11,8 @@ export async function requireProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_seed, onboarded")
+    // Alle Spalten: `time_mode` (Phase 4h) gibt es erst nach der Migration
+    .select("*")
     .eq("id", data.user.id)
     .single();
   if (!profile) redirect("/login");

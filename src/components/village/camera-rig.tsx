@@ -49,7 +49,7 @@ type Controls = {
  * würde das abschneiden), wird nur der Bildausschnitt verschoben und der Blickwinkel geweitet.
  */
 export function InventoryLens({ store }: { store: SceneStore }) {
-  const inv = useScene(store, (s) => s.inv);
+  const inv = useScene(store, (s) => s.inv || s.strip);
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
@@ -110,7 +110,7 @@ export function CameraRig({
   const devPose = useScene(store, (s) => s.devPose);
   const listW = useScene(store, (s) => s.listW);
   const tafelOpen = useScene(store, (s) => s.tafel !== null);
-  const inv = useScene(store, (s) => s.inv);
+  const inv = useScene(store, (s) => s.inv || s.strip);
   const flyNonce = useScene(store, (s) => s.flyNonce);
   // Hochformat (Handy): weiter zurück und steiler, damit das Dorf das Bild füllt
   const width = useThree((s) => s.size.width);

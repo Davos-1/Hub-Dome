@@ -3,9 +3,9 @@
 import type { ShellData } from "@/lib/shell-data";
 import type { VillageModel } from "@/lib/village-model";
 import { FriendLinkDialog, type FriendLinkInfo } from "./friend-link-dialog";
-import { SettingsDialog, type SettingsTab } from "./settings-dialog";
+import { SettingsScreen } from "./settings-screen";
 import { StartDialog } from "./start-dialog";
-import { TravelDialog, type TravelTab } from "./travel-dialog";
+import { TravelMap } from "./travel-map";
 import type { DialogApi, DialogId } from "./use-dialog";
 
 /**
@@ -25,7 +25,14 @@ export function WorldDialogs({
   onEnter,
   onAddHouse,
   onPreviewSeed,
+  timeMode,
+  onTimeMode,
+  onTravel,
 }: {
+  timeMode: "auto" | "fest";
+  onTimeMode: (m: "auto" | "fest") => void;
+  /** Reise in ein anderes Dorf (Navigation mit Ladeanzeige). */
+  onTravel: (username: string) => void;
   /** «Welt neu würfeln»: Vorschau mit diesem Seed in der Szene zeigen. */
   onPreviewSeed: (seed: string) => void;
   active: DialogId | "freund" | null;
@@ -64,23 +71,22 @@ export function WorldDialogs({
       );
     case "reise":
       return (
-        <TravelDialog
+        <TravelMap
           shell={shell}
           currentUsername={ownerUsername}
-          tab={dialog.tab}
-          onTab={(t: TravelTab) => dialog.setTab(t)}
-          lowDetail={lowDetail}
           onClose={dialog.close}
+          onTravel={onTravel}
         />
       );
     case "einstellungen":
       return (
-        <SettingsDialog
+        <SettingsScreen
           shell={shell}
           tab={dialog.tab}
-          onTab={(t: SettingsTab) => dialog.setTab(t)}
-          lowDetail={lowDetail}
+          onTab={(t) => dialog.setTab(t)}
           onClose={dialog.close}
+          timeMode={timeMode}
+          onTimeMode={onTimeMode}
           world={{
             model,
             isOwner,

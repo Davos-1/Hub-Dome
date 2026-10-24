@@ -39,6 +39,63 @@ const CODES = [
   "TA.BA_WISSARB",
 ];
 const ZEITEN: TimeKey[] = ["morgen", "mittag", "abend", "nacht"];
+
+/** Erfundene Freunde und Anfragen für die Reise-Karte (`freunde=1`). */
+function devFriends(village: string) {
+  const day = 864e5;
+  const now = Date.now();
+  const iso = (d: number) => new Date(now - d * day).toISOString();
+  const people = [
+    ["mia", "Mia Frei", "Mias Atelier", 9, 31, 1],
+    ["lea", "Lea Müller", "Leas Dorf", 7, 24, 6],
+    ["noah", "Noah Keller", "Noahs Werkhof", 5, 17, 20],
+    ["luca", "Luca Brunner", "Lucas Dorf", 3, 8, 90],
+  ] as const;
+  return {
+    villages: [
+      {
+        id: village,
+        name: "Dorf-Vorschau",
+        ownerId: "u",
+        ownerUsername: "vorschau",
+        ownerName: "Vorschau",
+        houseCount: 8,
+        objectCount: 30,
+        last: iso(0),
+        mine: true,
+      },
+      ...people.map(([u, n, d, hs, os, ago]) => ({
+        id: `v-${u}`,
+        name: d,
+        ownerId: `p-${u}`,
+        ownerUsername: u,
+        ownerName: n,
+        houseCount: hs,
+        objectCount: os,
+        last: iso(ago),
+        mine: false,
+      })),
+    ],
+    friends: [
+      ...people.map(([u, n], i) => ({
+        friendshipId: `f-${u}`,
+        otherId: `p-${u}`,
+        username: u,
+        displayName: n,
+        status: "freund" as const,
+        since: iso(30 + i),
+      })),
+      {
+        friendshipId: "f-sara",
+        otherId: "p-sara",
+        username: "sara",
+        displayName: "Sara Meier",
+        status: "eingehend" as const,
+        since: iso(1),
+      },
+    ],
+  };
+}
 const KAMERAS =
   /^(uebersicht|vogel|strasse|quartier|ufer|zentrale|panorama|weg|haus-(werkstatt|block|solar|atelier|stadt|haus|turm|digital|baustelle))$/;
 
@@ -138,12 +195,18 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
       worldActions={{ save: devSaveWorld.bind(null, seed), reroll: devRerollWorld }}
       dev={{ kamera, zeit, bewegung: q.bewegung === "0" ? false : undefined }}
       shell={{
-        me: { id: "u", username: "vorschau", displayName: "Vorschau" },
-        villages: [],
-        friends: [],
+        me: { id: "u", username: "vorschau", displayName: "Vorschau", timeMode: "auto" },
+        ...(q.freunde === "1" ? devFriends(village) : { villages: [], friends: [] }),
         links: [],
         tokens: [],
-        own: q.besitzer === "1" ? { villageId: village, zentraleStyle, modules: [] } : null,
+        own:
+          q.besitzer === "1"
+            ? {
+                villageId: village,
+                zentraleStyle,
+                modules: CODES.map((code) => ({ code, title: `Modul ${code.slice(6)}` })),
+              }
+            : null,
       }}
     />
   );
