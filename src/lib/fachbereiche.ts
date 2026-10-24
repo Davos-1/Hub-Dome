@@ -2,7 +2,8 @@ import type { House } from "./types";
 
 /**
  * Fachbereiche: Quartiere im Dorf, Haustyp und Farben pro Fachbereich.
- * Die Zuordnung läuft fest über den Modulcode (keine Datenbankspalte).
+ * Die Zuordnung läuft über den Modulcode; seit Phase 4h kann der Besitzer ein anderes Quartier wählen
+ * (`houses.quarter_override`).
  */
 export type FachType =
   "werkstatt" | "block" | "solar" | "atelier" | "stadt" | "haus" | "turm" | "digital";
@@ -226,8 +227,19 @@ export function normalizeModuleCode(code: string): string {
   return afterDot.replace(/^(BA|MAA)_/, "");
 }
 
-/** Fachbereich eines Hauses; Themenhäuser und unbekannte Codes → «weitere». */
-export function fachbereichOf(house: Pick<House, "kind" | "module_code">): FachbereichId {
+export const FACH_IDS = Object.keys(FACHBEREICHE) as FachbereichId[];
+
+export const isFachId = (v: unknown): v is FachbereichId =>
+  typeof v === "string" && (FACH_IDS as string[]).includes(v);
+
+/**
+ * Fachbereich (Quartier) eines Hauses: gewähltes Quartier (`quarter_override`), sonst aus dem Modulcode;
+ * Themenhäuser und unbekannte Codes → «weitere». Die Zentrale gehört zu keinem Quartier.
+ */
+export function fachbereichOf(
+  house: Pick<House, "kind" | "module_code"> & { quarter_override?: string | null },
+): FachbereichId {
+  if (house.kind !== "zentrale" && isFachId(house.quarter_override)) return house.quarter_override;
   if (house.kind !== "modul" || !house.module_code) return "weitere";
   return FACH_BY_CODE.get(normalizeModuleCode(house.module_code)) ?? "weitere";
 }
@@ -249,7 +261,9 @@ export function fnv(s: string): number {
 }
 
 /** Stil eines Hauses; die Wandfarbe variiert pro Haus um den Faktor 0.90–1.09. */
-export function houseFachStyle(house: Pick<House, "id" | "kind" | "module_code">): FachStyle & {
+export function houseFachStyle(
+  house: Pick<House, "id" | "kind" | "module_code" | "quarter_override">,
+): FachStyle & {
   fach: FachbereichId;
 } {
   const fach = fachbereichOf(house);

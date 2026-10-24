@@ -4,7 +4,15 @@ import type { FachbereichId } from "@/lib/fachbereiche";
 import type { TimeSetting } from "@/lib/daytime";
 import type { ArtifactKind } from "@/lib/types";
 
-/** Zustand der 3D-Ansicht, geteilt zwischen Szene (Canvas) und Oberfläche (Leiste, Fenster, Suche). */
+/**
+ * Tafel am Haus (Phase 4h): Galerie («haus»), Objekt, neues Objekt, Objekt bzw. Haus bearbeiten,
+ * Quartier-Übersicht und «Haus anlegen».
+ */
+export type TafelMode =
+  "haus" | "objekt" | "neu" | "objektedit" | "hausedit" | "quartier" | "hausneu";
+export type Tafel = { mode: TafelMode; objId?: string | null; houseId?: string | null };
+
+/** Zustand der 3D-Ansicht, geteilt zwischen Szene (Canvas) und Oberfläche (Leiste, Tafeln, Liste). */
 export type SceneState = {
   nav: Nav;
   view: ViewMode;
@@ -18,8 +26,16 @@ export type SceneState = {
   highlight: { kind: "obj" | "house"; id: string; t0: number } | null;
   kbdQuarter: FachbereichId | null;
   kbdHouse: string | null;
-  /** Kleines Anzeige-Fenster (Tageszeit, Ansicht, Filter); Einstellungen und Co. sind Dialoge der Welt-Shell. */
-  panel: null | "anzeige";
+  /** Offene Tafel (am gewählten Haus bzw. Quartier) oder `null`. */
+  tafel: Tafel | null;
+  /** Breite der Liste links in Pixeln (0 = zu). */
+  listW: number;
+  /** Inventar offen (Welt nur noch als Streifen oben). */
+  inv: boolean;
+  /** Kamera bleibt beim nächsten Ebenenwechsel stehen (Klick auf den Rasen hebt nur die Auswahl auf). */
+  camHold: boolean;
+  /** Erhöhen erzwingt eine neue Fahrt zur Pose der aktuellen Ebene (z.B. «Dorf» in den Brotkrumen). */
+  flyNonce: number;
   /** Einstiegsbild: die Kamera steht weit weg, bis der Start-Dialog geschlossen wird. */
   intro: boolean;
   /** Feste Kamerapose (nur Entwickler-Vorschau und Screenshot-Matrix). */
@@ -41,7 +57,11 @@ export const initialSceneState: SceneState = {
   highlight: null,
   kbdQuarter: null,
   kbdHouse: null,
-  panel: null,
+  tafel: null,
+  listW: 0,
+  inv: false,
+  camHold: false,
+  flyNonce: 0,
   intro: false,
   devPose: null,
   building: false,

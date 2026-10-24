@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { QuarterLayout } from "@/lib/layout";
 import { QUARTER_COLORS } from "@/lib/layout";
+import { inkOn } from "@/lib/ink";
 import { ARTIFACT_KIND_LABELS, type ArtifactKind } from "@/lib/types";
 import type { HouseInfo, ObjInfo } from "@/lib/village-model";
 import { KIND_COLORS } from "./colors";
@@ -110,7 +111,8 @@ function codeTag(
   ctx.lineWidth = 3;
   rr(ctx, x + 1.5, y + 1.5, s - 3, s - 3, s * 0.2);
   ctx.stroke();
-  ctx.fillStyle = "#1c1b19";
+  // Schrift hell oder dunkel je nach Hausfarbe (die acht Hausfarben sind teils dunkel)
+  ctx.fillStyle = inkOn(fill) === "light" ? "#fffdf8" : "#1c1b19";
   ctx.font = `700 ${fontPx}px ${FONT}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -236,10 +238,11 @@ export function drawChip(h: HouseInfo): AtlasEntry {
   ctx.lineTo(W / 2, H + 12);
   ctx.lineTo(W / 2 + 9, H - 1);
   ctx.fill();
-  ctx.fillStyle = h.items.length ? h.color : "#f3d9a6";
+  const pill = h.items.length ? h.color : "#f3d9a6";
+  ctx.fillStyle = pill;
   rr(ctx, 6, 6, cw, H - 12, (H - 12) / 2);
   ctx.fill();
-  ctx.fillStyle = "#26241f";
+  ctx.fillStyle = inkOn(pill) === "light" ? "#fffdf8" : "#26241f";
   ctx.font = tf;
   ctx.textBaseline = "middle";
   ctx.fillText(code, 6 + 14, H / 2 + 1);

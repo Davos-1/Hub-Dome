@@ -3,6 +3,7 @@ import {
   artifactSchema,
   artifactUrlSchema,
   houseSchema,
+  houseUpdateSchema,
   onboardingSchema,
   safeNextPath,
 } from "./validation";
@@ -50,10 +51,22 @@ describe("houseSchema", () => {
     expect(houseSchema.safeParse({ kind: "thema" }).success).toBe(false));
   it("akzeptiert gültige Eingaben", () => {
     expect(houseSchema.safeParse({ kind: "modul", moduleCode: "TA.BA_BS" }).success).toBe(true);
-    expect(houseSchema.safeParse({ kind: "thema", title: "Python" }).data?.color).toBe("#8fb3ff");
+    // Ohne Farbe wählt der Server die Startfarbe des Quartiers
+    expect(houseSchema.safeParse({ kind: "thema", title: "Python" }).data?.color).toBeUndefined();
+    expect(
+      houseSchema.safeParse({ kind: "thema", title: "Python", color: "#6B4FD8" }).data?.color,
+    ).toBe("#6b4fd8");
   });
-  it("lehnt ungültige Farbe ab", () =>
-    expect(houseSchema.safeParse({ kind: "thema", title: "X", color: "rot" }).success).toBe(false));
+  it("nur die acht festen Hausfarben", () => {
+    for (const bad of ["rot", "#8fb3ff", "#123456"])
+      expect(houseSchema.safeParse({ kind: "thema", title: "X", color: bad }).success).toBe(false);
+  });
+  it("Quartier: Fachbereich-Id oder leer", () => {
+    const base = { kind: "thema" as const, title: "X" };
+    expect(houseSchema.safeParse({ ...base, quarter: "digital" }).data?.quarter).toBe("digital");
+    expect(houseSchema.safeParse({ ...base, quarter: "" }).data?.quarter).toBeNull();
+    expect(houseSchema.safeParse({ ...base, quarter: "mond" }).success).toBe(false);
+  });
   it("Semester ist optional, 1–12", () => {
     const base = { kind: "thema" as const, title: "X" };
     expect(houseSchema.safeParse(base).data?.semester).toBeNull();
@@ -62,6 +75,20 @@ describe("houseSchema", () => {
     for (const bad of ["0", "13", "2.5", "abc"]) {
       expect(houseSchema.safeParse({ ...base, semester: bad }).success).toBe(false);
     }
+  });
+});
+
+describe("houseUpdateSchema", () => {
+  const base = { title: "Statik", color: "#b5523b", semester: "2" };
+  it("Quartier fehlt = unverändert, leer = zurück aufs Modul", () => {
+    expect(houseUpdateSchema.safeParse(base).data?.quarter).toBeUndefined();
+    expect(houseUpdateSchema.safeParse({ ...base, quarter: "" }).data?.quarter).toBeNull();
+    expect(houseUpdateSchema.safeParse({ ...base, quarter: "sprache" }).data?.quarter).toBe(
+      "sprache",
+    );
+  });
+  it("verlangt eine der festen Farben", () => {
+    expect(houseUpdateSchema.safeParse({ ...base, color: "#ffffff" }).success).toBe(false);
   });
 });
 

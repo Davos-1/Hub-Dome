@@ -105,7 +105,8 @@ export async function loadOwnWorld(supabase: SupabaseClient, userId: string): Pr
 
   const { data: houseRows, error: hErr } = await supabase
     .from("houses")
-    .select("id, kind, module_code, position_index, created_at")
+    // Alle Spalten: `quarter_override` (Phase 4h) gibt es erst nach der Migration
+    .select("*")
     .eq("village_id", village.id);
   if (hErr || !houseRows) return { ok: false, reason: "error" };
 

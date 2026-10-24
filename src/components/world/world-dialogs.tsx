@@ -1,32 +1,29 @@
 "use client";
 
 import type { ShellData } from "@/lib/shell-data";
-import type { Artifact, House } from "@/lib/types";
 import type { VillageModel } from "@/lib/village-model";
 import { FriendLinkDialog, type FriendLinkInfo } from "./friend-link-dialog";
-import { AddHouseDialog, AddObjectDialog, EditHouseDialog, EditObjectDialog } from "./add-dialogs";
-import { ListDialog } from "./list-dialog";
 import { SettingsDialog, type SettingsTab } from "./settings-dialog";
 import { StartDialog } from "./start-dialog";
 import { TravelDialog, type TravelTab } from "./travel-dialog";
 import type { DialogApi, DialogId } from "./use-dialog";
-import type { SceneActions } from "../village/scene-actions";
 
-/** Zeigt den Dialog, der laut URL offen ist. */
+/**
+ * Zeigt den Dialog bzw. Bereich, der laut URL offen ist. Objekte und Häuser bearbeiten laufen seit Phase 4h über
+ * Tafeln am Ort, die Liste ist eine Seitenleiste (alte Adressen leiten dorthin um, siehe `VillageView`).
+ */
 export function WorldDialogs({
   active,
   dialog,
   shell,
   friendLink,
   model,
-  houses,
-  artifacts,
   isOwner,
   villageName,
   ownerUsername,
   lowDetail,
-  actions,
   onEnter,
+  onAddHouse,
   onPreviewSeed,
 }: {
   /** «Welt neu würfeln»: Vorschau mit diesem Seed in der Szene zeigen. */
@@ -36,21 +33,15 @@ export function WorldDialogs({
   shell: ShellData;
   friendLink?: FriendLinkInfo;
   model: VillageModel;
-  houses: House[];
-  artifacts: Artifact[];
   isOwner: boolean;
   villageName: string;
   ownerUsername: string;
   lowDetail: boolean;
-  actions: SceneActions;
   /** «Mein Dorf betreten»: Start-Dialog schliessen, Kamera fliegt ein. */
   onEnter: () => void;
+  /** «Haus anlegen» (Tafel am Ort). */
+  onAddHouse: () => void;
 }) {
-  const houseOptions = model.houses.map((h) => ({
-    id: h.id,
-    title: h.kind === "zentrale" ? "Zentrale" : h.title,
-  }));
-
   switch (active) {
     case "start":
       return (
@@ -68,7 +59,7 @@ export function WorldDialogs({
           onTravel={() => dialog.open("reise")}
           onFriends={() => dialog.open("reise", { tab: "freunde" })}
           onSettings={() => dialog.open("einstellungen", { tab: "profil" })}
-          onAddHouse={() => dialog.open("haus")}
+          onAddHouse={onAddHouse}
         />
       );
     case "reise":
@@ -100,57 +91,6 @@ export function WorldDialogs({
           }}
         />
       );
-    case "liste":
-      return (
-        <ListDialog
-          model={model}
-          artifacts={artifacts}
-          isOwner={isOwner}
-          actions={actions}
-          lowDetail={lowDetail}
-          onAddObject={(houseId) => dialog.open("objekt", { houseId })}
-          onEditHouse={(houseId) => dialog.open("hausedit", { houseId })}
-          onEditObject={(objectId) => dialog.open("objektedit", { objectId })}
-          onClose={dialog.close}
-        />
-      );
-    case "objekt":
-      return (
-        <AddObjectDialog
-          houses={houseOptions}
-          houseId={dialog.houseId}
-          lowDetail={lowDetail}
-          onClose={dialog.close}
-        />
-      );
-    case "objektedit":
-      return (
-        <EditObjectDialog
-          artifact={artifacts.find((a) => a.id === dialog.objectId)}
-          houses={houseOptions}
-          lowDetail={lowDetail}
-          onClose={dialog.close}
-        />
-      );
-    case "haus":
-      return (
-        <AddHouseDialog
-          modules={shell.own?.modules ?? []}
-          lowDetail={lowDetail}
-          onClose={dialog.close}
-        />
-      );
-    case "hausedit": {
-      const house = houses.find((h) => h.id === dialog.houseId && h.kind !== "zentrale");
-      return (
-        <EditHouseDialog
-          house={house}
-          objectCount={artifacts.filter((a) => a.house_id === house?.id).length}
-          lowDetail={lowDetail}
-          onClose={dialog.close}
-        />
-      );
-    }
     case "freund":
       return friendLink ? <FriendLinkDialog link={friendLink} lowDetail={lowDetail} /> : null;
     default:

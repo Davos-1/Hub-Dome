@@ -278,6 +278,31 @@ export function fitPose(
   };
 }
 
+/**
+ * Verschiebt eine Pose seitlich und in der Höhe, sodass ihr Blickziel in der Mitte des freien Ausschnitts
+ * erscheint (Übersicht bei offener Liste); `farther` > 1 rückt zusätzlich weiter weg (Streifen des Inventars).
+ */
+export function shiftPose(pose: Pose, frame: Frame, aspect: number, farther = 1): Pose {
+  const t = pose.target;
+  const off: Vec3 = [
+    (pose.position[0] - t[0]) * farther,
+    (pose.position[1] - t[1]) * farther,
+    (pose.position[2] - t[2]) * farther,
+  ];
+  const d = Math.hypot(off[0], off[1], off[2]) || 1;
+  const forward: Vec3 = [-off[0] / d, -off[1] / d, -off[2] / d];
+  const { right, up } = basis(forward);
+  const ty = Math.tan(FOV_Y / 2);
+  const sx = ((frame.left + frame.right) / 2) * d * ty * aspect;
+  const sy = ((frame.bottom + frame.top) / 2) * d * ty;
+  const move = (p: Vec3): Vec3 => [
+    p[0] - right[0] * sx - up[0] * sy,
+    p[1] - right[1] * sx - up[1] * sy,
+    p[2] - right[2] * sx - up[2] * sy,
+  ];
+  return { position: move([t[0] + off[0], t[1] + off[1], t[2] + off[2]]), target: move(t) };
+}
+
 /** Grobe Hülle ohne Modell: Grundstück bis Dachhöhe bzw. Terrasse und Turm der Zentrale. */
 function roughHull(layout: VillageLayout, id: string): Vec3[] {
   const h = layout.houses[id];

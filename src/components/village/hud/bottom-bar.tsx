@@ -1,168 +1,159 @@
 "use client";
 
 import { useState } from "react";
-import { TIME_DOTS, TIME_LABELS } from "@/lib/daytime";
-import { ARTIFACT_KIND_LABELS } from "@/lib/types";
+import { Icons, IconButton } from "@/components/ui/controls";
+import { TIME_LABELS, type TimeKey } from "@/lib/daytime";
+import { ARTIFACT_KINDS, ARTIFACT_KIND_LABELS } from "@/lib/types";
 import { KIND_COLORS } from "../colors";
 import type { SceneActions } from "../scene-actions";
 import { useScene, type SceneStore } from "../scene-store";
 
-const seg = (on: boolean) =>
-  on ? "bg-hd-selected text-hd-selected-ink" : "bg-transparent text-hd-ink-2";
-const flat =
-  "cursor-pointer rounded-[9px] px-2.5 py-2 text-[13px] font-semibold whitespace-nowrap text-hd-ink hover:bg-hd-hover md:px-3";
+const ORDER: TimeKey[] = ["morgen", "mittag", "abend", "nacht"];
+/** Hintergrund und Schrift des Tageszeit-Knopfs (Tokens `--hd-time-*`). */
+const TIME_STYLE: Record<TimeKey, { bg: string; ink: string }> = {
+  morgen: { bg: "var(--hd-time-morgen)", ink: "var(--hd-time-ink)" },
+  mittag: { bg: "var(--hd-time-mittag)", ink: "var(--hd-time-ink)" },
+  abend: { bg: "var(--hd-time-abend)", ink: "var(--hd-time-ink)" },
+  nacht: { bg: "var(--hd-time-nacht)", ink: "var(--hd-time-nacht-ink)" },
+};
 
-/** Schwebende Leiste unten: Ansicht 3D/Karte, Anzeige-Fenster, Reise, Haus anlegen, Einstellungen. */
+/**
+ * Leiste unten «Schalter» (Phase 4h): 3D/Karte als Kippschalter, Tageszeit als farbiger Knopf (Hintergrund =
+ * Tageszeitfarbe, ein Klick schaltet weiter und setzt «Fest»), Kategorie-Filter, dann Symbol-Knöpfe Reise
+ * (Kompass, Zähler der Anfragen), Haus anlegen und Einstellungen (Regler). Ausgeblendet, solange eine Tafel
+ * offen ist; steht mittig in der Fläche rechts der Liste.
+ */
 export function BottomBar({
   store,
   actions,
-  windowOpen,
+  timeKey,
+  timeAuto,
+  onTime,
   friendRequests,
   onTravel,
-  onList,
   onSettings,
   onAddHouse,
-  onBuild,
 }: {
   store: SceneStore;
   actions: SceneActions;
-  /** Rechtes Fenster offen: die Leiste rückt in die freie Fläche links davon. */
-  windowOpen: boolean;
-  /** Anzahl offener Freundschaftsanfragen (Hinweispunkt an «Reise»). */
+  /** Angezeigte Tageszeit (bei «Auto» die aus der Uhrzeit). */
+  timeKey: TimeKey;
+  timeAuto: boolean;
+  /** Nächste Tageszeit wählen (setzt «Fest»). */
+  onTime: (next: TimeKey) => void;
   friendRequests: number;
-  /** Dialog «Reise und Freunde» öffnen. */
   onTravel: () => void;
-  /** Dialog «Liste» öffnen (Tastenkürzel L). */
-  onList: () => void;
-  /** Dialog «Einstellungen» öffnen. */
   onSettings: () => void;
-  /** Dialog «Haus anlegen» (nur Besitzer). */
   onAddHouse?: () => void;
-  /** Bau-Modus starten (nur Besitzer). */
-  onBuild?: () => void;
 }) {
   const view = useScene(store, (s) => s.view);
-  const time = useScene(store, (s) => s.time);
   const filter = useScene(store, (s) => s.filter);
-  const panel = useScene(store, (s) => s.panel);
-  const [more, setMore] = useState(false);
-  const secondary: [string, () => void][] = [
-    ...(onBuild ? ([["Bauen", onBuild]] as [string, () => void][]) : []),
-    ...(onAddHouse ? ([["+ Haus anlegen", onAddHouse]] as [string, () => void][]) : []),
-    ["Einstellungen", onSettings],
-  ];
+  const listW = useScene(store, (s) => s.listW);
+  const [chips, setChips] = useState(false);
+  const t = TIME_STYLE[timeKey];
+  const next = ORDER[(ORDER.indexOf(timeKey) + 1) % ORDER.length];
 
   return (
     <div
-      className="pointer-events-none absolute bottom-[18px] flex max-w-[calc(100vw-16px)] -translate-x-1/2 flex-col items-center transition-[left] duration-[250ms] ease-out"
-      style={{ left: windowOpen ? "max(calc(50% - 196px), 268px)" : "50%" }}
+      className="pointer-events-none absolute bottom-4 flex -translate-x-1/2 flex-col items-center gap-2 transition-[left] duration-300"
+      style={{ left: `calc(${listW}px + (100vw - ${listW}px) / 2)` }}
     >
-      {/* Handy: selten gebrauchte Aktionen im Menü «Mehr» (die Leiste bleibt einzeilig) */}
-      {more && (
+      {chips && (
         <div
-          role="menu"
-          aria-label="Mehr"
-          className="hd-pop-in pointer-events-auto mb-2 flex flex-col gap-1 hd-panel p-1.5 md:hidden"
+          role="group"
+          aria-label="Kategorie zeigen"
+          className="hd-rise pointer-events-auto flex max-w-[calc(100vw-24px)] flex-wrap justify-center gap-1.5 rounded-hd-panel border border-hd-line bg-hd-surface p-1.5 shadow-hd-panel"
         >
-          {secondary.map(([label, fn]) => (
-            <button
-              key={label}
-              type="button"
-              role="menuitem"
-              className={`${flat} text-left`}
-              onClick={() => {
-                setMore(false);
-                fn();
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          {(["", ...ARTIFACT_KINDS] as const).map((k) => {
+            const on = filter === k;
+            return (
+              <button
+                key={k || "alle"}
+                type="button"
+                aria-pressed={on}
+                onClick={() => store.set({ filter: k })}
+                className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-[11px] py-1.5 text-[12.5px] font-semibold ${
+                  on
+                    ? "border-hd-accent-line bg-hd-accent-soft text-hd-ink"
+                    : "border-hd-line text-hd-ink-2 hover:bg-hd-raised"
+                }`}
+              >
+                {k && (
+                  <span
+                    aria-hidden
+                    className="h-[7px] w-[7px] rounded-full"
+                    style={{ background: KIND_COLORS[k] }}
+                  />
+                )}
+                {k ? ARTIFACT_KIND_LABELS[k] : "Alle"}
+              </button>
+            );
+          })}
         </div>
       )}
-      <div className="pointer-events-auto flex items-center justify-center gap-1 hd-panel p-1 md:flex-wrap md:gap-1.5 md:p-1.5">
-        <div
-          className="flex gap-0.5 rounded-[11px] bg-hd-sunken p-[3px]"
-          role="group"
-          aria-label="Ansicht"
-        >
-          {(
-            [
-              ["3d", "3D"],
-              ["karte", "Karte"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              aria-pressed={view === v}
-              onClick={() => actions.setView(v)}
-              className={`cursor-pointer rounded-lg px-2.5 py-[7px] text-[13px] font-bold md:px-3.5 ${seg(view === v)}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="pointer-events-auto flex items-center gap-[3px] rounded-hd-panel border border-hd-line bg-hd-surface py-1 pr-1 pl-0.5 text-[12.5px] font-semibold whitespace-nowrap">
         <button
           type="button"
-          onClick={() => store.set({ panel: panel === "anzeige" ? null : "anzeige" })}
-          aria-expanded={panel === "anzeige"}
-          className={`${flat} flex items-center gap-[7px] ${panel === "anzeige" ? "bg-hd-sunken" : ""}`}
+          role="switch"
+          aria-checked={view === "karte"}
+          aria-label="Karte statt 3D"
+          onClick={() => actions.setView(view === "3d" ? "karte" : "3d")}
+          className="flex cursor-pointer items-center gap-[9px] px-2.5 py-1.5"
         >
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: TIME_DOTS[time] }} />
-          {TIME_LABELS[time]}
-          {filter && (
-            <span className="flex items-center gap-1 text-hd-ink-2">
-              ·
+          <span className={view === "3d" ? "text-hd-ink" : "text-hd-muted"}>3D</span>
+          <span aria-hidden className="relative h-[19px] w-[34px] rounded-[10px] bg-hd-chip">
+            <span
+              className="absolute top-[2px] h-[15px] w-[15px] rounded-full bg-hd-accent-line transition-[left] duration-200"
+              style={{ left: view === "3d" ? 2 : 17 }}
+            />
+          </span>
+          <span className={view === "karte" ? "text-hd-ink" : "text-hd-muted"}>Karte</span>
+        </button>
+        <span aria-hidden className="mx-[3px] h-[22px] w-px bg-hd-line" />
+        <button
+          type="button"
+          title="Tageszeit wechseln"
+          aria-label={`Tageszeit: ${timeAuto ? "Auto, " : ""}${TIME_LABELS[timeKey]}. Weiter zu ${TIME_LABELS[next]}`}
+          onClick={() => onTime(next)}
+          className="cursor-pointer rounded-hd-ctl px-[13px] py-1.5 font-bold transition-[background-color,color] duration-300"
+          style={{ background: t.bg, color: t.ink }}
+        >
+          {timeAuto ? "Auto · " : ""}
+          {TIME_LABELS[timeKey]}
+        </button>
+        <span aria-hidden className="mx-[3px] h-[22px] w-px bg-hd-line" />
+        <div className="flex gap-0.5">
+          <IconButton
+            label={filter ? `Kategorie: ${ARTIFACT_KIND_LABELS[filter]}` : "Kategorie zeigen"}
+            onClick={() => setChips((c) => !c)}
+            pressed={chips || filter !== ""}
+          >
+            {filter ? (
               <span
-                className="h-2.5 w-2.5 rounded-[3px]"
+                aria-hidden
+                className="h-2.5 w-2.5 rounded-full"
                 style={{ background: KIND_COLORS[filter] }}
               />
-              {ARTIFACT_KIND_LABELS[filter]}
-            </span>
+            ) : (
+              Icons.filter
+            )}
+          </IconButton>
+          <IconButton
+            label="Reise und Freunde"
+            onClick={onTravel}
+            badge={friendRequests || undefined}
+          >
+            {Icons.compass}
+          </IconButton>
+          {onAddHouse && (
+            <IconButton label="Haus anlegen" onClick={onAddHouse}>
+              {Icons.plusHouse}
+            </IconButton>
           )}
-        </button>
-        <div className="hidden h-6 w-px bg-hd-line md:block" />
-        <button type="button" onClick={onTravel} className={`${flat} relative`}>
-          Reise
-          {friendRequests > 0 && (
-            <span
-              aria-label={`${friendRequests} offene Freundschaftsanfragen`}
-              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-hd-highlight px-1 text-[10px] font-bold text-hd-highlight-ink"
-            >
-              {friendRequests}
-            </span>
-          )}
-        </button>
-        <button type="button" onClick={onList} className={flat} aria-keyshortcuts="L">
-          Liste
-        </button>
-        {onAddHouse && (
-          <button type="button" onClick={onAddHouse} className={`${flat} hidden md:block`}>
-            + Haus
-          </button>
-        )}
-        {onBuild && (
-          <button type="button" onClick={onBuild} className={`${flat} hidden md:block`}>
-            Bauen
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onSettings}
-          className="hd-btn hd-btn-primary !hidden !rounded-[9px] !px-3.5 !py-2 !text-[13px] md:!inline-flex"
-        >
-          Einstellungen
-        </button>
-        <button
-          type="button"
-          aria-haspopup="menu"
-          aria-expanded={more}
-          onClick={() => setMore((v) => !v)}
-          className="hd-btn hd-btn-primary !rounded-[9px] !px-3 !py-2 !text-[13px] md:!hidden"
-        >
-          Mehr
-        </button>
+          <IconButton label="Einstellungen" onClick={onSettings}>
+            {Icons.sliders}
+          </IconButton>
+        </div>
       </div>
     </div>
   );

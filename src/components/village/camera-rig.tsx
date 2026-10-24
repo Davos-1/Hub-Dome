@@ -4,10 +4,14 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { planFlight, type Flight, type Obstacle } from "@/lib/camera-flight";
-import { poseFor, type Pose, type PoseOpts } from "@/lib/camera-poses";
+import { poseFor, shiftPose, type Pose, type PoseOpts } from "@/lib/camera-poses";
 import type { VillageLayout } from "@/lib/layout";
-import { freeFrame } from "./hud/insets";
+import { hudLayout } from "./hud/layout";
+import type { OverlayStore } from "./overlay-store";
 import { useScene, type SceneStore } from "./scene-store";
+
+/** Höhe des Welt-Streifens über Inventar und Einstellungen (Pixel). */
+export const STRIP = 150;
 
 /**
  * Hochformat (Handy): Kamera weiter weg und steiler von oben, damit das runde Dorf das hohe Bild füllt statt
@@ -36,17 +40,20 @@ type Controls = {
  * Fährt die Kamera ruhig zur Pose der aktuellen Ebene (Dorf › Quartier › Haus/Zentrale, 3D oder Karte).
  * Die Fahrt rechnet `planFlight` (Bogen um den Blickpunkt, 2.0–3.2 s je nach Weg und Drehung, weiches Anfahren
  * und Abbremsen); bei `prefers-reduced-motion` springt sie. Häuser und Zentrale werden nach der Hülle des
- * tatsächlichen Modells in den freien Bildausschnitt eingepasst (Fenster rechts bzw. Blatt unten ausgespart).
+ * tatsächlichen Modells in den Ausschnitt eingepasst, den `hudLayout` freilässt (Liste links, Tafel rechts,
+ * Rand für Sucher und Kacheln). Nach der Fahrt meldet sie «angekommen» (Sucher und Kacheln erscheinen).
  * Es wird nur gerendert, solange die Fahrt läuft.
  */
 export function CameraRig({
   layout,
   store,
+  overlay,
   reducedMotion,
   hullOf,
 }: {
   layout: VillageLayout;
   store: SceneStore;
+  overlay: OverlayStore;
   reducedMotion: boolean;
   hullOf?: PoseOpts["hullOf"];
 }) {
@@ -72,37 +79,82 @@ export function CameraRig({
   const view = useScene(store, (s) => s.view);
   const intro = useScene(store, (s) => s.intro);
   const devPose = useScene(store, (s) => s.devPose);
+  const listW = useScene(store, (s) => s.listW);
+  const tafelOpen = useScene(store, (s) => s.tafel !== null);
+  const inv = useScene(store, (s) => s.inv);
+  const flyNonce = useScene(store, (s) => s.flyNonce);
   // Hochformat (Handy): weiter zurück und steiler, damit das Dorf das Bild füllt
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const aspect = width / Math.max(1, height);
   const pose: Pose = useMemo(() => {
     if (devPose) return fitPortrait(devPose, aspect, 2);
+    const hud = hudLayout({
+      width,
+      height,
+      listW,
+      level: nav.level,
+      tafel: tafelOpen,
+      strip: inv ? STRIP : undefined,
+    });
     // Haus, Zentrale und Quartier sind schon für Seitenverhältnis und freien Ausschnitt eingepasst
-    const fitted = nav.level !== "dorf";
-    const raw = poseFor(layout, nav, view, {
+    const fitted = nav.level !== "dorf" && !inv;
+    const raw = poseFor(layout, inv ? { level: "dorf" } : nav, view, {
       aspect,
-      frame: freeFrame(width, height, nav.level !== "dorf"),
+      frame: hud.frame,
       hullOf,
     });
-    const p = fitted ? raw : fitPortrait(raw, aspect, 2);
+    // Übersicht: in die Mitte der freien Fläche verschieben (Liste links), im Inventar weiter weg in den Streifen
+    const p = fitted
+      ? raw
+      : shiftPose(fitPortrait(raw, aspect, 2), hud.frame, aspect, inv ? 2.4 : 1);
     // Einstieg: weit draussen beginnen, nach dem Start-Dialog zur Übersicht einfliegen
     return intro
       ? { position: p.position.map((c) => c * 1.45) as [number, number, number], target: p.target }
       : p;
-  }, [layout, nav, view, intro, devPose, aspect, width, height, hullOf]);
+    // flyNonce: gleiche Pose erneut anfliegen (z.B. nach «Kamera bleibt stehen»)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    layout,
+    nav,
+    view,
+    intro,
+    devPose,
+    aspect,
+    width,
+    height,
+    hullOf,
+    listW,
+    tafelOpen,
+    inv,
+    flyNonce,
+  ]);
 
   const anim = useRef<{ t: number; flight: Flight } | null>(null);
   const first = useRef(true);
 
+  // Haus der aktuellen Ebene: Ziel von «angekommen»
+  const navHouse = () => {
+    const n = store.get().nav;
+    return n.level === "haus" ? n.h : null;
+  };
+
   useEffect(() => {
     if (!controls) return;
+    // Klick auf den Rasen: Auswahl weg, Kamera bleibt, wo sie ist
+    if (store.get().camHold) {
+      store.set({ camHold: false });
+      anim.current = null;
+      overlay.set({ flying: false, arrived: null });
+      return;
+    }
     if (first.current || reducedMotion) {
       first.current = false;
       camera.position.set(...pose.position);
       controls.target.set(...pose.target);
       controls.update();
       invalidate();
+      overlay.set({ flying: false, arrived: navHouse() });
       return;
     }
     // Von der aktuellen Lage aus (auch mitten in einer anderen Fahrt) zur neuen Pose
@@ -111,6 +163,9 @@ export function CameraRig({
       target: [controls.target.x, controls.target.y, controls.target.z],
     };
     anim.current = { t: 0, flight: planFlight(from, pose, obstacles) };
+    // Ein anderes Haus: Sucher und Kacheln erst nach der Ankunft; dasselbe Haus: sie gleiten mit
+    const o = overlay.get();
+    overlay.set({ flying: true, arrived: o.arrived === navHouse() ? o.arrived : null });
     invalidate();
     // Nur eine neue Pose startet eine Fahrt (nicht neue Hindernisse)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,8 +197,10 @@ export function CameraRig({
     controls.target.set(...p.target);
     camera.position.set(...p.position);
     controls.update();
-    if (a.t >= 1) anim.current = null;
-    else invalidate();
+    if (a.t >= 1) {
+      anim.current = null;
+      overlay.set({ flying: false, arrived: navHouse() });
+    } else invalidate();
   });
 
   return null;

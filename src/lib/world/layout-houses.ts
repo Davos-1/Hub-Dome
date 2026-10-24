@@ -9,7 +9,10 @@ import type { WorldDoc } from "./doc";
  * sonst rechnen sie verschiedene Welten.
  */
 
-export type HouseRow = Pick<House, "id" | "kind" | "module_code" | "created_at"> & {
+export type HouseRow = Pick<
+  House,
+  "id" | "kind" | "module_code" | "created_at" | "quarter_override"
+> & {
   position_index?: number;
 };
 export type ArtifactRow = Pick<Artifact, "id" | "house_id" | "kind" | "sort" | "created_at">;

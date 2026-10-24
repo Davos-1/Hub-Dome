@@ -58,6 +58,8 @@ export type House = {
   semester: number | null;
   position_index: number;
   created_at: string;
+  /** Ab Phase 4h (Migration quarter_override): gewähltes Quartier, sonst `null` (aus dem Modulcode). */
+  quarter_override?: string | null;
 };
 
 export type Village = {
@@ -70,4 +72,4 @@ export type Village = {
 export type ModuleOption = { code: string; title: string };
 
 /** Zustand einer Server Action für useActionState. */
-export type ActionState = { error?: string; ok?: boolean; inviteUrl?: string };
+export type ActionState = { error?: string; ok?: boolean; inviteUrl?: string; id?: string };

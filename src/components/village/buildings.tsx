@@ -127,7 +127,7 @@ export function House3D({
         onClick={(e) => {
           if (store.get().building || !isClick(e)) return;
           e.stopPropagation();
-          actions.openHouse(info.id);
+          actions.clickHouse(info.id);
         }}
       >
         <boxGeometry args={[fp * 3.2, top, fp * 3.2]} />
@@ -235,7 +235,7 @@ export function Zentrale3D({
         onClick={(e) => {
           if (store.get().building || !isClick(e)) return;
           e.stopPropagation();
-          actions.openHouse(info.id);
+          actions.clickHouse(info.id);
         }}
       >
         <ModelMesh model={model} glow={glow} emphasis={hovered ? 0.14 : 0} owned />

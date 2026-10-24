@@ -28,10 +28,15 @@ import { KIND_COLORS } from "./colors";
 import { zentraleTopFactor } from "./models";
 import type { SceneActions } from "./scene-actions";
 import { ChimneySmoke, HighlightRing, ObjectCard } from "./scene-extras";
+import type { OverlayStore } from "./overlay-store";
 import { useScene, type SceneStore } from "./scene-store";
+import { ScreenProbe } from "./screen-probe";
 import { buildVillageAtlas, type VillageAtlas } from "./village-atlas";
 import { environmentOf } from "./world-env";
 import { ARTIFACT_KINDS } from "@/lib/types";
+
+/** Kleinster Kameraabstand (OrbitControls, Zoomregler). */
+const MIN_DISTANCE = 5;
 
 export type SceneProps = {
   villageId: string;
@@ -40,8 +45,12 @@ export type SceneProps = {
   zentraleStyle: ZentraleStyle;
   model: VillageModel;
   store: SceneStore;
+  /** Bildschirmlage für Sucher, Kacheln, Tooltip und Zoomregler (Phase 4h). */
+  overlay: OverlayStore;
   actions: SceneActions;
   isOwner: boolean;
+  /** Klick ins Leere (Rasen): Auswahl aufheben. */
+  onMissed?: (e: MouseEvent) => void;
   /** Klick auf das Baustellenschild eines leeren Hauses (nur Besitzer). */
   onConstruction: (houseId: string) => void;
   lowDetail: boolean;
@@ -252,8 +261,10 @@ export default function VillageScene(props: SceneProps) {
     zentraleStyle,
     model,
     store,
+    overlay,
     actions,
     isOwner,
+    onMissed,
     onConstruction,
     lowDetail,
     reducedMotion,
@@ -313,6 +324,7 @@ export default function VillageScene(props: SceneProps) {
     () => [0, layout.extent * 1.0 + 11, layout.extent * 1.38 + 16] as [number, number, number],
     [layout.extent],
   );
+  const maxDistance = layout.extent * 2.4 + 30;
 
   return (
     <Canvas
@@ -326,9 +338,7 @@ export default function VillageScene(props: SceneProps) {
         gl.domElement.addEventListener("webglcontextlost", (e) => e.preventDefault());
         gl.domElement.addEventListener("webglcontextrestored", () => invalidate());
       }}
-      onPointerMissed={() => {
-        /* Klick ins Leere ändert nichts (verhindert versehentliches Verlassen) */
-      }}
+      onPointerMissed={(e) => onMissed?.(e)}
     >
       <Daylight
         time={timeKey}
@@ -462,12 +472,25 @@ export default function VillageScene(props: SceneProps) {
         makeDefault
         enableDamping={!reducedMotion}
         enableRotate={!map}
-        minDistance={5}
-        maxDistance={layout.extent * 2.4 + 30}
+        minDistance={MIN_DISTANCE}
+        maxDistance={maxDistance}
         maxPolarAngle={map ? 0.001 : Math.PI / 2.15}
         minPolarAngle={map ? 0 : 0.15}
       />
-      <CameraRig layout={layout} store={store} reducedMotion={reducedMotion} hullOf={hullOf} />
+      <CameraRig
+        layout={layout}
+        store={store}
+        overlay={overlay}
+        reducedMotion={reducedMotion}
+        hullOf={hullOf}
+      />
+      <ScreenProbe
+        store={store}
+        overlay={overlay}
+        hullOf={hullOf}
+        minDistance={MIN_DISTANCE}
+        maxDistance={maxDistance}
+      />
       <PerfProbe
         houses={model.houses.length}
         artifacts={model.houses.reduce((n, h) => n + h.items.length, 0)}

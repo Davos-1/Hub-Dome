@@ -21,6 +21,9 @@ export function ItemExtrasProvider({ value, children }: { value: Ctx; children: 
   return <ExtrasContext.Provider value={value}>{children}</ExtrasContext.Provider>;
 }
 
+/** Zusatzangaben (Nutzungszahlen, eigene Häuser, Besitz) für Tafeln, Liste und Inventar. */
+export const useItemExtras = () => useContext(ExtrasContext);
+
 /** Öffnen-Link, der das Öffnen zählt. Bewusst kein `next/link` (Prefetch würde mitzählen). */
 export const openHref = (a: Pick<Artifact, "id">) => `/o/${a.id}`;
 

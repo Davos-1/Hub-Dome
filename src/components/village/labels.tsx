@@ -91,7 +91,10 @@ export function Labels({
     const s = store.get();
     const nav = s.nav;
     const nq = nav.level === "dorf" ? null : nav.q;
-    const active = s.hoverHouseId ?? s.kbdHouse;
+    // Gewähltes Haus (Sucher und Kacheln, Phase 4h): ohne Namenspille und ohne Karte
+    const selected = nav.level === "haus" ? nav.h : null;
+    const active =
+      s.hoverHouseId === selected ? null : (s.hoverHouseId ?? (selected ? null : s.kbdHouse));
     const cam = state.camera;
     const el = state.gl.domElement;
     const Wd = el.clientWidth;
@@ -110,6 +113,7 @@ export function Labels({
         if (info.kind !== "zentrale" && !info.items.some((i) => i.kind === filter)) dim = 0.28;
       }
       let op = dim;
+      if (selected && l.houseId === selected) op = 0;
       if (nq && l.ownerQuarter !== nq) op *= 0.3;
       if (nq && l.quarterId === nq) op = 0;
       if (

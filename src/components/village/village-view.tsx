@@ -2,13 +2,22 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { signOut } from "@/app/doerfer/actions";
 import type { ItemExtras } from "@/lib/item-extras";
 import type { ShellData } from "@/lib/shell-data";
 import type { ZentraleStyle } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { devPose } from "@/lib/camera-poses";
-import type { TimeKey } from "@/lib/daytime";
+import { resolveTime, type TimeKey } from "@/lib/daytime";
 import { buildVillageModel, type VillageModel, type WorldParams } from "@/lib/village-model";
 import { GENERATOR_VERSION } from "@/lib/world/seed";
 import { rerollWorld, saveWorld } from "@/app/dorf/welt-actions";
@@ -23,13 +32,19 @@ import { WelcomeBanner } from "../world/welcome-banner";
 import { WorldDialogs } from "../world/world-dialogs";
 import { BottomBar } from "./hud/bottom-bar";
 import { Breadcrumb } from "./hud/breadcrumb";
-import { DisplayPopup } from "./hud/display-popup";
-import { SearchBox } from "./hud/search-box";
-import { SideWindow, useSideWindowOpen } from "./hud/side-window";
+import { CommandPalette, type Command } from "./hud/command-palette";
+import { HintCard } from "./hud/hint-card";
+import { Selection } from "./hud/selection";
+import { TafelHost } from "./hud/tafel-host";
+import { HouseTooltip } from "./hud/tooltip";
+import { TopRight } from "./hud/top-right";
+import { ToastView, UiProvider, useUi } from "./hud/ui-context";
+import { ZOOM_END, ZoomSlider } from "./hud/zoom-slider";
+import { createOverlayStore } from "./overlay-store";
 import { makeActions, type SceneActions } from "./scene-actions";
 import { BuildPanel } from "./build/build-panel";
 import { createBuildStore, useBuild } from "./build/build-store";
-import { createSceneStore, loadSettings, saveSettings } from "./scene-store";
+import { createSceneStore, loadSettings, saveSettings, useScene } from "./scene-store";
 
 const VillageScene = dynamic(() => import("./village-scene"), {
   ssr: false,
@@ -54,7 +69,7 @@ type Props = {
   previews: Record<string, ReactNode>;
   /** Übernehmen, Herkunft und Nutzungszahlen (Phase 5b). */
   extras: ItemExtras;
-  /** Daten für die Dialoge (Start, Reise und Freunde, Einstellungen, Hinzufügen). */
+  /** Daten für Dialoge und Bereiche (Start, Reise und Freunde, Einstellungen, Haus anlegen). */
   shell: ShellData;
   /** Geöffneter Freundschaftslink: zeigt den Annehmen-Dialog über der Welt. */
   friendLink?: FriendLinkInfo;
@@ -67,6 +82,16 @@ type Props = {
 };
 
 const DEFAULT_WORLD_ACTIONS: WorldActions = { save: saveWorld, reroll: rerollWorld };
+const LIST_KEY = "hubdome-liste-breite";
+/** Breite der Liste beim Öffnen (zuletzt gezogene Breite, sonst 420 px). */
+export function listWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(LIST_KEY));
+    return v >= 320 && v <= 680 ? v : 420;
+  } catch {
+    return 420;
+  }
+}
 
 /** Media-Query als Hook (Server: false). */
 function useMedia(query: string) {
@@ -90,10 +115,7 @@ function hasWebGL() {
   }
 }
 
-const hint =
-  "pointer-events-auto absolute top-16 left-1/2 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border-2 border-hd-highlight bg-hd-new p-3 text-sm text-hd-new-ink shadow-hd-pop";
-
-/** Ersatz ohne WebGL: alle Häuser nach Quartier als Liste; die Auswahl öffnet das Fenster rechts. */
+/** Ersatz ohne WebGL: alle Häuser nach Quartier als Liste; die Auswahl öffnet die Tafel. */
 function FallbackList({ model, actions }: { model: VillageModel; actions: SceneActions }) {
   const zentrale = model.houses.find((h) => h.kind === "zentrale");
   return (
@@ -107,14 +129,14 @@ function FallbackList({ model, actions }: { model: VillageModel; actions: SceneA
           <button
             type="button"
             className="hd-btn hd-btn-ghost"
-            onClick={() => actions.openHouse(zentrale.id)}
+            onClick={() => actions.openTafel(zentrale.id, "haus")}
           >
             Zentrale ({zentrale.items.length})
           </button>
         )}
         {model.layout.quarters.map((q) => (
           <section key={q.id} className="hd-card flex flex-col gap-2">
-            <h2 className="hd-label">{q.name}</h2>
+            <h2 className="text-[14px] font-bold">{q.name}</h2>
             <ul className="flex flex-col gap-1.5">
               {q.houseIds.map((id) => {
                 const h = model.byId[id];
@@ -122,7 +144,7 @@ function FallbackList({ model, actions }: { model: VillageModel; actions: SceneA
                   <li key={id}>
                     <button
                       type="button"
-                      onClick={() => actions.openHouse(id)}
+                      onClick={() => actions.openTafel(id, "haus")}
                       className="hd-btn hd-btn-ghost w-full !justify-between"
                     >
                       <span className="truncate">{h.title}</span>
@@ -141,11 +163,30 @@ function FallbackList({ model, actions }: { model: VillageModel; actions: SceneA
   );
 }
 
-/** Vollbild-3D: Dorf, schwebende Leiste unten, Brotkrumen, Suche, Fenster rechts und Dialoge der Welt-Shell. */
+/** Vollbild-3D mit der Oberfläche «Werkbank» (Phase 4h): Tafeln am Ort, Liste, Leiste, Dialoge. */
 export function VillageView(props: Props) {
-  const { houses, artifacts, ownerUsername, shell } = props;
+  return (
+    <UiProvider>
+      <VillageShell {...props} />
+    </UiProvider>
+  );
+}
+
+function VillageShell(props: Props) {
+  const { ownerUsername, shell } = props;
+  const ui = useUi();
   const dialog = useDialog();
   const router = useRouter();
+
+  // Gelöschtes (noch nicht an den Server geschickt) ist sofort weg; «Rückgängig» holt es zurück
+  const houses = useMemo(
+    () => props.houses.filter((h) => !ui.hidden.has(h.id)),
+    [props.houses, ui.hidden],
+  );
+  const artifacts = useMemo(
+    () => props.artifacts.filter((a) => !ui.hidden.has(a.id) && !ui.hidden.has(a.house_id)),
+    [props.artifacts, ui.hidden],
+  );
 
   const reducedMotion =
     useMedia("(prefers-reduced-motion: reduce)") || props.dev?.bewegung === false;
@@ -159,15 +200,16 @@ export function VillageView(props: Props) {
     () => null,
   );
 
-  // Welcher Dialog ist offen? Start und Bearbeiten-Dialoge gelten nur im eigenen Dorf.
-  const ownerOnly = ["start", "objekt", "objektedit", "haus", "hausedit"].includes(dialog.id ?? "");
+  // Welcher Dialog ist offen? Start gilt nur im eigenen Dorf; Bearbeiten-Adressen öffnen Tafeln (siehe unten).
+  const legacy = ["objekt", "objektedit", "haus", "hausedit", "liste"].includes(dialog.id ?? "");
   const active = props.friendLink
     ? ("freund" as const)
-    : ownerOnly && !props.isOwner
+    : legacy || (dialog.id === "start" && !props.isOwner)
       ? null
       : dialog.id;
 
   const [now] = useState(() => Date.now());
+  const [hour] = useState(() => new Date().getHours());
   // «Welt neu würfeln»: Vorschau mit neuem Seed (Fixierungen entfallen; Deko bleibt, ausser «zurücksetzen»)
   const [preview, setPreview] = useState<string | null>(null);
   const [resetPlacements, setResetPlacements] = useState(false);
@@ -203,7 +245,20 @@ export function VillageView(props: Props) {
   );
   // Einstieg: beim Start-Dialog steht die Kamera zuerst weit draussen
   const [store] = useState(() => createSceneStore({ intro: dialog.id === "start" }));
+  const [overlay] = useState(createOverlayStore);
   const actions = useMemo(() => makeActions(store, model), [store, model]);
+  const tafelOpen = useScene(store, (s) => s.tafel !== null);
+  const listW = useScene(store, (s) => s.listW);
+  const inv = useScene(store, (s) => s.inv);
+  const time = useScene(store, (s) => s.time);
+  const navLevel = useScene(store, (s) => s.nav.level);
+  const [palette, setPalette] = useState(false);
+  const [over, setOver] = useState(0);
+  const overTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerDown = useRef<{ x: number; y: number } | null>(null);
+  // Neues Haus angelegt: wird gewählt, sobald es in den Daten ist (Kamera fliegt hin)
+  const pendingHouse = useRef<string | null>(null);
+
   // Die Live-Prüfung rechnet gegen die aktuelle (Entwurfs-)Welt
   useEffect(() => build.setWorld(model.world, model.input, model.byId), [build, model]);
   useEffect(() => store.set({ building, buildFocus: null }), [store, building]);
@@ -220,10 +275,32 @@ export function VillageView(props: Props) {
     };
   }, [build, store, model]);
 
-  const startBuild = () => {
-    store.set({ panel: null, nav: { level: "dorf" } });
+  useEffect(() => {
+    const id = pendingHouse.current;
+    if (id && model.byId[id]) {
+      pendingHouse.current = null;
+      actions.openHouse(id);
+    }
+  }, [model, actions]);
+
+  const toggleList = useCallback(() => {
+    const s = store.get();
+    store.set(s.listW ? { listW: 0 } : { listW: listWidth(), inv: false });
+  }, [store]);
+  const openInv = useCallback(() => {
+    store.set({ inv: true, listW: 0, tafel: null, nav: { level: "dorf" }, camHold: false });
+    setOver(0);
+  }, [store]);
+  const closeInv = useCallback(() => store.set({ inv: false }), [store]);
+  const toggleInv = useCallback(
+    () => (store.get().inv ? closeInv() : openInv()),
+    [store, openInv, closeInv],
+  );
+
+  const startBuild = useCallback(() => {
+    store.set({ nav: { level: "dorf" }, tafel: null, listW: 0, inv: false });
     build.start(props.world.doc);
-  };
+  }, [store, build, props.world.doc]);
   const saveBuild = async () => {
     const doc = docForSave(build.get().history.present, model.world.settlement);
     build.saving(true);
@@ -235,9 +312,33 @@ export function VillageView(props: Props) {
     }
     build.saving(false);
     build.stop();
+    ui.say("Dorf gespeichert");
     router.refresh();
   };
-  const windowOpen = useSideWindowOpen(store);
+
+  // Alte Adressen (`?d=objekt&h=…`, `?d=liste` …) öffnen die neuen Tafeln bzw. die Liste
+  useEffect(() => {
+    const id = dialog.id;
+    if (!id || !["objekt", "objektedit", "haus", "hausedit", "liste"].includes(id)) return;
+    if (id === "liste") store.set({ listW: listWidth() });
+    else if (props.isOwner) {
+      if (id === "haus") actions.openLooseTafel("hausneu");
+      if (id === "objekt") {
+        const h =
+          dialog.houseId && model.byId[dialog.houseId] ? dialog.houseId : actions.zentraleId;
+        if (h) actions.openTafel(h, "neu");
+      }
+      if (id === "objektedit") {
+        const a = artifacts.find((x) => x.id === dialog.objectId);
+        if (a) actions.openTafel(a.house_id, "objektedit", a.id);
+      }
+      if (id === "hausedit" && dialog.houseId && model.byId[dialog.houseId])
+        actions.openTafel(dialog.houseId, "hausedit");
+    }
+    dialog.close();
+    // Nur beim Wechsel der Adresse
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialog.id]);
 
   // Gespeicherte Einstellungen laden, danach jede Änderung speichern.
   useEffect(() => {
@@ -282,18 +383,16 @@ export function VillageView(props: Props) {
         return;
       }
     }
-    // Zentrale und Häuser wie nach einem Klick (Fenster offen, Kamera eingepasst)
+    // Zentrale und Häuser wie nach einem Klick auf «Öffnen» (Tafel offen, Kamera eingepasst)
     const zentrale = model.houses.find((h) => h.kind === "zentrale");
     const target = devKamera === "zentrale" ? zentrale : house;
     if (target) {
-      store.set({
-        devPose: null,
-        nav: { level: "haus", q: model.layout.houses[target.id]?.quarterId ?? null, h: target.id },
-      });
+      store.set({ devPose: null });
+      actions.openTafel(target.id, "haus");
       return;
     }
     store.set({ devPose: devPose(model.layout, devKamera) });
-  }, [store, devKamera, model]);
+  }, [store, devKamera, model, actions]);
 
   // Zurück im Tab (z.B. nach dem Platzieren in claude.ai): Dorfdaten neu laden, höchstens alle 10 s.
   useEffect(() => {
@@ -312,35 +411,79 @@ export function VillageView(props: Props) {
     if (active !== "start") store.set({ intro: false });
   }, [active, store]);
 
-  // Esc schliesst zuerst offene Popups, sonst geht es eine Ebene zurück (nicht bei offenem Dialog:
-  // der Dialog behandelt Esc selbst).
+  // Tastatur: Strg/⌘+K bzw. «/» Suche, L Liste, I Inventar, B Bauen; Esc von innen nach aussen
+  // (Tafel → Auswahl → Liste → Inventar); Pfeile und Enter wählen Quartiere und Häuser.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector("[data-hd-dialog]")) return;
       // Im Bau-Modus gehören Pfeile, Enter und Esc der Werkzeugleiste
       if (store.get().building) return;
       const target = e.target as HTMLElement | null;
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      // Tastenkürzel L: Liste öffnen
-      if ((e.key === "l" || e.key === "L") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const typing = !!target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
-        dialog.open("liste");
+        setPalette(true);
         return;
       }
-      if (e.key === "Escape" && store.get().panel) {
-        store.set({ panel: null });
-        e.stopPropagation();
+      if (e.key === "Escape") {
+        if (typing) target!.blur();
+        const s = store.get();
+        e.preventDefault();
+        if (s.inv) return closeInv();
+        if (s.tafel || s.nav.level !== "dorf") {
+          actions.onKey("Escape");
+          return;
+        }
+        if (s.listW) store.set({ listW: 0 });
         return;
       }
-      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
-        // Enter auf Knöpfen und Links nicht abfangen
+      if (typing || mod || e.altKey) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        setPalette(true);
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (k === "l") {
+        e.preventDefault();
+        toggleList();
+        return;
+      }
+      if (k === "i" && props.isOwner) {
+        e.preventDefault();
+        toggleInv();
+        return;
+      }
+      if (k === "b" && props.isOwner && !preview) {
+        e.preventDefault();
+        startBuild();
+        return;
+      }
+      // Pfeile und Enter nicht abfangen, wenn der Fokus in Liste, Tafel oder Inventar liegt
+      if (target?.closest("[data-hd-ui]")) return;
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter"].includes(e.key)) {
         if (e.key === "Enter" && target && /^(BUTTON|A)$/.test(target.tagName)) return;
         if (actions.onKey(e.key)) e.preventDefault();
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [store, actions, dialog]);
+  }, [store, actions, toggleList, toggleInv, closeInv, startBuild, props.isOwner, preview]);
+
+  // Weiter herauszoomen am Anschlag füllt den Hinweis; voll = Inventar (nur Besitzer)
+  const onWheel = (e: React.WheelEvent) => {
+    if (!props.isOwner || store.get().inv || store.get().building || e.deltaY <= 0) return;
+    if (overlay.get().zoom < ZOOM_END) return;
+    const next = over + Math.min(40, Math.abs(e.deltaY) / 3);
+    if (overTimer.current) clearTimeout(overTimer.current);
+    if (next >= 100) {
+      openInv();
+      return;
+    }
+    setOver(next);
+    overTimer.current = setTimeout(() => setOver(0), 1100);
+  };
 
   const ownVillage = shell.villages.find((v) => v.mine);
   const empty = model.houses.length <= 1;
@@ -353,24 +496,52 @@ export function VillageView(props: Props) {
     }),
     [props.extras, props.isOwner, houses],
   );
+  const timeKey = resolveTime(time, hour);
+  const openSettings = (tab = "profil") => dialog.open("einstellungen", { tab });
+  const openTravel = () => dialog.open("reise");
+  const addHouse = props.isOwner ? () => actions.openLooseTafel("hausneu") : undefined;
+
+  const commands: Command[] = [
+    { id: "liste", label: "Liste öffnen", hint: "L", run: toggleList },
+    ...(props.isOwner
+      ? [
+          { id: "inventar", label: "Inventar öffnen", hint: "I", run: openInv },
+          { id: "bauen", label: "Bauen", hint: "B", run: startBuild },
+          { id: "haus", label: "Haus anlegen", run: () => actions.openLooseTafel("hausneu") },
+        ]
+      : []),
+    { id: "reise", label: "Reise und Freunde", run: openTravel },
+    { id: "einstellungen", label: "Einstellungen", run: () => openSettings() },
+    {
+      id: "ansicht",
+      label: "Ansicht wechseln (3D/Karte)",
+      run: () => actions.setView(store.get().view === "3d" ? "karte" : "3d"),
+    },
+    { id: "dorf", label: "Zur Übersicht", run: actions.goHome },
+  ];
+
+  const hudHidden = active !== null;
+  const paused = active !== null || inv;
 
   return (
     <ItemExtrasProvider value={extras}>
       <div
-        className="hubdome-ui fixed inset-0 overflow-hidden bg-hd-info-soft text-hd-ink"
+        className="hubdome-ui fixed inset-0 overflow-hidden bg-hd-surface text-hd-ink"
         role="application"
-        aria-label={`3D-Ansicht des Dorfs ${props.villageName}. Alle Häuser und Objekte sind auch über die Suche und die Fenster erreichbar.`}
+        aria-label={`3D-Ansicht des Dorfs ${props.villageName}. Alle Häuser und Objekte sind auch über die Liste und die Suche (Strg+K) erreichbar.`}
+        onPointerDown={(e) => (pointerDown.current = { x: e.clientX, y: e.clientY })}
+        onWheel={onWheel}
       >
         {webgl === false ? (
-          <div inert={active !== null} aria-hidden={active !== null || undefined}>
+          <div inert={hudHidden} aria-hidden={hudHidden || undefined}>
             <FallbackList model={model} actions={actions} />
           </div>
         ) : webgl ? (
           <div
             className="hd-fade-in absolute inset-0"
             tabIndex={-1}
-            inert={active !== null}
-            aria-hidden={active !== null || undefined}
+            inert={hudHidden}
+            aria-hidden={hudHidden || undefined}
           >
             <VillageScene
               villageId={props.villageId}
@@ -379,70 +550,133 @@ export function VillageView(props: Props) {
               zentraleStyle={props.zentraleStyle}
               model={model}
               store={store}
+              overlay={overlay}
               actions={actions}
               isOwner={props.isOwner}
-              onConstruction={(houseId) => dialog.open("objekt", { houseId })}
+              onMissed={(e) => {
+                // Klick auf den Rasen (nicht nach dem Ziehen der Kamera): Auswahl aufheben
+                const p = pointerDown.current;
+                if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 5) return;
+                if (!store.get().building) actions.clearSelection();
+              }}
+              onConstruction={(houseId) => actions.openTafel(houseId, "neu")}
               lowDetail={lowDetail}
               reducedMotion={reducedMotion}
               build={props.isOwner ? build : undefined}
-              paused={active !== null}
+              paused={paused}
             />
           </div>
         ) : null}
 
         <div
           className="pointer-events-none absolute inset-0"
-          inert={active !== null}
-          aria-hidden={active !== null || undefined}
+          inert={hudHidden}
+          aria-hidden={hudHidden || undefined}
         >
-          <Breadcrumb model={model} store={store} actions={actions} />
-          <SearchBox model={model} actions={actions} />
-          <SideWindow
-            model={model}
-            store={store}
-            actions={actions}
-            artifacts={artifacts}
-            previews={props.previews}
-            isOwner={props.isOwner}
-            onAddObject={(houseId) => dialog.open("objekt", { houseId })}
-            onEditHouse={(houseId) => dialog.open("hausedit", { houseId })}
-            onEditObject={(objectId) => dialog.open("objektedit", { objectId })}
-          />
-          <DisplayPopup store={store} actions={actions} />
-          {building ? (
+          {!building && (
+            <>
+              <Breadcrumb
+                model={model}
+                store={store}
+                actions={actions}
+                villageName={props.villageName}
+              />
+              <TopRight
+                isOwner={props.isOwner}
+                listOpen={listW > 0}
+                invOpen={inv}
+                initial={(shell.me.displayName || shell.me.username).slice(0, 1).toUpperCase()}
+                username={shell.me.username}
+                onBuild={props.isOwner && !preview ? startBuild : undefined}
+                onList={toggleList}
+                onInv={toggleInv}
+                onSearch={() => setPalette(true)}
+                onSettings={() => openSettings()}
+                logout={() => void signOut()}
+              />
+              <Selection
+                model={model}
+                store={store}
+                overlay={overlay}
+                actions={actions}
+                isOwner={props.isOwner}
+                reducedMotion={reducedMotion}
+                onList={() => store.set({ listW: listW || listWidth(), inv: false })}
+                onEditZentrale={() => openSettings("dorf")}
+              />
+              <HouseTooltip model={model} store={store} overlay={overlay} />
+              <TafelHost
+                model={model}
+                store={store}
+                actions={actions}
+                houses={houses}
+                artifacts={artifacts}
+                previews={props.previews}
+                isOwner={props.isOwner}
+                modules={shell.own?.modules ?? []}
+                onNewHouse={(id) => {
+                  pendingHouse.current = id;
+                  if (model.byId[id]) actions.openHouse(id);
+                }}
+              />
+              {!tafelOpen && !inv && (
+                <BottomBar
+                  store={store}
+                  actions={actions}
+                  timeKey={timeKey}
+                  timeAuto={time === "auto"}
+                  onTime={(next) => store.set({ time: next })}
+                  friendRequests={friendRequests}
+                  onTravel={openTravel}
+                  onSettings={() => openSettings()}
+                  onAddHouse={addHouse}
+                />
+              )}
+              {!inv && (
+                <ZoomSlider
+                  overlay={overlay}
+                  over={over}
+                  onInventory={props.isOwner ? openInv : () => {}}
+                />
+              )}
+              <HintCard
+                left={listW}
+                hidden={tafelOpen || inv || !props.isOwner || empty || navLevel !== "dorf"}
+              />
+            </>
+          )}
+          {building && (
             <BuildPanel
               build={build}
               model={model}
               onSave={saveBuild}
-              onCancel={() => build.stop()}
-            />
-          ) : (
-            <BottomBar
-              store={store}
-              actions={actions}
-              windowOpen={windowOpen}
-              friendRequests={friendRequests}
-              onTravel={() => dialog.open("reise")}
-              onList={() => dialog.open("liste")}
-              onSettings={() => dialog.open("einstellungen", { tab: "profil" })}
-              onAddHouse={props.isOwner ? () => dialog.open("haus") : undefined}
-              onBuild={props.isOwner && !preview ? startBuild : undefined}
+              onCancel={() => {
+                build.stop();
+                ui.say("Änderungen verworfen");
+              }}
             />
           )}
-          {empty && props.isOwner && (
-            <p className={hint}>
-              Lege dein erstes Modulhaus an –{" "}
+          {empty && props.isOwner && !tafelOpen && !building && (
+            <div className="hd-box hd-rise pointer-events-auto absolute top-16 left-1/2 flex w-[min(420px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-2 px-5 py-4">
+              <span className="hd-kicker">Leeres Dorf</span>
+              <span className="text-[15px] font-bold">Lege dein erstes Haus an</span>
+              <span className="text-[13px] text-hd-muted">
+                Ein Haus pro Modul oder Thema; darin hängst du deine Objekte auf.
+              </span>
               <button
                 type="button"
-                onClick={() => dialog.open("haus")}
-                className="font-semibold underline"
+                onClick={() => actions.openLooseTafel("hausneu")}
+                className="hd-btn hd-btn-primary self-start"
               >
                 Haus anlegen
               </button>
-              .
+            </div>
+          )}
+          {empty && !props.isOwner && (
+            <p className="hd-box pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 px-4 py-3 text-[13px]">
+              Hier gibt es noch keine Häuser.
             </p>
           )}
-          {empty && !props.isOwner && <p className={hint}>Hier gibt es noch keine Häuser.</p>}
           {preview && props.isOwner && active === null && (
             <RerollBanner
               upgrade={preview === props.world.seed}
@@ -469,7 +703,18 @@ export function VillageView(props: Props) {
               }}
             />
           )}
+          <ToastView />
         </div>
+
+        {palette && (
+          <CommandPalette
+            model={model}
+            commands={commands}
+            onHouse={(id) => actions.openHouse(id)}
+            onObject={(houseId, id) => actions.goToObject(houseId, id)}
+            onClose={() => setPalette(false)}
+          />
+        )}
 
         <WorldDialogs
           active={active}
@@ -477,14 +722,15 @@ export function VillageView(props: Props) {
           shell={shell}
           friendLink={props.friendLink}
           model={model}
-          houses={houses}
-          artifacts={artifacts}
           isOwner={props.isOwner}
           villageName={props.villageName}
           ownerUsername={ownerUsername}
           lowDetail={lowDetail}
-          actions={actions}
           onEnter={dialog.close}
+          onAddHouse={() => {
+            dialog.close();
+            actions.openLooseTafel("hausneu");
+          }}
           onPreviewSeed={setPreview}
         />
       </div>

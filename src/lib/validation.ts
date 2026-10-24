@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { FACH_IDS } from "@/lib/fachbereiche";
+import { HOUSE_COLORS } from "@/lib/house-colors";
 import { detectItemType, LINK_ITEM_TYPES, urlMatchesType } from "@/lib/item-types";
 import { ARTIFACT_KINDS } from "@/lib/types";
 
@@ -31,7 +33,18 @@ export function safeNextPath(next: string | null | undefined, fallback = "/start
   return next && /^\/(?![/\\])/.test(next) ? next : fallback;
 }
 
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Ungültige Farbe.");
+/** Eine der acht festen Hausfarben (Phase 4h). */
+const houseColor = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .refine((c) => (HOUSE_COLORS as readonly string[]).includes(c), "Bitte eine der Farben wählen.");
+
+/** Quartier wählen: Fachbereich-Id oder leer (= aus dem Modulcode). */
+export const quarterSchema = z.preprocess(
+  (v) => (v === "" || v === undefined || v === null ? null : v),
+  z.enum(FACH_IDS as [string, ...string[]], { message: "Unbekanntes Quartier." }).nullable(),
+);
 
 /** Optionales Semester 1–12; leeres Feld → null. */
 export const semesterSchema = z.preprocess(
@@ -49,8 +62,9 @@ export const houseSchema = z
     kind: z.enum(["modul", "thema"]),
     moduleCode: z.string().trim().optional(),
     title: z.string().trim().max(80, "Maximal 80 Zeichen.").optional(),
-    color: hexColor.default("#8fb3ff"),
+    color: houseColor.optional(),
     semester: semesterSchema,
+    quarter: quarterSchema.optional(),
   })
   .refine((h) => h.kind !== "modul" || Boolean(h.moduleCode), {
     message: "Bitte ein Modul wählen.",
@@ -63,8 +77,10 @@ export const houseSchema = z
 
 export const houseUpdateSchema = z.object({
   title: z.string().trim().min(1, "Bitte einen Titel angeben.").max(80, "Maximal 80 Zeichen."),
-  color: hexColor,
+  color: houseColor,
   semester: semesterSchema,
+  /** Fehlt das Feld, bleibt das Quartier unverändert; leer = zurück aufs Quartier des Moduls. */
+  quarter: quarterSchema.optional(),
 });
 
 /** Komma-getrennte Tags → bereinigte Liste (max. 5, je max. 30 Zeichen). */

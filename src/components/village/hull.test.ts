@@ -4,7 +4,11 @@ import { FACH_ORDER } from "@/lib/fachbereiche";
 import { ZENTRALE_STYLES } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { buildVillageModel } from "@/lib/village-model";
-import { freeFrame } from "./hud/insets";
+import { hudLayout } from "./hud/layout";
+
+/** Ausschnitt für ein Haus mit offener Tafel (Phase 4h): Haus links, Tafel rechts bzw. angedockt. */
+const freeFrame = (width: number, height: number, tafel: boolean) =>
+  hudLayout({ width, height, listW: 0, level: "haus", tafel }).frame;
 import { hullLookup, zentraleBox } from "./hull";
 
 /**

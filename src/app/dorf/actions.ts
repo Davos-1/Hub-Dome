@@ -4,9 +4,12 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { fachbereichOf } from "@/lib/fachbereiche";
+import { defaultHouseColor } from "@/lib/house-colors";
 import { refreshArtifactMeta } from "@/lib/previews.server";
 import type { ActionState } from "@/lib/types";
 import { artifactSchema, copySchema, houseSchema, houseUpdateSchema } from "@/lib/validation";
+import { planRelocation } from "@/lib/world/relocate.server";
 
 const firstError = (e: { issues: { message: string }[] }) => e.issues[0].message;
 
@@ -15,6 +18,10 @@ function refresh() {
 }
 
 const fields = (fd: FormData) => Object.fromEntries(fd.entries());
+
+/** Spalte fehlt (Migration noch nicht eingespielt): PostgREST-Schema-Cache bzw. Postgres. */
+const missingColumn = (e: { code?: string } | null) =>
+  e?.code === "PGRST204" || e?.code === "42703";
 
 /** Alle Mutationen laufen mit dem RLS-Client des Users; zusätzlich wird explizit nach Besitzer gefiltert. */
 
@@ -48,34 +55,92 @@ export async function createHouse(_: ActionState, formData: FormData): Promise<A
     .select("id", { count: "exact", head: true })
     .eq("village_id", village.id);
 
-  const { error } = await supabase.from("houses").insert({
-    village_id: village.id,
+  // Gewähltes Quartier nur speichern, wenn es vom Quartier des Moduls abweicht
+  const moduleFach = fachbereichOf({ kind: parsed.data.kind, module_code: moduleCode });
+  const quarter =
+    parsed.data.quarter && parsed.data.quarter !== moduleFach ? parsed.data.quarter : null;
+  const fach = fachbereichOf({
     kind: parsed.data.kind,
-    title: title!,
     module_code: moduleCode,
-    color: parsed.data.color,
-    // Spalte `semester` nur schreiben, wenn gesetzt (ältere Datenbanken ohne Migration 5 funktionieren weiter)
-    ...(parsed.data.semester === null ? {} : { semester: parsed.data.semester }),
-    position_index: count ?? 0,
+    quarter_override: quarter,
   });
-  if (error) return { error: "Das Haus konnte nicht angelegt werden." };
+
+  const { data: created, error } = await supabase
+    .from("houses")
+    .insert({
+      village_id: village.id,
+      kind: parsed.data.kind,
+      title: title!,
+      module_code: moduleCode,
+      color: parsed.data.color ?? defaultHouseColor(fach),
+      // Spalten nur schreiben, wenn gesetzt (ältere Datenbanken ohne Migration funktionieren weiter)
+      ...(parsed.data.semester === null ? {} : { semester: parsed.data.semester }),
+      ...(quarter ? { quarter_override: quarter } : {}),
+      position_index: count ?? 0,
+    })
+    .select("id")
+    .single();
+  if (error)
+    return {
+      error: missingColumn(error)
+        ? "Die Quartierwahl ist erst nach dem Datenbank-Update möglich."
+        : "Das Haus konnte nicht angelegt werden.",
+    };
   refresh();
-  return { ok: true };
+  return { ok: true, id: created.id };
 }
 
+/**
+ * Haus bearbeiten: Titel, eine der acht Farben, Semester und (Phase 4h) Quartier. Zieht das Haus in ein anderes
+ * Quartier, bleiben alle anderen Häuser fixiert und das Haus sucht sich dort einen freien Platz; passt es
+ * nicht, ändert sich nichts.
+ */
 export async function updateHouse(_: ActionState, formData: FormData): Promise<ActionState> {
-  const id = String(formData.get("id"));
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: "Ungültiges Haus." };
   const parsed = houseUpdateSchema.safeParse(fields(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
+  const { quarter, ...base } = parsed.data;
+
+  let patch: Record<string, unknown> = base;
+  let commitWorld: (() => Promise<boolean>) | null = null;
+  if (quarter !== undefined) {
+    const { data: house } = await supabase
+      .from("houses")
+      .select("*, villages!inner(owner_id)")
+      .eq("id", id.data)
+      .eq("villages.owner_id", user.id)
+      .neq("kind", "zentrale")
+      .maybeSingle();
+    if (!house) return { error: "Das Haus konnte nicht geändert werden." };
+    const moduleFach = fachbereichOf({ kind: house.kind, module_code: house.module_code });
+    const override = quarter && quarter !== moduleFach ? quarter : null;
+    const from = fachbereichOf(house);
+    const to = fachbereichOf({ ...house, quarter_override: override });
+    if ((house.quarter_override ?? null) !== override)
+      patch = { ...base, quarter_override: override };
+    if (from !== to) {
+      const plan = await planRelocation(supabase, user.id, id.data, to);
+      if (!plan.ok) return { error: plan.error };
+      commitWorld = plan.commit;
+    }
+  }
 
   const { data, error } = await supabase
     .from("houses")
-    .update(parsed.data)
-    .eq("id", id)
+    .update(patch)
+    .eq("id", id.data)
     .neq("kind", "zentrale")
     .select("id");
-  if (error || !data?.length) return { error: "Das Haus konnte nicht geändert werden." };
+  if (error || !data?.length)
+    return {
+      error: missingColumn(error)
+        ? "Die Quartierwahl ist erst nach dem Datenbank-Update möglich."
+        : "Das Haus konnte nicht geändert werden.",
+    };
+  if (commitWorld && !(await commitWorld()))
+    console.error("Fixierungen nach Quartier-Umzug nicht gespeichert:", id.data);
   refresh();
   return { ok: true };
 }
@@ -122,7 +187,7 @@ export async function createArtifact(_: ActionState, formData: FormData): Promis
   }
   after(() => refreshArtifactMeta(created.id, user.id));
   refresh();
-  return { ok: true };
+  return { ok: true, id: created.id };
 }
 
 export async function updateArtifact(_: ActionState, formData: FormData): Promise<ActionState> {
