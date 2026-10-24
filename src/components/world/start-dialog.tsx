@@ -73,7 +73,7 @@ export function StartDialog({
                 ? "1 neue Freundschaftsanfrage"
                 : `${requests} neue Freundschaftsanfragen`}
             </span>
-            <span className="text-hd-accent underline">Ansehen</span>
+            <span className="text-hd-accent-text underline">Ansehen</span>
           </button>
         )}
 

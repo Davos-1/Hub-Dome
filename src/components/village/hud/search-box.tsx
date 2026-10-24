@@ -83,7 +83,7 @@ export function SearchBox({ model, actions }: { model: VillageModel; actions: Sc
             (e.target as HTMLInputElement).blur();
           }
         }}
-        className="w-full rounded-lg hd-float border border-hd-line-strong px-3 py-2 text-[13px] font-medium text-hd-ink shadow-hd-pop outline-none focus-visible:border-hd-accent"
+        className="w-full rounded-lg hd-float border border-hd-line-strong px-3 py-2 text-[13px] font-medium text-hd-ink shadow-hd-pop outline-none focus-visible:border-hd-accent-line"
       />
       {open && query.trim() && (
         <div

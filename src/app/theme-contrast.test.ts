@@ -3,13 +3,15 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * P6: Kontrast der Oberfläche nach WCAG AA (Text ≥ 4.5:1) für «Rauchglas» (alle Text-/Flächenpaare).
+ * Kontrast der Oberfläche nach WCAG AA (Text ≥ 4.5:1) für «Werkbank» (Petrol, Phase 4h; alle Text-/Flächenpaare).
  * Durchscheinende Flächen werden über dem ungünstigsten Hintergrund gemessen: weisser Himmel (helle Schrift)
- * bzw. schwarze Nacht (dunkle Schrift).
+ * bzw. schwarze Nacht (dunkle Schrift). Verweise `var(--…)` werden aufgelöst.
  */
 const css = readFileSync(path.join(__dirname, "globals.css"), "utf8");
 
 type Rgba = [number, number, number, number];
+
+const root = block(":root");
 
 function block(selector: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -21,6 +23,8 @@ function block(selector: string): Record<string, string> {
 }
 
 function parse(v: string): Rgba | null {
+  const ref = /^var\(--([\w-]+)\)$/.exec(v);
+  if (ref) return root[ref[1]] === undefined ? null : parse(root[ref[1]]);
   const hex = /^#([0-9a-f]{6})$/i.exec(v);
   if (hex) {
     const n = parseInt(hex[1], 16);
@@ -51,9 +55,8 @@ const ratio = (a: Rgba, b: Rgba) => {
   return (x + 0.05) / (y + 0.05);
 };
 
-const root = block(":root");
-/** Rauchglas (Entscheid Gian 2026-10-23) steht direkt in `:root`. */
-const THEMES: Record<string, Record<string, string>> = { rauchglas: root };
+/** Werkbank (Entscheid Gian 2026-10-24) steht direkt in `:root`. */
+const THEMES: Record<string, Record<string, string>> = { werkbank: root };
 
 /** Text auf Fläche: [Text-Token, Flächen-Tokens von unten nach oben]. */
 const PAIRS: [string, string[]][] = [
@@ -69,13 +72,31 @@ const PAIRS: [string, string[]][] = [
   ["hd-selected-ink", ["hd-surface", "hd-selected"]],
   ["hd-new-ink", ["hd-surface", "hd-new"]],
   ["hd-info-ink", ["hd-surface", "hd-info-soft"]],
-  ["hd-head-ink", ["hd-surface", "hd-head"]],
+  ["hd-head-ink", ["hd-box-top"]],
   ["hd-highlight-ink", ["hd-surface", "hd-highlight"]],
   ["hd-danger-ink", ["hd-surface", "hd-danger"]],
   ["hd-link", ["hd-surface"]],
   ["hd-ink", ["hd-surface", "hd-field"]],
   ["foreground", ["background"]],
   ["hd-muted", ["background", "hd-raised"]],
+  // Petrol (4h): Text und Linien auf dunkel, Schrift auf Petrol, Kicker im Verlaufskopf
+  ["hd-accent-text", ["hd-surface"]],
+  ["hd-accent-text", ["hd-surface", "hd-raised"]],
+  ["hd-accent-text", ["hd-box-top"]],
+  ["hd-kicker", ["hd-box-top"]],
+  ["hd-ink", ["hd-box-top"]],
+  ["hd-accent-ink", ["hd-accent"]],
+  ["hd-accent-ink", ["hd-accent-strong"]],
+  ["hd-faint", ["hd-surface"]],
+  ["hd-faint", ["hd-surface", "hd-raised"]],
+  ["hd-muted", ["hd-surface", "hd-field"]],
+  ["hd-ink", ["hd-surface", "hd-chip"]],
+  ["hd-ink-2", ["hd-surface", "hd-chip"]],
+  ["hd-danger", ["hd-surface", "hd-raised"]],
+  ["hd-time-ink", ["hd-time-morgen"]],
+  ["hd-time-ink", ["hd-time-mittag"]],
+  ["hd-time-ink", ["hd-time-abend"]],
+  ["hd-time-nacht-ink", ["hd-time-nacht"]],
 ];
 
 describe("Kontrast der Oberfläche (WCAG AA)", () => {

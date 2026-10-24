@@ -23,13 +23,13 @@ export function Breadcrumb({
       <button
         type="button"
         onClick={onClick}
-        className="cursor-pointer rounded-md px-[9px] py-[5px] text-hd-accent hover:bg-hd-hover focus-visible:outline-2 focus-visible:outline-hd-accent"
+        className="cursor-pointer rounded-md px-[9px] py-[5px] text-hd-accent-text hover:bg-hd-hover focus-visible:outline-2 focus-visible:outline-hd-accent-line"
       >
         {label}
       </button>
     ) : (
       <span
-        className={`px-[9px] py-[5px] ${strong ? "font-semibold text-hd-ink" : "text-hd-accent"}`}
+        className={`px-[9px] py-[5px] ${strong ? "font-semibold text-hd-ink" : "text-hd-accent-text"}`}
       >
         {label}
       </span>

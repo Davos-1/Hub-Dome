@@ -21,7 +21,7 @@ const LEGEND = "mb-1 text-[12px] font-bold tracking-wide text-hd-ink-2 uppercase
 const chip = (on: boolean) =>
   `cursor-pointer rounded-lg border-2 px-2.5 py-1.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
     on
-      ? "border-hd-accent bg-hd-accent text-hd-accent-ink"
+      ? "border-hd-accent-line bg-hd-accent text-hd-accent-ink"
       : "border-hd-line bg-hd-raised text-hd-ink-2 hover:border-hd-line-strong"
   }`;
 

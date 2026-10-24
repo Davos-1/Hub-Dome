@@ -96,7 +96,7 @@ function VillagesTab({
               <button
                 type="button"
                 onClick={onFriends}
-                className="font-semibold text-hd-accent underline"
+                className="font-semibold text-hd-accent-text underline"
               >
                 Freunde
               </button>{" "}
@@ -388,7 +388,7 @@ export function TravelDialog({
         {pending && target && (
           <p
             role="status"
-            className="rounded-lg bg-hd-accent-soft px-3 py-2 text-[13px] text-hd-accent"
+            className="rounded-lg bg-hd-accent-soft px-3 py-2 text-[13px] text-hd-accent-text"
           >
             Reise nach @{target}…
           </p>

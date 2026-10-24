@@ -32,7 +32,7 @@ export function StyleSettings({ zentraleStyle }: { zentraleStyle: ZentraleStyle 
                 key={s}
                 className={`flex cursor-pointer gap-3 rounded-xl border-2 p-3 ${
                   on
-                    ? "border-hd-accent bg-hd-accent-soft"
+                    ? "border-hd-accent-line bg-hd-accent-soft"
                     : "border-hd-line bg-hd-raised hover:bg-hd-hover"
                 }`}
               >

@@ -210,7 +210,7 @@ export function ListDialog({
                             href={openHref(a)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="min-w-0 text-[14px] font-semibold text-hd-accent underline underline-offset-2"
+                            className="min-w-0 text-[14px] font-semibold text-hd-accent-text underline underline-offset-2"
                           >
                             {a.title}
                           </a>

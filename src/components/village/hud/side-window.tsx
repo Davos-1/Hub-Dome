@@ -121,7 +121,7 @@ function ObjectDetail({
       <button
         type="button"
         onClick={onBack}
-        className="self-start text-[13px] text-hd-accent underline"
+        className="self-start text-[13px] text-hd-accent-text underline"
       >
         ← Zurück zu {house.kind === "zentrale" ? "Zentrale" : house.title}
       </button>
@@ -206,7 +206,7 @@ function HouseDetail({
                 <button
                   type="button"
                   onClick={() => actions.goToObject(house.id, a.id)}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-hd-line bg-hd-raised px-3 py-2 text-left hover:bg-hd-hover focus-visible:outline-2 focus-visible:outline-hd-accent"
+                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] border-hd-line bg-hd-raised px-3 py-2 text-left hover:bg-hd-hover focus-visible:outline-2 focus-visible:outline-hd-accent-line"
                 >
                   <span
                     aria-hidden

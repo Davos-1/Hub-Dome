@@ -7,11 +7,11 @@ const FOCUSABLE =
 
 export type DialogIcon = "start" | "reise" | "einstellungen" | "haus" | "objekt" | "bearbeiten";
 
-/** Kleine Symbole für den Schildkopf (cremefarbene Linien, passend zum Holzschild). */
+/** Kleine Symbole für den Kopf (helle Linien auf Petrol). */
 function Icon({ name }: { name: DialogIcon }) {
   const common = {
-    width: 26,
-    height: 26,
+    width: 22,
+    height: 22,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -57,9 +57,9 @@ function Icon({ name }: { name: DialogIcon }) {
 }
 
 /**
- * Grosser Dialog über der Welt im Stil der Holzschilder: Kopf aus Brettern mit Symbol, Pergament-Körper.
- * Hintergrund unscharf (auf Touch-Geräten nur abgedunkelt), Fokusfalle, Esc und Klick daneben schliessen,
- * Fokus kehrt zum Auslöser zurück. Auf kleinen Bildschirmen ein Vollbild-Blatt.
+ * Dialog über der Welt als Box «Verlauf» (Phase 4h): Kopf mit Petrol-Symbol, Kicker und Titel.
+ * Hintergrund abgedunkelt (leicht unscharf, auf Touch-Geräten nur abgedunkelt), Fokusfalle, Esc und Klick
+ * daneben schliessen, Fokus kehrt zum Auslöser zurück. Auf kleinen Bildschirmen ein Vollbild-Blatt.
  */
 export function DialogShell({
   title,
@@ -127,11 +127,7 @@ export function DialogShell({
       onKeyDown={onKeyDown}
     >
       <div
-        className={`hd-fade-in absolute inset-0 ${
-          lowDetail
-            ? "bg-hd-scrim shadow-[inset_0_0_0_100vmax_var(--hd-scrim)]"
-            : "bg-hd-scrim backdrop-blur-md"
-        }`}
+        className={`hd-fade-in absolute inset-0 bg-hd-scrim ${lowDetail ? "" : "backdrop-blur-[3px]"}`}
         onClick={onClose}
         aria-hidden
       />
@@ -142,33 +138,33 @@ export function DialogShell({
         aria-labelledby={titleId}
         tabIndex={-1}
         data-hd-dialog
-        className={`hd-pop-in hd-frame relative flex max-h-full w-full flex-col overflow-hidden bg-hd-surface text-hd-ink shadow-hd-panel outline-none max-sm:h-full max-sm:border-0 sm:rounded-hd-panel ${
+        className={`hd-pop-in hd-box relative flex max-h-full w-full flex-col overflow-hidden outline-none max-sm:h-full max-sm:rounded-none max-sm:border-0 ${
           size === "lg" ? "sm:max-w-3xl" : "sm:max-w-xl"
         }`}
       >
-        <div className="hd-plank flex items-center gap-3.5 px-5 py-4">
-          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-hd-frame/55 text-hd-head-ink">
+        <div className="flex items-start gap-3 px-5 pt-4 pb-3">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[11px] bg-hd-accent text-hd-accent-ink">
             <Icon name={icon} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="hd-kicker">{kicker}</div>
-            <h2 id={titleId} className="truncate text-[21px] leading-tight font-bold">
+            <h2 id={titleId} className="truncate text-[20px] leading-tight font-bold">
               {title}
             </h2>
-            {subtitle && <p className="mt-0.5 text-[13px] text-hd-kicker">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 text-[12.5px] text-hd-muted">{subtitle}</p>}
           </div>
           {!hideClose && (
             <button
               type="button"
               onClick={onClose}
               aria-label="Schliessen"
-              className="hd-close h-9 w-9 flex-none text-[15px]"
+              className="hd-close flex h-7 w-7 flex-none items-center justify-center text-[12px]"
             >
               ✕
             </button>
           )}
         </div>
-        <div className="flex-1 overflow-x-hidden overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-x-hidden overflow-y-auto px-5 pt-2 pb-5">{children}</div>
       </div>
     </div>
   );
@@ -177,4 +173,4 @@ export function DialogShell({
 /** Knöpfe und Links der Dialoge (Klassen aus globals.css). */
 export const dlgPrimary = "hd-btn hd-btn-primary";
 export const dlgSecondary = "hd-btn hd-btn-ghost";
-export const dlgLink = "text-[13px] font-medium text-hd-accent underline underline-offset-2";
+export const dlgLink = "text-[13px] font-medium text-hd-accent-text underline underline-offset-2";

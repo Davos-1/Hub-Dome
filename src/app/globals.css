@@ -2,8 +2,8 @@
 
 :root {
   /* Seitenhintergrund ausserhalb der Welt (Anmeldung, Einstellungen, Liste) */
-  --background: #141417;
-  --foreground: #f4f4f5;
+  --background: #161719;
+  --foreground: #f2f2f3;
 }
 
 @theme inline {
@@ -42,6 +42,12 @@
   --color-hd-head: var(--hd-head);
   --color-hd-head-ink: var(--hd-head-ink);
   --color-hd-kicker: var(--hd-kicker);
+  --color-hd-field: var(--hd-field);
+  --color-hd-chip: var(--hd-chip);
+  --color-hd-faint: var(--hd-faint);
+  --color-hd-accent-line: var(--hd-accent-line);
+  --color-hd-accent-text: var(--hd-accent-text);
+  --color-hd-box-top: var(--hd-box-top);
   --radius-hd-panel: var(--hd-radius-panel);
   --radius-hd-ctl: var(--hd-radius-ctl);
   --radius-hd-sm: var(--hd-radius-sm);
@@ -49,7 +55,7 @@
   --shadow-hd-pop: var(--hd-shadow-pop);
 }
 
-/* Die Oberfläche ist dunkel (Rauchglas): Browser-Standardfarben (Formulare, Bildlauf) passend dazu. */
+/* Die Oberfläche ist dunkel (Werkbank): Browser-Standardfarben (Formulare, Bildlauf) passend dazu. */
 :root {
   color-scheme: dark;
 }
@@ -61,7 +67,7 @@ textarea {
   color: var(--hd-ink);
 }
 select option {
-  background-color: #1f1f23;
+  background-color: #1f2023;
   color: var(--hd-ink);
 }
 
@@ -160,13 +166,15 @@ body {
   color: #7dd3fc;
 }
 
-/* Vollbild-Ansicht des 3D-Dorfs: IBM Plex Sans / Mono */
-.hubdome-ui {
-  font-family: var(--font-plex-sans), system-ui, sans-serif;
+/* Oberfläche (Welt und Seiten): Geist / Geist Mono wie im Prototyp 4h */
+.hubdome-ui,
+.hd-app {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.hubdome-ui .font-mono {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+.hubdome-ui .font-mono,
+.hd-app .font-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 /* Dialoge der Welt-Shell: sanftes Einblenden, bei reduzierter Bewegung ohne Animation */
@@ -215,64 +223,81 @@ body {
   }
 }
 
-/* ===== Hub-Dome-Oberfläche: Design-Tokens («Rauchglas», Entscheid Gian 2026-10-23) =====
+/* ===== Hub-Dome-Oberfläche: Design-Tokens («Werkbank», Petrol; Entscheid Gian 2026-10-24, Phase 4h) =====
    Alle Farben, Radien, Schatten und Effekte der Oberfläche kommen aus diesen Variablen; Komponenten
    verwenden nur die Tokens (Tailwind: bg-hd-surface, text-hd-ink, border-hd-line, rounded-hd-panel,
-   shadow-hd-panel …). Rauchglas: neutrales Anthrazit, dunkles Glas mit Unschärfe, feine Linien, Bernstein
-   als Hauptton, Holz nur als feine Linie unter dem Kopf. Kontrasttest: src/app/theme-contrast.test.ts. */
+   shadow-hd-panel …). Werkbank: deckende dunkle Flächen, feine Linien, Petrol als Akzent, Boxen mit
+   «Verlauf» (oben dunkles Petrol, nach unten ins Neutrale). Kontrasttest: src/app/theme-contrast.test.ts.
+   Werte aus dem Prototyp (docs/design_handoff_4h); aufgehellte Petrol-Töne als feste Werte gerechnet
+   (color-mix in oklab), damit der Kontrasttest sie lesen kann. */
 :root {
   /* Flächen */
-  --hd-surface: rgba(24, 24, 27, 0.92); /* Fensterkörper, Leisten */
-  --hd-raised: rgba(255, 255, 255, 0.07); /* Karte, Feld, Chip auf der Fläche */
-  --hd-sunken: rgba(255, 255, 255, 0.05); /* Reiter, inaktive Pillen, Nebenflächen */
-  --hd-hover: rgba(255, 255, 255, 0.12); /* Hover auf Karten und Geisterknöpfen */
-  --hd-float: var(--hd-surface); /* schwebend über der Szene: Brotkrumen, Suche, Hinweise */
-  --hd-field: rgba(0, 0, 0, 0.25); /* Eingabefelder */
-  --hd-frame: rgba(255, 255, 255, 0.14); /* Rahmen der Fenster und Leisten */
+  --hd-surface: #161719; /* Tafeln, Leisten, Fenster */
+  --hd-raised: #1f2023; /* Karten, Zeilen, Kacheln */
+  --hd-field: #0f1012; /* Eingabefelder, Segment-Hintergrund */
+  --hd-chip: #2a2b2f; /* Chips, Nebenknöpfe */
+  --hd-sunken: var(--hd-field);
+  --hd-hover: #2a2b2f;
+  --hd-float: var(--hd-surface);
+  --hd-frame: var(--hd-line);
   --hd-frame-width: 1px;
   /* Schrift */
-  --hd-ink: #f4f4f5;
-  --hd-ink-2: #d6d6da;
-  --hd-muted: #bcbcc4;
+  --hd-ink: #f2f2f3;
+  --hd-ink-2: #d4d4d8;
+  --hd-muted: #a1a1aa;
+  --hd-faint: #8b8c92;
   /* Linien */
-  --hd-line: rgba(255, 255, 255, 0.12);
-  --hd-line-strong: rgba(255, 255, 255, 0.22);
-  /* Hauptton und Auswahl */
-  --hd-accent: #f5b754;
-  --hd-accent-hover: #f8c877;
-  --hd-accent-strong: #c98f2e;
-  --hd-accent-ink: #231600;
-  --hd-accent-soft: rgba(245, 183, 84, 0.18);
-  --hd-selected: #f4f4f5; /* aktiver Reiter, gedrückte Pille */
-  --hd-selected-ink: #18181b;
+  --hd-line: #2a2b2f;
+  --hd-line-strong: #3a3b40;
+  /* Akzent Petrol */
+  --hd-accent: #0b5c63;
+  --hd-accent-ink: #f4fbfb; /* Schrift auf Petrol */
+  --hd-accent-line: #6f979b; /* color-mix(in oklab, #0b5c63 62%, #fff): Linien auf dunkel */
+  --hd-accent-text: #7fa2a6; /* color-mix(in oklab, #0b5c63 55%, #fff): Text auf dunkel */
+  --hd-accent-soft: rgba(11, 92, 99, 0.18);
+  --hd-accent-hover: #3a7379;
+  --hd-accent-strong: #064247;
+  --hd-selected: var(--hd-ink); /* gedrücktes Segment */
+  --hd-selected-ink: #161719;
   /* Zustände */
   --hd-danger: #ffa89d;
-  --hd-danger-soft: rgba(255, 120, 100, 0.16);
+  --hd-danger-soft: rgba(255, 120, 100, 0.14);
   --hd-danger-ink: #2a0b06;
-  --hd-new: #fde68a; /* Aufkleber «neu» */
-  --hd-new-ink: #2f2500;
-  --hd-highlight: #f5b754;
-  --hd-highlight-ink: #231600;
-  --hd-info-soft: rgba(255, 255, 255, 0.1);
-  --hd-info-ink: #e4e4e7;
-  --hd-link: #f8c877;
-  /* Kopf der Fenster */
-  --hd-head: rgba(255, 255, 255, 0.04);
-  --hd-head-ink: #fafafa;
-  --hd-kicker: #d9bd8f;
-  --hd-head-grain: transparent;
-  --hd-head-rule: 1px solid rgba(214, 160, 90, 0.6); /* feine Holzlinie */
+  --hd-new: var(--hd-accent); /* «neu» */
+  --hd-new-ink: var(--hd-accent-ink);
+  --hd-highlight: var(--hd-accent); /* Zähler, Hinweise */
+  --hd-highlight-ink: var(--hd-accent-ink);
+  --hd-info-soft: var(--hd-raised);
+  --hd-info-ink: var(--hd-ink-2);
+  --hd-link: var(--hd-accent-text);
+  /* Boxen «Verlauf» */
+  --hd-box-head: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--hd-accent) 40%, var(--hd-surface)) 0%,
+    var(--hd-surface) 52%
+  );
+  --hd-box-top: #123337; /* oberstes Petrol der Box (für Kontrast des Kickers) */
+  --hd-head: transparent;
+  --hd-head-ink: var(--hd-ink);
+  --hd-kicker: var(--hd-accent-text);
   /* Form und Tiefe */
-  --hd-radius-panel: 18px;
-  --hd-radius-ctl: 12px;
-  --hd-radius-sm: 9px;
-  --hd-shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --hd-shadow-pop: 0 6px 18px rgba(0, 0, 0, 0.28);
-  --hd-blur: 16px;
-  --hd-scrim: rgba(0, 0, 0, 0.45);
+  --hd-radius-panel: 14px;
+  --hd-radius-ctl: 9px;
+  --hd-radius-sm: 7px;
+  --hd-shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.5);
+  --hd-shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --hd-scrim: rgba(0, 0, 0, 0.5);
+  /* Tageszeit (Hintergrund des Tageszeit-Knopfs) */
+  --hd-time-morgen: #f7c873;
+  --hd-time-mittag: #fff1b8;
+  --hd-time-abend: #f08a4b;
+  --hd-time-nacht: #7d8bd6;
+  --hd-time-ink: #2a1a00;
+  --hd-time-nacht-ink: #0b1033;
   /* Bewegung */
   --hd-motion-fast: 140ms;
-  --hd-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --hd-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --hd-spring: cubic-bezier(0.3, 1.5, 0.5, 1);
 
   /* Alte Namen (für ältere Klassen) */
   --hd-wood: var(--hd-head);
@@ -284,84 +309,79 @@ body {
   --hd-cream: var(--hd-accent-ink);
 }
 
-/* Unschärfe nur, wo sie nichts kostet: auf schmalen Bildschirmen (Handy) und bei «weniger Transparenz»
-   deckende Flächen ohne Unschärfe über der 3D-Szene. */
-@media (max-width: 767px), (prefers-reduced-transparency: reduce) {
-  :root {
-    --hd-blur: 0px;
-    --hd-surface: rgba(24, 24, 27, 0.97);
-  }
+/* Scrollbalken versteckt (Gestaltungsentscheid 4h); Bereiche bleiben mit Rad, Tasten und Wischen scrollbar. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }
 
-/* Kopf wie ein Holzschild in der Welt: Bretter mit dunklen Fugen und Rahmen */
-.hd-plank {
-  background-color: var(--hd-head);
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(25% - 1.5px),
-    var(--hd-head-grain) calc(25% - 1.5px),
-    var(--hd-head-grain) 25%
-  );
-  color: var(--hd-head-ink);
-  border-bottom: var(--hd-head-rule);
-}
-.hd-frame {
-  border: calc(var(--hd-frame-width) + 1px) solid var(--hd-frame);
-}
-/* Fenster und Leisten über der Szene: Fläche, Rahmen, Schatten, Glas (Unschärfe nur in Glas-Varianten) */
-.hd-panel {
-  background: var(--hd-surface);
-  border: var(--hd-frame-width) solid var(--hd-frame);
+/* Box mit «Verlauf» (Tafeln, Karten der Reise, Besuchsband): oben dunkles Petrol, nach unten neutral */
+.hd-box {
+  background: var(--hd-box-head);
+  border: 1px solid var(--hd-line);
   border-radius: var(--hd-radius-panel);
   box-shadow: var(--hd-shadow-panel);
   color: var(--hd-ink);
-  -webkit-backdrop-filter: blur(var(--hd-blur)) saturate(1.2);
-  backdrop-filter: blur(var(--hd-blur)) saturate(1.2);
 }
-/* Schwebend über der Szene (Brotkrumen, Suche, Hinweise): eigene Fläche, in Glas-Varianten mit Unschärfe */
+/* Kopf einer Box: ohne eigene Fläche (der Verlauf liegt auf der ganzen Box) */
+.hd-plank {
+  background: transparent;
+  color: var(--hd-head-ink);
+}
+.hd-frame {
+  border: 1px solid var(--hd-line);
+}
+/* Flächen über der Szene (Leisten, Menüs, Brotkrumen): deckend, feine Linie */
+.hd-panel {
+  background: var(--hd-surface);
+  border: 1px solid var(--hd-line);
+  border-radius: var(--hd-radius-panel);
+  box-shadow: var(--hd-shadow-panel);
+  color: var(--hd-ink);
+}
 .hd-float {
-  background-color: var(--hd-float);
-  -webkit-backdrop-filter: blur(var(--hd-blur)) saturate(1.2);
-  backdrop-filter: blur(var(--hd-blur)) saturate(1.2);
+  background-color: var(--hd-surface);
+  border: 1px solid var(--hd-line);
 }
-/* Runder Schliessen-Knopf im Kopf der Fenster */
+/* Runder Schliessen-Knopf im Kopf der Tafeln */
 .hd-close {
   cursor: pointer;
   border-radius: 9999px;
-  font-weight: 700;
-  background: var(--hd-raised);
+  background: var(--hd-chip);
   color: var(--hd-ink);
-  box-shadow: inset 0 0 0 1px var(--hd-line-strong);
-  transition:
-    background-color var(--hd-motion-fast),
-    transform var(--hd-motion-fast) var(--hd-spring);
+  transition: filter var(--hd-motion-fast);
 }
 .hd-close:hover {
-  background: var(--hd-hover);
-  transform: rotate(90deg);
+  filter: brightness(1.25);
 }
 .hd-kicker {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
-  font-size: 11px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--hd-kicker);
+}
+.hd-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 .hd-input {
   width: 100%;
   border-radius: var(--hd-radius-ctl);
-  border: 1.5px solid var(--hd-line-strong);
+  border: 1px solid var(--hd-line);
   background: var(--hd-field);
-  padding: 9px 12px;
+  padding: 9px 11px;
   font-size: 14px;
   color: var(--hd-ink);
+  outline: none;
+}
+.hd-input::placeholder {
+  color: var(--hd-faint);
 }
 .hd-input:focus-visible {
-  outline: 2px solid var(--hd-accent);
-  outline-offset: 1px;
-  border-color: var(--hd-accent);
+  border-color: var(--hd-accent-line);
 }
 .hd-btn {
   display: inline-flex;
@@ -370,84 +390,59 @@ body {
   gap: 6px;
   cursor: pointer;
   border-radius: var(--hd-radius-ctl);
-  padding: 9px 16px;
-  font-size: 14px;
+  padding: 9px 14px;
+  font-size: 13.5px;
   font-weight: 600;
   transition:
-    transform var(--hd-motion-fast) var(--hd-spring),
+    filter var(--hd-motion-fast),
     background-color var(--hd-motion-fast),
     border-color var(--hd-motion-fast);
 }
 .hd-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.45;
   cursor: default;
 }
 .hd-btn:not(:disabled):hover {
-  transform: translateY(-1px);
+  filter: brightness(1.15);
 }
-.hd-btn:not(:disabled):active {
-  transform: translateY(1px);
-}
-/* Aufkleber («neu»): leicht schief, richtet sich beim Darüberfahren federnd auf */
+/* «neu»: kleine Petrol-Pille */
 .hd-sticker {
   display: inline-block;
   border-radius: 9999px;
   background: var(--hd-new);
   color: var(--hd-new-ink);
-  transform: rotate(-3deg);
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.35),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
-  transition: transform var(--hd-motion-fast) var(--hd-spring);
-}
-.hd-sticker:hover {
-  transform: rotate(0deg) scale(1.08);
-}
-@media (prefers-reduced-motion: reduce) {
-  .hd-btn:not(:disabled):hover,
-  .hd-close:hover {
-    transform: none;
-  }
+  font-weight: 700;
 }
 .hd-btn-primary {
   background: var(--hd-accent);
   color: var(--hd-accent-ink);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--hd-accent) 35%, transparent);
-}
-.hd-btn-primary:not(:disabled):hover {
-  background: var(--hd-accent-hover);
+  font-weight: 700;
 }
 .hd-btn-ghost {
-  background: var(--hd-raised);
+  background: var(--hd-chip);
   color: var(--hd-ink);
-  border: 1.5px solid var(--hd-line-strong);
-}
-.hd-btn-ghost:not(:disabled):hover {
-  background: var(--hd-hover);
 }
 .hd-btn-danger {
-  background: var(--hd-raised);
+  background: transparent;
   color: var(--hd-danger);
-  border: 1.5px solid color-mix(in srgb, var(--hd-danger) 35%, transparent);
 }
 .hd-btn-danger:not(:disabled):hover {
   background: var(--hd-danger-soft);
+  filter: none;
 }
 .hd-btn-sm {
-  padding: 5px 11px;
+  padding: 6px 11px;
   font-size: 12.5px;
-  border-radius: var(--hd-radius-sm);
 }
 .hd-card {
   background: var(--hd-raised);
-  border: 1.5px solid var(--hd-line);
-  border-radius: calc(var(--hd-radius-panel) - 2px);
+  border: 1px solid var(--hd-line);
+  border-radius: var(--hd-radius-panel);
   padding: 14px 16px;
 }
 .hd-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--hd-ink);
+  font-size: 12.5px;
+  color: var(--hd-muted);
 }
 .hd-note {
   font-size: 12.5px;
@@ -459,11 +454,36 @@ body {
 }
 .hd-ok {
   font-size: 13px;
-  color: var(--hd-accent);
+  color: var(--hd-accent-text);
 }
-/* Hintergrund der Lade- und Anmeldeseiten: dunkler Verlauf mit warmem Schein oben */
+/* Fokusring für alle Bedienelemente der Oberfläche */
+.hubdome-ui :focus-visible,
+.hd-app :focus-visible {
+  outline: 2px solid var(--hd-accent-line);
+  outline-offset: 2px;
+}
+/* Hintergrund der Lade- und Anmeldeseiten: Himmel mit Petrol-Schein und Welt-Silhouette (siehe AuthCard) */
 .hd-sky {
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(245, 183, 84, 0.16) 0%, transparent 55%),
-    linear-gradient(to bottom, #1d1d22 0%, #141417 100%);
+    radial-gradient(120% 80% at 50% 115%, rgba(11, 92, 99, 0.45) 0%, transparent 60%),
+    linear-gradient(to bottom, #0e1d20 0%, #12181a 55%, #161719 100%);
+}
+/* Bewegungen der Oberfläche: Auftritt der Kacheln mit leichtem Federn */
+@keyframes hd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hd-rise {
+  animation: hd-rise 0.3s var(--hd-ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hd-rise {
+    animation: none;
+  }
 }
