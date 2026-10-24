@@ -46,7 +46,8 @@ describe("Wegausstattung", () => {
         for (const q of line) expect(distPointPolyline(q.x, q.z, p.points)).toBeLessThan(0.2);
       }
     }
-  });
+    // Sechs Welten: unter Last (z.B. parallel laufende Bildmatrix) länger als das Standardlimit von 5 s
+  }, 60_000);
 
   it("nichts Komisches: Randschmuck, Randsteine und Trittplatten frei von Wegen, Gärten, Wasser und Plätzen", () => {
     const problems: string[] = [];
