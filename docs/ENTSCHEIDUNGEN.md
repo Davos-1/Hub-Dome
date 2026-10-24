@@ -364,3 +364,9 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Aufräumen:** Hilfsskripte der Messungen (`.audit/`) gelöscht; Bilder und Messskripte liegen nur im Sitzungsordner.
 - **Push:** Etappen 4–6 sind lokal committet; der Push auf den Arbeitsbranch wurde ab Etappe 4 mit HTTP 403 abgewiesen (Lesen geht). Gian muss die GitHub-Verbindung erneuern.
 
+
+## 2026-10-24 – Phase 4h: Oberfläche «Werkbank», Fokusregel aufgehoben
+- **Kontext:** Gian hat die Oberfläche rund um die Welt in einem klickbaren Prototyp neu gestaltet (Petrol, «Tafel am Ort», Sucher mit Kacheln am Haus, Liste mit Griff, Inventar, Vollbild-Einstellungen, Reise als Inselkarte, Bau-Modus als Plan). Plan: `docs/design_handoff_4h/UMSETZUNGSPLAN.md`, Prototyp (aus dem Artifact entpackt): `docs/design_handoff_4h/prototyp.dc.html`, Konzept: `docs/PHASE-4H-KONZEPT.md`.
+- **Entscheide Gian:** (1) Fokusregel für 4h aufgehoben (wie 4f/4g), danach gilt sie wieder bis zum Pilot-Feedback; der Pilot verschiebt sich. (2) Phasen A–E am Stück, Stopp erst am Ende. (3) Die offenen Gestaltungspunkte aus Abschnitt 3 des Plans (Haus anlegen, ⌘K, Übernehmen im Besuch, Leerzustände, Kategorie-Filter, Login/Start, Rückgängig im Bau-Modus) gleich mit einbauen; die Handy-Ansicht folgt später.
+- **Annahmen (nicht beanstandet):** Petrol ersetzt Rauchglas/Bernstein in der ganzen App, deckende Flächen ohne Unschärfe; 8 feste Hausfarben über die bestehende Spalte `houses.color`; Migrationen spielt Gian ein; Wegformen kommen als neue Generator-Version.
+- **Grund:** Die bisherige Oberfläche (Fenster rechts, Dialoge) trennt Bearbeiten und Ort; die neue Gestaltung bearbeitet direkt am Haus und macht Aufräumen (Liste, Inventar) schneller.

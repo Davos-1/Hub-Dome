@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- dc-runtime (nicht enthalten) -->
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style></style>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#161719}*{box-sizing:border-box}a{color:inherit}a:hover{opacity:.85}button,input,textarea{font:inherit;color:inherit}input::placeholder,textarea::placeholder{color:#8b8c92}
+[data-sb="Schmal"] *{scrollbar-width:thin;scrollbar-color:var(--chip) transparent}
+[data-sb="Akzent"] *{scrollbar-width:thin;scrollbar-color:var(--acc) transparent}
+[data-sb="Bei Hover"] *{scrollbar-width:thin;scrollbar-color:transparent transparent}
+[data-sb="Bei Hover"] *:hover{scrollbar-color:var(--muted) transparent}
+[data-sb="Versteckt"] *{scrollbar-width:none}</style>
+</helmet>
+<div ref="{{ rootRef }}" style="{{ rootStyle }}" data-sb="{{ sbMode }}" data-screen-label="Prototyp">
+
+  <!-- WELT (Platzhalter) -->
+  <div sc-camel-on-mouse-down="{{ onWorldDown }}" sc-camel-on-wheel="{{ onWheel }}" style="position:absolute;top:0;right:0;left:{{ worldL }}px;bottom:{{ worldB }}px;overflow:hidden;background:{{ worldBg }};transition:{{ areaTrans }};cursor:{{ worldCursor }}">
+    <div style="position:absolute;inset:0;transform:{{ worldTransform }};transition:{{ worldTrans }};transform-origin:50% 50%">
+      <sc-for list="{{ quarterLabelsShown }}" as="q" hint-placeholder-count="3">
+        <div style="position:absolute;left:{{ q.x }}%;top:{{ q.y }}%;transform:translate(-50%,-50%);font-family:'Geist Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--faint);white-space:nowrap;pointer-events:none">{{ q.name }}</div>
+      </sc-for>
+      <sc-for list="{{ trees }}" as="t" hint-placeholder-count="0"><span data-house="tree" sc-camel-on-mouse-down="{{ t.onDown }}" style="cursor:{{ t.cur }};outline:{{ t.ol }};outline-offset:2px;position:absolute;left:{{ t.x }}%;top:{{ t.y }}%;width:{{ t.s }}px;height:{{ t.s }}px;transform:translate(-50%,-50%) scale({{ t.sc }});opacity:{{ t.op }};border-radius:50%;background:radial-gradient(circle at 35% 35%,#5d8a4e,#3b5a33);box-shadow:0 2px 4px rgba(0,0,0,.35);transition:opacity .45s ease,transform .45s cubic-bezier(.3,1.4,.5,1);pointer-events:{{ t.pe }}"></span></sc-for>
+      <sc-if value="{{ build }}" hint-placeholder-val="{{ false }}">
+        <sc-for list="{{ bQuarters }}" as="q" hint-placeholder-count="0">
+          <span style="position:absolute;left:{{ q.x }}%;top:{{ q.y }}%;width:{{ q.rw }}px;height:{{ q.rh }}px;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed {{ q.color }};background:{{ q.fill }};opacity:{{ q.op }};pointer-events:none;transition:opacity .3s"></span>
+          <span style="position:absolute;left:{{ q.x }}%;top:{{ q.y }}%;width:{{ q.ow }}px;height:{{ q.oh }}px;transform:translate(-50%,-50%);border-radius:{{ q.orad }};border-style:solid;border-color:#3e4044;border-width:{{ q.bw }};pointer-events:none;transition:width .3s,height .3s"></span>
+          <span style="position:absolute;left:{{ q.x }}%;top:{{ q.y }}%;transform:translate(-50%,-50%);margin-top:{{ q.lblY }}px;font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--faint);white-space:nowrap;pointer-events:none">{{ q.label }}</span>
+        </sc-for>
+        <sc-for list="{{ spurs }}" as="sp" hint-placeholder-count="0"><span data-house="road" sc-camel-on-mouse-down="{{ sp.onDown }}" style="position:absolute;left:{{ sp.x }}px;top:{{ sp.y }}px;width:{{ sp.len }}px;height:{{ sp.hh }}px;background:{{ sp.bg }};transform-origin:0 50%;transform:translateY(-50%) rotate({{ sp.ang }}deg);pointer-events:{{ sp.pe }};cursor:copy"></span></sc-for>
+        <sc-for list="{{ bendHandles }}" as="bh" hint-placeholder-count="0"><span data-house="bend" sc-camel-on-mouse-down="{{ bh.onDown }}" sc-camel-on-double-click="{{ bh.onDbl }}" title="Ziehen · Doppelklick entfernt" style="position:absolute;left:{{ bh.x }}%;top:{{ bh.y }}%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--panel);border:2.5px solid var(--accLine);cursor:move;box-shadow:0 2px 8px rgba(0,0,0,.45)"></span></sc-for>
+        <sc-if value="{{ showMoveR }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:{{ mr.x }}%;top:{{ mr.y }}%;width:{{ mr.w }}px;height:{{ mr.h }}px;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed var(--accLine);background:var(--accSoft);pointer-events:none"></span></sc-if>
+        <sc-for list="{{ bQuarters }}" as="q" hint-placeholder-count="0">
+          <span data-house="handle" sc-camel-on-mouse-down="{{ q.onDown }}" title="Quartier verschieben" style="position:absolute;left:{{ q.x }}%;top:{{ q.y }}%;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;background:{{ q.hBg }};border:2px solid {{ q.hBd }};display:{{ q.hDisp }};align-items:center;justify-content:center;color:#f4fbfb;font-size:13px;cursor:move;box-shadow:0 4px 12px rgba(0,0,0,.4)">✥</span>
+        </sc-for>
+      </sc-if>
+      <sc-for list="{{ worldHouses }}" as="h" hint-placeholder-count="8">
+        <div data-house="{{ h.id }}" sc-camel-on-mouse-down="{{ h.onDown }}" sc-camel-on-click="{{ h.onClick }}" sc-camel-on-mouse-enter="{{ h.onEnter }}" sc-camel-on-mouse-leave="{{ onLeave }}" style="position:absolute;left:{{ h.x }}%;top:{{ h.y }}%;width:{{ h.w }}px;height:{{ h.hh }}px;transform:translate(-50%,-50%);background:var(--house);border:1px {{ h.border }} var(--houseLine);border-radius:3px;box-shadow:{{ h.ring }};cursor:pointer;transition:box-shadow .2s">
+          <span style="position:absolute;left:0;right:0;top:0;height:5px;background:{{ h.color }}"></span>
+          <span style="position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:6px;font-family:'Geist Mono',monospace;font-size:11px;color:var(--ink2);white-space:nowrap">{{ h.name }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="position:absolute;inset:0;background:{{ tint }};pointer-events:none;transition:background .6s"></div>
+    <div style="position:absolute;left:16px;bottom:14px;font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:var(--faint);pointer-events:none">3D-WELT · PLATZHALTER</div>
+    <sc-if value="{{ inv }}" hint-placeholder-val="{{ false }}">
+      <button sc-camel-on-click="{{ closeInv }}" style="position:absolute;left:50%;bottom:26px;transform:translateX(-50%);border:1px solid var(--line);background:var(--panel);border-radius:var(--rpill);padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">↑ Hereinzoomen oder Esc · zurück ins Dorf</button>
+    </sc-if>
+  </div>
+
+  <!-- RING / AKTIONEN -->
+  <sc-if value="{{ showRing }}" hint-placeholder-val="{{ false }}">
+    <sc-if value="{{ ringOutline }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:{{ ring.x }}px;top:{{ ring.y }}px;width:{{ ring.size }}px;height:{{ ring.size }}px;transform:translate(-50%,-50%);border:1px solid var(--acc);opacity:{{ ringOpHalf }};border-radius:{{ ring.radius }};pointer-events:none;transition:opacity .25s ease"></div>
+    </sc-if>
+    <sc-if value="{{ ringSucher }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:{{ ring.x }}px;top:{{ ring.y }}px;width:{{ ring.bw }}px;height:{{ ring.bh }}px;transform:translate(-50%,-50%) {{ ringFsc }};opacity:{{ ringOp }};transition:{{ ringTr }};pointer-events:none">
+        <span style="position:absolute;left:0;top:0;width:26px;height:26px;border-left:2px solid var(--accLine);border-top:2px solid var(--accLine);border-top-left-radius:var(--rc)"></span>
+        <span style="position:absolute;right:0;top:0;width:26px;height:26px;border-right:2px solid var(--accLine);border-top:2px solid var(--accLine);border-top-right-radius:var(--rc)"></span>
+        <span style="position:absolute;right:0;bottom:0;width:26px;height:26px;border-right:2px solid var(--accLine);border-bottom:2px solid var(--accLine);border-bottom-right-radius:var(--rc)"></span>
+        <span style="position:absolute;left:0;bottom:0;width:26px;height:26px;border-left:2px solid var(--accLine);border-bottom:2px solid var(--accLine);border-bottom-left-radius:var(--rc)"></span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ ringBar }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:{{ bar.x }}px;top:{{ bar.y }}px;width:448px;height:46px;transform:translate(-50%,-50%);opacity:{{ ringOp }};transition:opacity .25s ease;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);box-shadow:var(--shadow);pointer-events:none"></div>
+    </sc-if>
+    <sc-for list="{{ ringActions }}" as="a" hint-placeholder-count="4">
+      <button sc-camel-on-click="{{ a.onClick }}" style="position:absolute;left:{{ a.x }}px;top:{{ a.y }}px;transform:translate(-50%,-50%) {{ a.sc }};opacity:{{ a.op }};pointer-events:{{ a.pe }};display:flex;flex-direction:{{ a.dir }};align-items:center;justify-content:center;gap:{{ a.gap }}px;width:{{ a.w }};height:{{ a.h }};padding:{{ a.pad }};background:{{ a.bg }};color:{{ a.fg }};border:{{ a.border }};border-radius:{{ a.rad }};box-shadow:{{ a.sh }};backdrop-filter:{{ a.blur }};-webkit-backdrop-filter:{{ a.blur }};font-size:{{ a.fs }};font-weight:{{ a.fw }};cursor:pointer;white-space:nowrap;transition:{{ a.tr }}" style-hover="filter:brightness(1.15)">
+        <sc-if value="{{ a.showGlyph }}" hint-placeholder-val="{{ false }}"><span style="font-size:{{ a.gs }}px;line-height:1;color:{{ a.gc }}">{{ a.glyph }}</span></sc-if>
+        <span>{{ a.label }}</span>
+        <sc-if value="{{ a.badge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:-6px;top:-6px;min-width:20px;height:20px;border-radius:10px;background:var(--ink);color:var(--panel);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px">{{ a.badge }}</span></sc-if>
+      </button>
+    </sc-for>
+  </sc-if>
+
+  <sc-if value="{{ showLeader }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ ld.x }}px;top:{{ ld.y }}px;width:{{ ld.w }}px;height:1px;background:var(--acc);pointer-events:none"></div>
+    <div style="position:absolute;left:{{ ld.dx }}px;top:{{ ld.y }}px;width:9px;height:9px;border-radius:50%;background:var(--acc);transform:translate(-50%,-50%);pointer-events:none"></div>
+  </sc-if>
+  <sc-if value="{{ showRowLeader }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ rl.x }}px;top:{{ rl.y }}px;width:{{ rl.w }}px;height:1px;background:var(--acc);pointer-events:none"></div>
+    <div style="position:absolute;left:{{ rl.vx }}px;top:{{ rl.vy }}px;width:1px;height:{{ rl.vh }}px;background:var(--acc);pointer-events:none"></div>
+  </sc-if>
+
+  <sc-if value="{{ showTip }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ tip.x }}px;top:{{ tip.y }}px;transform:translate(-50%,-100%);background:var(--panel);border:1px solid var(--line);border-radius:var(--rc);padding:7px 11px;box-shadow:var(--shadow);pointer-events:none;display:flex;flex-direction:column;gap:2px;white-space:nowrap">
+      <span style="font-size:13px;font-weight:700">{{ tip.name }}</span>
+      <sc-for list="{{ tip.lines }}" as="l" hint-placeholder-count="1"><span style="font-size:11.5px;color:var(--muted)">{{ l }}</span></sc-for>
+    </div>
+  </sc-if>
+
+  <!-- TAFEL -->
+  <sc-if value="{{ showTafel }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ tf.x }}px;top:{{ tf.y }}px;transition:{{ tafelTr }};width:{{ tf.w }}px;max-height:{{ tf.maxH }}px;overflow-x:hidden;overflow-y:auto;background:{{ bx.bg }};border:{{ bx.border }};border-left:{{ bx.left }};border-radius:{{ bx.rad }};box-shadow:{{ bx.sh }};display:flex;flex-direction:column">
+      <div style="padding:16px 18px 12px 20px;display:flex;gap:12px;align-items:{{ bx.hAlign }};border-bottom:1px solid {{ bx.hLine }};background:{{ bx.headBg }}">
+        <sc-if value="{{ bx.icon }}" hint-placeholder-val="{{ false }}"><span style="width:40px;height:40px;flex:none;border-radius:calc(var(--rc) + 2px);background:var(--acc);color:var(--accInk);display:flex;align-items:center;justify-content:center;font-size:17px">{{ tafel.glyph }}</span></sc-if>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:{{ bx.gap }};align-items:flex-start">
+          <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:{{ bx.kC }};background:{{ bx.kBg }};padding:{{ bx.kPad }};border-radius:var(--rpill)">{{ tafel.kicker }}</span>
+          <span style="font-size:19px;font-weight:700;line-height:1.2;color:{{ bx.tC }}">{{ tafel.title }}</span>
+          <span style="font-size:12.5px;color:{{ bx.sC }}">{{ tafel.sub }}</span>
+        </div>
+        <button sc-camel-on-click="{{ closeTafel }}" aria-label="Schliessen" style="align-self:flex-start;width:28px;height:28px;border:0;border-radius:var(--rpill);background:var(--chip);cursor:pointer;font-size:12px">✕</button>
+      </div>
+
+      <!-- Haus (Galerie) -->
+      <sc-if value="{{ mHouse }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px 18px 6px 20px;display:flex;flex-direction:column;gap:10px">
+          <sc-if value="{{ hInfo.showStats }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:var(--rc);overflow:hidden">
+              <sc-for list="{{ hInfo.stats }}" as="st" hint-placeholder-count="4">
+                <div style="padding:8px 10px;border-right:1px solid var(--line)"><div style="font-size:16px;font-weight:700">{{ st.v }}</div><div style="font-size:11px;color:var(--muted)">{{ st.l }}</div></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hInfo.empty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:12px;border-radius:var(--rc);border:1px dashed var(--line);font-size:13px;color:var(--muted)">Baustelle: hier gibt es noch keine Objekte.</div>
+          </sc-if>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <sc-for list="{{ hInfo.list }}" as="o" hint-placeholder-count="4">
+              <button sc-camel-on-click="{{ o.onClick }}" style="border:0;padding:0;text-align:left;border-radius:var(--rc);overflow:hidden;background:var(--panel2);cursor:pointer;display:flex;flex-direction:column;position:relative" style-hover="filter:brightness(1.12)">
+                <span style="height:70px;background:repeating-linear-gradient(135deg,var(--panel2) 0 7px,var(--chip) 7px 14px);display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:9.5px;color:var(--faint)">VORSCHAU</span>
+                <span style="height:3px;background:{{ o.kc }}"></span>
+                <span style="padding:9px 10px 10px;display:flex;flex-direction:column;gap:3px"><span style="font-size:12.5px;font-weight:600;line-height:1.3">{{ o.t }}</span><span style="font-size:11px;color:var(--muted)">{{ o.meta }}</span></span>
+                <sc-if value="{{ o.neu }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:6px;top:6px;font-size:10px;font-weight:700;background:var(--acc);color:var(--accInk);border-radius:var(--rpill);padding:1px 7px">neu</span></sc-if>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:12px 18px 14px 20px;display:flex;flex-wrap:wrap;gap:8px">
+          <button sc-camel-on-click="{{ tafelAdd }}" style="flex:1;border:0;background:var(--acc);color:var(--accInk);font-weight:700;border-radius:var(--rc);padding:9px 12px;font-size:13.5px;cursor:pointer">+ Objekt</button>
+          <button sc-camel-on-click="{{ tafelEditHouse }}" style="border:0;background:var(--chip);font-weight:600;border-radius:var(--rc);padding:9px 14px;font-size:13.5px;cursor:pointer">Haus bearbeiten</button>
+        </div>
+      </sc-if>
+
+      <!-- Objekt -->
+      <sc-if value="{{ mObj }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px 18px 4px 20px;display:flex;flex-direction:column;gap:10px">
+          <sc-if value="{{ oInfo.showImg }}" hint-placeholder-val="{{ false }}">
+            <div style="height:120px;border-radius:var(--rc);background:repeating-linear-gradient(135deg,var(--panel2) 0 7px,var(--chip) 7px 14px);display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--muted)">VORSCHAU AUS LINK</div>
+          </sc-if>
+          <sc-if value="{{ oInfo.showDesc }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--ink2)">{{ oInfo.desc }}</p></sc-if>
+          <div style="display:grid;grid-template-columns:110px 1fr;row-gap:6px;font-size:13px">
+            <sc-for list="{{ oInfo.rows }}" as="r" hint-placeholder-count="2"><span style="color:var(--muted)">{{ r.k }}</span><span style="display:flex;align-items:center;gap:7px"><sc-if value="{{ r.dot }}" hint-placeholder-val="{{ false }}"><span style="width:9px;height:9px;border-radius:50%;background:{{ r.dot }}"></span></sc-if>{{ r.v }}</span></sc-for>
+          </div>
+        </div>
+        <div style="padding:12px 18px 14px 20px;display:flex;flex-wrap:wrap;gap:8px">
+          <button sc-camel-on-click="{{ objOpen }}" style="flex:1;border:0;background:var(--acc);color:var(--accInk);font-weight:700;border-radius:var(--rc);padding:9px 12px;font-size:13.5px;cursor:pointer">Öffnen</button>
+          <button sc-camel-on-click="{{ objEdit }}" style="border:0;background:var(--chip);font-weight:600;border-radius:var(--rc);padding:9px 14px;font-size:13.5px;cursor:pointer">Bearbeiten</button>
+          <button sc-camel-on-click="{{ objDelete }}" style="border:0;background:transparent;color:var(--danger);font-weight:600;border-radius:var(--rc);padding:9px 10px;font-size:13.5px;cursor:pointer">Löschen</button>
+        </div>
+      </sc-if>
+
+      <!-- Objekt-Formular: Schritte + Karte -->
+      <sc-if value="{{ mForm }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:12px 18px 0 20px">
+          <sc-for list="{{ stepCells }}" as="sc" hint-placeholder-count="3">
+            <button sc-camel-on-click="{{ sc.onClick }}" style="border:0;background:transparent;padding:0;display:flex;flex-direction:column;gap:5px;cursor:pointer;text-align:left"><span style="height:3px;border-radius:2px;background:{{ sc.bar }}"></span><span style="font-size:11.5px;font-weight:{{ sc.fw }};color:{{ sc.c }};white-space:nowrap">{{ sc.l }}</span></button>
+          </sc-for>
+        </div>
+        <div style="margin:12px 18px 0 20px;border-radius:calc(var(--rc) + 3px);overflow:hidden;background:var(--panel2);border:1px solid var(--line);display:grid;grid-template-columns:96px minmax(0,1fr)">
+          <span style="background:repeating-linear-gradient(135deg,var(--panel2) 0 7px,var(--chip) 7px 14px);border-right:3px solid {{ card.kc }};display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:9px;color:var(--faint)">BILD</span>
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0">
+            <button sc-camel-on-click="{{ card.toTitle }}" style="border:0;background:transparent;padding:0 0 2px;text-align:left;font-size:15px;font-weight:700;line-height:1.25;border-bottom:1.5px dashed var(--accLine);color:{{ card.titleC }};cursor:pointer">{{ card.title }}</button>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <button sc-camel-on-click="{{ card.toKind }}" style="display:flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--rpill);border:1px solid var(--line);background:transparent;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:{{ card.kc }}"></span>{{ card.kind }}</button>
+              <button sc-camel-on-click="{{ card.toKind }}" style="display:flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--rpill);border:1px solid var(--line);background:transparent;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap"><span style="width:7px;height:7px;border-radius:2px;background:{{ card.hc }}"></span>{{ card.house }}</button>
+              <button sc-camel-on-click="{{ card.toVis }}" style="padding:3px 9px;border-radius:var(--rpill);border:1px solid var(--line);background:transparent;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ card.vis }}</button>
+            </div>
+            <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--accText);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ card.host }}</span>
+          </div>
+        </div>
+        <div style="padding:14px 18px 6px 20px;display:flex;flex-direction:column;gap:14px">
+          <sc-if value="{{ step1 }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12.5px;color:var(--muted)">Link</span>
+              <input value="{{ form.link }}" sc-camel-on-change="{{ onLink }}" placeholder="https://claude.ai/public/artifacts/…" style="background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:9px 11px;font-size:13px;font-family:'Geist Mono',monospace;outline:none" style-focus="border-color:var(--accLine)">
+              <span style="font-size:12px;color:var(--accText)">{{ formType }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12.5px;color:var(--muted)">Titel</span>
+              <input value="{{ form.title }}" sc-camel-on-change="{{ onTitle }}" placeholder="z.B. Momentenrechner Einfeldträger" style="background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:9px 11px;font-size:14px;outline:none" style-focus="border-color:var(--accLine)">
+            </div>
+          </sc-if>
+          <sc-if value="{{ step2 }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12.5px;color:var(--muted)">Was ist es?</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <sc-for list="{{ kindChips }}" as="c" hint-placeholder-count="7">
+                  <button sc-camel-on-click="{{ c.onClick }}" style="display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:var(--rc);border:1px solid {{ c.tbd }};background:{{ c.tbg }};cursor:pointer;text-align:left;font-size:13px;font-weight:600"><span style="width:13px;height:13px;flex:none;border-radius:4px;background:{{ c.kc }}"></span>{{ c.k }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12.5px;color:var(--muted)">In welches Haus? · <span style="color:var(--ink);font-weight:600">{{ formHouseName }}</span></span>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <sc-for list="{{ houseChips }}" as="hc" hint-placeholder-count="8">
+                  <button sc-camel-on-click="{{ hc.onClick }}" title="{{ hc.name }}" style="width:24px;height:24px;border-radius:var(--rc);background:{{ hc.color }};border:0;box-shadow:{{ hc.ring }};cursor:pointer"></button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ step3 }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12.5px;color:var(--muted)">Wer sieht es?</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <sc-for list="{{ visCards }}" as="v" hint-placeholder-count="2">
+                  <button sc-camel-on-click="{{ v.onClick }}" style="text-align:left;padding:10px 12px;border-radius:var(--rc);background:{{ v.bg }};border:1px solid {{ v.bd }};cursor:pointer"><div style="font-size:13.5px;font-weight:600">{{ v.l }}</div><div style="font-size:12px;color:var(--muted)">{{ v.s }}</div></button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-for list="{{ formToggles }}" as="tg" hint-placeholder-count="2">
+              <button sc-camel-on-click="{{ tg.onClick }}" style="display:flex;align-items:center;justify-content:space-between;border:0;background:transparent;padding:2px 0;font-size:13.5px;cursor:pointer;opacity:{{ tg.op }}"><span>{{ tg.l }}</span><span style="width:30px;height:17px;border-radius:9px;background:{{ tg.track }};position:relative"><span style="position:absolute;top:2px;left:{{ tg.knob }}px;width:13px;height:13px;border-radius:50%;background:{{ tg.knobC }};transition:left .15s"></span></span></button>
+            </sc-for>
+            <textarea value="{{ form.desc }}" sc-camel-on-change="{{ onDesc }}" rows="2" placeholder="Beschreibung (optional): kurz, wofür es gut ist" style="background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:9px 11px;font-size:13.5px;outline:none;resize:vertical"></textarea>
+          </sc-if>
+          <sc-if value="{{ form.err }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:var(--danger)">{{ form.err }}</span></sc-if>
+        </div>
+        <div style="padding:12px 18px 14px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+          <sc-if value="{{ isEditObj }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ objDelete }}" style="border:0;background:transparent;color:var(--danger);font-weight:600;padding:9px 4px;font-size:13.5px;cursor:pointer">Löschen</button></sc-if>
+          <span style="flex:1"></span>
+          <sc-if value="{{ canBack }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ stepBack }}" style="border:0;background:var(--chip);font-weight:600;border-radius:var(--rc);padding:9px 14px;font-size:13.5px;cursor:pointer">Zurück</button></sc-if>
+          <sc-if value="{{ showNext }}" hint-placeholder-val="{{ true }}"><button sc-camel-on-click="{{ stepNext }}" style="border:0;background:{{ nextBg }};color:{{ nextFg }};font-weight:700;border-radius:var(--rc);padding:9px 16px;font-size:13.5px;cursor:pointer">Weiter</button></sc-if>
+          <sc-if value="{{ showSave }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ onSaveObj }}" style="border:0;background:var(--acc);color:var(--accInk);font-weight:700;border-radius:var(--rc);padding:9px 16px;font-size:13.5px;cursor:pointer">{{ saveLabel }}</button></sc-if>
+        </div>
+      </sc-if>
+
+      <!-- Haus-Formular mit Vorschau -->
+      <sc-if value="{{ mHouseEdit }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px 18px 0 20px">
+          <div style="position:relative;height:118px;border-radius:calc(var(--rc) + 3px);background:repeating-linear-gradient(135deg,var(--w1) 0 10px,var(--w2) 10px 20px);display:flex;align-items:center;justify-content:center">
+            <span style="position:absolute;left:10px;top:9px;font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--faint)">{{ hPrev.q }}</span>
+            <div style="position:relative;width:110px;height:56px;background:var(--house);border:1px solid var(--houseLine);border-radius:3px;transition:all .2s">
+              <span style="position:absolute;left:0;right:0;top:0;height:6px;background:{{ hPrev.color }};transition:background .2s"></span>
+              <span style="position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:6px;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--ink2);white-space:nowrap">{{ hPrev.name }}</span>
+            </div>
+            <span style="position:absolute;right:10px;top:9px;font-family:'Geist Mono',monospace;font-size:10px;color:var(--faint)">{{ hPrev.sem }}</span>
+          </div>
+        </div>
+        <div style="padding:14px 18px 6px 20px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:12.5px;color:var(--muted)">Titel</span>
+            <input value="{{ form.name }}" sc-camel-on-change="{{ onHName }}" style="background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:9px 11px;font-size:14px;outline:none" style-focus="border-color:var(--accLine)">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12.5px;color:var(--muted)">Farbe</span>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+              <sc-for list="{{ colorChips }}" as="cc" hint-placeholder-count="8"><button sc-camel-on-click="{{ cc.onClick }}" style="height:32px;border-radius:var(--rc);background:{{ cc.c }};border:0;box-shadow:{{ cc.ring }};cursor:pointer"></button></sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ canQuarter }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12.5px;color:var(--muted)">Quartier</span>
+              <div style="display:flex;flex-wrap:wrap;gap:5px">
+                <sc-for list="{{ quarterChips }}" as="qc" hint-placeholder-count="4"><button sc-camel-on-click="{{ qc.onClick }}" style="padding:6px 11px;border-radius:var(--rpill);border:1px solid {{ qc.bd }};background:{{ qc.bg }};color:{{ qc.fg }};font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ qc.l }}</button></sc-for>
+              </div>
+              <span style="font-size:11.5px;color:var(--faint)">Das Haus zieht beim Speichern ins gewählte Quartier.</span>
+            </div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12.5px;color:var(--muted)">Semester</span>
+            <div style="display:flex;gap:4px;background:var(--field);border-radius:var(--rc);padding:3px">
+              <sc-for list="{{ semChips }}" as="sc" hint-placeholder-count="9"><button sc-camel-on-click="{{ sc.onClick }}" style="flex:1;border:0;border-radius:var(--rc);padding:6px 0;font-size:12.5px;font-weight:600;background:{{ sc.bg }};color:{{ sc.fg }};cursor:pointer">{{ sc.l }}</button></sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ form.err }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:var(--danger)">{{ form.err }}</span></sc-if>
+        </div>
+        <div style="padding:12px 18px 14px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+          <sc-if value="{{ canDeleteHouse }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ onDeleteHouse }}" style="border:0;background:transparent;color:var(--danger);font-weight:600;padding:9px 4px;font-size:13.5px;cursor:pointer">{{ deleteHouseLabel }}</button></sc-if>
+          <span style="flex:1"></span>
+          <button sc-camel-on-click="{{ onSaveHouse }}" style="border:0;background:var(--acc);color:var(--accInk);font-weight:700;border-radius:var(--rc);padding:9px 16px;font-size:13.5px;cursor:pointer">Speichern</button>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- HUD -->
+  <nav style="display:{{ hudDisp }};position:absolute;left:{{ hudL }}px;top:14px;max-width:{{ crumbMax }}px;overflow:hidden;align-items:center;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rc);padding:3px;font-size:13px;transition:{{ areaTrans }};white-space:nowrap">
+    <sc-for list="{{ crumbs }}" as="c" hint-placeholder-count="2">
+      <sc-if value="{{ c.sep }}" hint-placeholder-val="{{ false }}"><span style="color:var(--faint);padding:0 2px;flex:none">/</span></sc-if>
+      <button sc-camel-on-click="{{ c.onClick }}" style="flex:{{ c.flex }};min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;padding:5px 8px;border-radius:var(--rc);font-weight:{{ c.w }};color:{{ c.color }};cursor:pointer">{{ c.l }}</button>
+    </sc-for>
+  </nav>
+  <div style="display:{{ hudDisp }};position:absolute;right:14px;top:14px;gap:6px;font-size:12.5px">
+    <button sc-camel-on-click="{{ startBuild }}" style="display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:var(--rc);padding:7px 11px;font-weight:600;cursor:pointer;white-space:nowrap">Bauen <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--faint)">B</span></button>
+    <button sc-camel-on-click="{{ toggleSplit }}" style="display:flex;align-items:center;gap:8px;border:1px solid {{ splitBtnBd }};background:var(--panel);border-radius:var(--rc);padding:7px 11px;font-weight:600;cursor:pointer;white-space:nowrap">Liste <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--faint)">L</span></button>
+    <button sc-camel-on-click="{{ toggleInv }}" style="display:flex;align-items:center;gap:8px;border:1px solid {{ invBtnBd }};background:var(--panel);border-radius:var(--rc);padding:7px 11px;font-weight:600;cursor:pointer;white-space:nowrap">Inventar <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--faint)">I</span></button>
+    <div style="position:relative">
+      <button sc-camel-on-click="{{ toggleAcct }}" style="width:34px;height:34px;border:1px solid var(--line);background:var(--panel);border-radius:var(--rpill);font-weight:700;cursor:pointer">G</button>
+      <sc-if value="{{ acct }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;right:0;top:42px;width:230px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column">
+          <span style="padding:8px 10px;font-size:12px;color:var(--muted)">Angemeldet als @gian</span>
+          
+          <button sc-camel-on-click="{{ resetData }}" style="text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:var(--rc);cursor:pointer" style-hover="background:var(--panel2)">Beispieldaten zurücksetzen</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ showHud }}" hint-placeholder-val="{{ true }}">
+    <sc-if value="{{ showBottomBar }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:{{ bb.left }}px;bottom:16px;transform:{{ bb.tf }};display:flex;flex-direction:{{ bb.dir }};align-items:{{ bb.align }};gap:{{ bb.gap }}px;background:{{ bb.bg }};border:{{ bb.border }};border-radius:{{ bb.rad }};padding:{{ bb.pad }};box-shadow:{{ bb.sh }};backdrop-filter:{{ bb.blur }};-webkit-backdrop-filter:{{ bb.blur }};font-size:12.5px;font-weight:600;white-space:nowrap;transition:{{ areaTrans }}">
+      <sc-if value="{{ bb.seg }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:{{ bb.dir }};gap:2px;background:{{ bb.segBg }};border:{{ bb.segBorder }};border-radius:{{ bb.segRad }};padding:{{ bb.segPad }};box-shadow:{{ bb.segSh }}">
+        <sc-for list="{{ views }}" as="v" hint-placeholder-count="2"><button sc-camel-on-click="{{ v.onClick }}" style="border:0;border-radius:{{ v.rad }};padding:{{ v.pad }};background:{{ v.bg }};color:{{ v.fg }};box-shadow:{{ v.sh }};cursor:pointer;transition:background .2s,color .2s">{{ v.l }}</button></sc-for>
+      </div></sc-if>
+      <sc-if value="{{ bb.switch }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ toggleView }}" style="display:flex;align-items:center;gap:9px;border:0;background:transparent;padding:6px 10px;cursor:pointer"><span style="color:{{ sw.c3 }}">3D</span><span style="position:relative;width:34px;height:19px;border-radius:10px;background:var(--chip)"><span style="position:absolute;top:2px;left:{{ sw.knob }}px;width:15px;height:15px;border-radius:50%;background:var(--accLine);transition:left .2s"></span></span><span style="color:{{ sw.cK }}">Karte</span></button></sc-if>
+      <sc-if value="{{ bb.divider }}" hint-placeholder-val="{{ true }}"><span style="width:{{ bb.divW }};height:{{ bb.divH }};background:var(--line);margin:{{ bb.divM }}"></span></sc-if>
+      <sc-if value="{{ bb.timeBtn }}" hint-placeholder-val="{{ true }}"><button sc-camel-on-click="{{ cycleTime }}" title="Tageszeit wechseln" style="border:0;border-radius:{{ tb.rad }};padding:{{ tb.pad }};background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};font-weight:700;cursor:pointer;transition:background .35s,color .35s">{{ time }}</button></sc-if>
+      <sc-if value="{{ bb.timeSegs }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:2px">
+        <sc-for list="{{ timeSegs }}" as="t" hint-placeholder-count="4"><button sc-camel-on-click="{{ t.onClick }}" style="border:0;border-radius:var(--rc);padding:6px 10px;background:{{ t.bg }};color:{{ t.fg }};box-shadow:{{ t.sh }};font-weight:{{ t.fw }};cursor:pointer;transition:background .25s">{{ t.l }}</button></sc-for>
+      </div></sc-if>
+      <span style="width:{{ bb.divW }};height:{{ bb.divH }};background:var(--line);margin:{{ bb.divM }}"></span>
+      <div style="display:flex;flex-direction:{{ bb.dir }};gap:2px"><button sc-camel-on-click="{{ openTravel }}" title="Reise &amp; Freunde" aria-label="Reise &amp; Freunde" style="position:relative;width:34px;height:32px;border:0;border-radius:var(--rc);background:transparent;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s" style-hover="background:var(--chip);color:var(--ink)"><svg width="19" height="19" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5l-2 5-5 2 2-5z"></path></svg><sc-if value="{{ hasReq }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:1px;top:1px;min-width:15px;height:15px;border-radius:8px;background:var(--acc);color:var(--accInk);font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px">{{ reqCount }}</span></sc-if></button><button sc-camel-on-click="{{ openSettings }}" title="Einstellungen" aria-label="Einstellungen" style="position:relative;width:34px;height:32px;border:0;border-radius:var(--rc);background:transparent;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s" style-hover="background:var(--chip);color:var(--ink)"><svg width="19" height="19" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button></div>
+    </div></sc-if>
+    <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;opacity:.5;transition:opacity .2s" style-hover="opacity:1">
+      <button sc-camel-on-click="{{ zoomIn }}" style="width:34px;height:34px;border:1px solid var(--line);background:var(--panel);border-radius:var(--rc);cursor:pointer;font-size:16px">+</button>
+      <div style="position:relative;width:34px;height:150px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rpill);display:flex;justify-content:center">
+        <span style="position:absolute;top:12px;bottom:12px;width:3px;border-radius:2px;background:var(--chip)"></span>
+        <span style="position:absolute;top:{{ knobTop }}px;width:14px;height:14px;border-radius:50%;background:var(--ink);transition:top .3s"></span>
+      </div>
+      <button sc-camel-on-click="{{ zoomOut }}" style="width:34px;height:34px;border:1px solid var(--line);background:var(--panel);border-radius:var(--rc);cursor:pointer;font-size:16px">−</button>
+      <button sc-camel-on-click="{{ toggleInv }}" style="border:1px solid {{ invEndBd }};background:{{ invEndBg }};color:{{ invEndFg }};border-radius:var(--rc);padding:5px 6px;font-family:'Geist Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.06em;cursor:pointer">INV</button>
+      <sc-if value="{{ showZoomHint }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;right:46px;bottom:0;width:190px;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:8px 10px;font-size:12.5px;font-weight:700;display:flex;flex-direction:column;gap:6px">
+          <span>Weiter zoomen → Inventar</span>
+          <span style="height:3px;border-radius:2px;background:rgba(0,0,0,.2);overflow:hidden"><span style="display:block;height:100%;width:{{ overPct }}%;background:var(--accInk)"></span></span>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showHint }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ hintL }}px;bottom:16px;width:300px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);box-shadow:var(--shadow);padding:14px 16px;display:flex;flex-direction:column;gap:8px;font-size:13px;transition:{{ areaTrans }}">
+      <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--accText)">SO FUNKTIONIERT ES</span>
+      <span><b>Haus anklicken</b> · Aktionen erscheinen am Haus</span>
+      <span><b>Griff am linken Rand</b> ziehen · alle Objekte als Liste</span>
+      <span><b>Weit herauszoomen</b> · Inventar zum Aufräumen</span>
+      <button sc-camel-on-click="{{ hideHint }}" style="align-self:flex-start;margin-top:2px;border:0;background:var(--chip);border-radius:var(--rc);padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer">Verstanden</button>
+    </div>
+  </sc-if>
+
+  <!-- GETEILTE SICHT (Griff links) -->
+  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ splitW }}px;overflow:hidden;background:var(--panel);border-right:1px solid var(--line);transition:{{ splitTrans }}">
+    <div style="width:{{ splitInnerW }}px;height:100%;display:flex;flex-direction:column">
+      <div style="padding:14px 16px 10px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:17px;font-weight:700">Alle Objekte</span><span style="font-size:12.5px;color:var(--muted)">{{ totalText }}</span><span style="flex:1"></span><button sc-camel-on-click="{{ toggleSplit }}" style="border:0;background:var(--chip);border-radius:var(--rpill);width:26px;height:26px;cursor:pointer;font-size:11px">✕</button></div>
+        <div style="display:flex;gap:6px">
+          <input value="{{ search }}" sc-camel-on-change="{{ onSearch }}" placeholder="Suchen …" style="flex:1;min-width:0;background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:7px 10px;font-size:13px;outline:none" style-focus="border-color:var(--acc)">
+          <button sc-camel-on-click="{{ cycleSort }}" style="border:1px solid var(--line);background:transparent;border-radius:var(--rc);padding:6px 10px;font-size:12px;color:var(--ink2);cursor:pointer;white-space:nowrap">{{ sortLabel }}</button>
+        </div>
+      </div>
+      <div sc-camel-on-scroll="{{ onTreeScroll }}" style="flex:1;overflow-y:auto;padding:6px 8px 20px;font-size:13px">
+        <sc-if value="{{ ls.Baum }}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{ tree }}" as="g" hint-placeholder-count="5">
+          <div style="display:flex;flex-direction:column">
+            <sc-if value="{{ g.showQ }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--faint);padding:12px 10px 4px">{{ g.qLabel }}</span></sc-if>
+            <div sc-camel-on-click="{{ g.onClick }}" sc-camel-on-drag-over="{{ g.onDragOver }}" sc-camel-on-drop="{{ g.onDrop }}" style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--rc);background:{{ g.hBg }};box-shadow:{{ g.drop }};cursor:pointer">
+              <button sc-camel-on-click="{{ g.onChev }}" style="border:0;background:transparent;padding:0;width:14px;color:var(--faint);font-size:10px;cursor:pointer">{{ g.chev }}</button>
+              <span style="width:9px;height:9px;border-radius:2px;background:{{ g.color }}"></span>
+              <span style="font-weight:700;white-space:nowrap">{{ g.name }}</span>
+              <span style="color:var(--faint);font-size:12px">{{ g.count }}</span>
+              <span style="flex:1"></span>
+              <button sc-camel-on-click="{{ g.onAdd }}" title="Objekt hinzufügen" style="border:0;background:transparent;color:var(--muted);font-size:15px;cursor:pointer;padding:0 4px">+</button>
+            </div>
+            <sc-if value="{{ g.open }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2">
+                <div data-row="{{ o.id }}" draggable="true" sc-camel-on-click="{{ o.onClick }}" sc-camel-on-drag-start="{{ o.onDragStart }}" sc-camel-on-drag-over="{{ o.onDragOver }}" sc-camel-on-drop="{{ o.onDrop }}" sc-camel-on-drag-end="{{ dragEnd }}" style="display:grid;grid-template-columns:14px 10px minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 8px 6px 26px;border-radius:var(--rc);background:{{ o.bg }};box-shadow:{{ o.bd }};cursor:pointer" style-hover="background:var(--panel2)">
+                  <span style="color:var(--faint);font-size:10px;cursor:grab">⋮⋮</span>
+                  <span style="width:8px;height:8px;border-radius:50%;background:{{ o.kc }}"></span>
+                  <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span>
+                  <span style="color:var(--faint);font-size:11.5px;white-space:nowrap">{{ o.tag }}</span>
+                </div>
+              </sc-for>
+            </sc-if>
+          </div>
+        </sc-for>
+        </sc-if>
+        <sc-if value="{{ ls.Kompakt }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ tree }}" as="g" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:3px minmax(0,1fr);gap:10px;padding:6px 4px"><span style="border-radius:2px;background:{{ g.color }}"></span><div style="min-width:0"><div sc-camel-on-click="{{ g.onClick }}" style="display:flex;justify-content:space-between;font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:var(--faint);padding:2px 0 4px;cursor:pointer;text-transform:uppercase"><span>{{ g.name }}</span><span>{{ g.count }}</span></div><sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2"><div data-row="{{ o.id }}" draggable="true" sc-camel-on-click="{{ o.onClick }}" sc-camel-on-drag-start="{{ o.onDragStart }}" sc-camel-on-drag-over="{{ o.onDragOver }}" sc-camel-on-drop="{{ o.onDrop }}" sc-camel-on-drag-end="{{ dragEnd }}" style="display:flex;gap:8px;padding:4px 6px;border-radius:6px;background:{{ o.bg }};box-shadow:{{ o.bd }};font-size:12.5px;cursor:pointer" style-hover="background:var(--panel2)"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span><span style="color:{{ o.kc }};font-size:11px;font-weight:600;white-space:nowrap">{{ o.k }}</span></div></sc-for></div></div></sc-for></sc-if>
+        <sc-if value="{{ ls.Karten }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ tree }}" as="g" hint-placeholder-count="4"><div style="margin:6px 2px 10px;border-radius:var(--rp);background:var(--panel2);border:1px solid var(--line);overflow:hidden"><div sc-camel-on-click="{{ g.onClick }}" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:color-mix(in srgb, {{ g.color }} 20%, transparent);cursor:pointer"><span style="width:10px;height:10px;border-radius:3px;background:{{ g.color }}"></span><span style="font-weight:700;white-space:nowrap">{{ g.name }}</span><span style="color:var(--faint);font-size:12px">{{ g.count }}</span><span style="flex:1"></span><button sc-camel-on-click="{{ g.onAdd }}" style="border:0;background:rgba(255,255,255,.08);border-radius:var(--rpill);width:24px;height:24px;color:var(--ink);cursor:pointer">+</button></div><sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:flex;gap:10px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);background:{{ o.bg }};cursor:pointer" style-hover="filter:brightness(1.15)"><span style="width:8px;height:8px;border-radius:50%;background:{{ o.kc }}"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span><span style="font-size:11px;color:var(--faint)">{{ o.tag }}</span></div></sc-for></div></sc-for></sc-if>
+        <sc-if value="{{ ls.Kacheln }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ tree }}" as="g" hint-placeholder-count="4"><div style="padding:2px 2px 8px"><div sc-camel-on-click="{{ g.onClick }}" style="display:flex;align-items:center;gap:8px;padding:10px 6px 6px;cursor:pointer;"><span style="width:9px;height:9px;border-radius:2px;background:{{ g.color }}"></span><span style="font-size:12.5px;font-weight:700;white-space:nowrap">{{ g.name }}</span><span style="font-size:11.5px;color:var(--faint)">{{ g.count }}</span><span style="flex:1"></span><button sc-camel-on-click="{{ g.onAdd }}" style="border:0;background:transparent;color:var(--muted);font-size:15px;cursor:pointer;padding:0 4px">+</button></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="border-radius:var(--rc);background:var(--panel2);overflow:hidden;box-shadow:{{ o.selSh }};cursor:pointer" style-hover="filter:brightness(1.15)"><span style="display:block;height:3px;background:{{ o.kc }}"></span><div style="padding:8px 9px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:600;line-height:1.3">{{ o.t }}</span><span style="font-size:10.5px;color:var(--muted)">{{ o.k }}</span></div></div></sc-for></div></div></sc-for></sc-if>
+        <sc-if value="{{ ls.Tabelle }}" hint-placeholder-val="{{ false }}"><div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 54px 34px;gap:8px;padding:8px 6px;font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--faint);border-bottom:1px solid var(--line)"><span>TITEL</span><span>KATEGORIE</span><span>SICHT</span><span>×</span></div><sc-for list="{{ flat }}" as="o" hint-placeholder-count="8"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:grid;grid-template-columns:minmax(0,1fr) 96px 54px 34px;gap:8px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--panel2);background:{{ o.bg }};font-size:12.5px;cursor:pointer" style-hover="background:var(--panel2)"><span style="display:flex;align-items:center;gap:7px;min-width:0"><span style="width:7px;height:7px;flex:none;border-radius:2px;background:{{ o.hc }}"></span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span></span><span style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px"><span style="width:7px;height:7px;border-radius:50%;background:{{ o.kc }}"></span>{{ o.k }}</span><span style="font-size:11.5px;color:var(--muted)">{{ o.vis }}</span><span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--muted)">{{ o.opTxt }}</span></div></sc-for></sc-if>
+        <sc-if value="{{ ls.Kategorien }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ cats }}" as="c" hint-placeholder-count="4"><div style="padding:6px 2px 8px"><div style="display:flex;align-items:center;gap:8px;padding:8px 6px"><span style="width:11px;height:11px;border-radius:50%;background:{{ c.c }}"></span><span style="font-weight:700">{{ c.k }}</span><span style="color:var(--faint);font-size:12px">{{ c.n }}</span></div><sc-for list="{{ c.items }}" as="o" hint-placeholder-count="2"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:flex;gap:8px;align-items:center;padding:6px 8px 6px 25px;border-radius:var(--rc);background:{{ o.bg }};cursor:pointer" style-hover="background:var(--panel2)"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span><span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);white-space:nowrap"><span style="width:6px;height:6px;border-radius:2px;background:{{ o.hc }}"></span>{{ o.hn }}</span></div></sc-for></div></sc-for></sc-if>
+        <sc-if value="{{ ls.Zeitachse }}" hint-placeholder-val="{{ false }}"><div style="position:relative;padding:4px 4px 4px 22px"><span style="position:absolute;left:12px;top:10px;bottom:10px;width:1px;background:var(--line)"></span><sc-for list="{{ timeline }}" as="o" hint-placeholder-count="8"><sc-if value="{{ o.showDate }}" hint-placeholder-val="{{ false }}"><div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--faint);padding:10px 0 4px;margin-left:-4px">{{ o.date }}</div></sc-if><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="position:relative;display:flex;flex-direction:column;gap:1px;padding:6px 8px;border-radius:var(--rc);background:{{ o.bg }};cursor:pointer" style-hover="background:var(--panel2)"><span style="position:absolute;left:-14px;top:11px;width:9px;height:9px;border-radius:50%;background:{{ o.kc }};box-shadow:0 0 0 3px var(--panel)"></span><span style="font-size:13px;font-weight:600">{{ o.t }}</span><span style="font-size:11px;color:var(--muted)">{{ o.hn }} · {{ o.k }}</span></div></sc-for></div></sc-if>
+        <sc-if value="{{ ls.Chips }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ tree }}" as="g" hint-placeholder-count="4"><div style="padding:2px 2px 6px"><div sc-camel-on-click="{{ g.onClick }}" style="display:flex;align-items:center;gap:8px;padding:10px 6px 6px;cursor:pointer;"><span style="width:9px;height:9px;border-radius:2px;background:{{ g.color }}"></span><span style="font-size:12.5px;font-weight:700;white-space:nowrap">{{ g.name }}</span><span style="font-size:11.5px;color:var(--faint)">{{ g.count }}</span><span style="flex:1"></span><button sc-camel-on-click="{{ g.onAdd }}" style="border:0;background:transparent;color:var(--muted);font-size:15px;cursor:pointer;padding:0 4px">+</button></div><div style="display:flex;flex-wrap:wrap;gap:5px;padding:0 4px"><sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2"><button data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:flex;align-items:center;gap:6px;max-width:100%;padding:5px 10px;border-radius:var(--rpill);border:1px solid var(--line);background:{{ o.bg }};font-size:12px;cursor:pointer" style-hover="border-color:var(--accLine)"><span style="width:7px;height:7px;flex:none;border-radius:50%;background:{{ o.kc }}"></span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span></button></sc-for></div></div></sc-for></sc-if>
+        <sc-if value="{{ ls.Vorschau }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ tree }}" as="g" hint-placeholder-count="4"><div style="padding:2px 2px 6px"><div sc-camel-on-click="{{ g.onClick }}" style="display:flex;align-items:center;gap:8px;padding:10px 6px 6px;cursor:pointer;"><span style="width:9px;height:9px;border-radius:2px;background:{{ g.color }}"></span><span style="font-size:12.5px;font-weight:700;white-space:nowrap">{{ g.name }}</span><span style="font-size:11.5px;color:var(--faint)">{{ g.count }}</span><span style="flex:1"></span><button sc-camel-on-click="{{ g.onAdd }}" style="border:0;background:transparent;color:var(--muted);font-size:15px;cursor:pointer;padding:0 4px">+</button></div><sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:flex;gap:10px;align-items:center;padding:6px;border-radius:var(--rc);background:{{ o.bg }};cursor:pointer" style-hover="background:var(--panel2)"><span style="width:52px;height:36px;flex:none;border-radius:6px;background:repeating-linear-gradient(135deg,var(--panel2) 0 5px,var(--chip) 5px 10px);border-bottom:3px solid {{ o.kc }}"></span><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span><span style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.meta }}</span></span></div></sc-for></div></sc-for></sc-if>
+        <sc-if value="{{ ls.HausReiter }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 4px 12px;border-bottom:1px solid var(--line)"><sc-for list="{{ houseTabs }}" as="t" hint-placeholder-count="6"><button sc-camel-on-click="{{ t.onClick }}" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:0;border-radius:var(--rpill);background:{{ t.bg }};color:{{ t.fg }};font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap"><span style="width:7px;height:7px;border-radius:2px;background:{{ t.color }}"></span>{{ t.name }} <span style="opacity:.7">{{ t.n }}</span></button></sc-for></div><div style="display:flex;flex-direction:column;gap:6px;padding:10px 2px"><sc-for list="{{ tabG.items }}" as="o" hint-placeholder-count="3"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:var(--rc);background:var(--panel2);box-shadow:{{ o.selSh }};cursor:pointer" style-hover="filter:brightness(1.12)"><span style="width:10px;height:10px;border-radius:50%;background:{{ o.kc }}"></span><span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:13.5px;font-weight:600">{{ o.t }}</span><span style="font-size:11.5px;color:var(--muted)">{{ o.meta }}</span></span></div></sc-for><button sc-camel-on-click="{{ tabG.onAdd }}" style="border:1px dashed var(--line);background:transparent;border-radius:var(--rc);padding:10px;color:var(--muted);font-size:12.5px;cursor:pointer">+ Objekt in {{ tabG.name }}</button></div></sc-if>
+        <sc-if value="{{ ls.Minimal }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ tree }}" as="g" hint-placeholder-count="4"><div style="padding:4px 6px 6px"><div sc-camel-on-click="{{ g.onClick }}" style="padding:10px 0 4px;font-size:12px;font-weight:700;color:{{ g.color }};cursor:pointer">{{ g.name }}</div><sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:flex;gap:10px;padding:3px 0;font-size:13px;cursor:pointer;color:var(--ink2)" style-hover="color:var(--ink)"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span><span style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:{{ o.kc }}">{{ o.k }}</span></div></sc-for></div></sc-for></sc-if>
+        <sc-if value="{{ ls.Akkordeon }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ tree }}" as="g" hint-placeholder-count="4"><div style="border-bottom:1px solid var(--line)"><div sc-camel-on-click="{{ g.onChev }}" style="display:flex;align-items:center;gap:10px;padding:12px 8px;cursor:pointer"><span style="width:28px;height:28px;flex:none;border-radius:var(--rc);background:{{ g.color }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">{{ g.nNum }}</span><span style="flex:1;font-size:14px;font-weight:700">{{ g.name }}</span><sc-if value="{{ g.hasNeu }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;background:var(--acc);color:var(--accInk);border-radius:var(--rpill);padding:1px 7px">{{ g.neu }} neu</span></sc-if><span style="color:var(--faint);font-size:11px">{{ g.chev }}</span></div><sc-if value="{{ g.open }}" hint-placeholder-val="{{ false }}"><div style="padding:0 6px 10px 46px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2"><div data-row="{{ o.id }}" sc-camel-on-click="{{ o.onClick }}" style="display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:var(--rc);background:{{ o.bg }};font-size:13px;cursor:pointer" style-hover="background:var(--panel2)"><span style="width:7px;height:7px;border-radius:50%;background:{{ o.kc }}"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.t }}</span></div></sc-for><button sc-camel-on-click="{{ g.onAdd }}" style="align-self:flex-start;border:0;background:transparent;color:var(--accText);font-size:12px;cursor:pointer;padding:4px 8px">+ Objekt</button></div></sc-if></div></sc-for></sc-if>
+      </div>
+    </div>
+  </div>
+  <sc-if value="{{ showGrip }}" hint-placeholder-val="{{ true }}">
+    <div sc-camel-on-mouse-down="{{ onGripDown }}" title="Ziehen oder klicken: Liste (L)" style="position:absolute;left:{{ splitW }}px;top:0;bottom:0;width:{{ gripW }}px;cursor:col-resize;display:flex;align-items:center;justify-content:{{ gripJustify }};transition:{{ splitTrans }}" style-hover="background:{{ gripHover }}">
+      <sc-if value="{{ grip.strich }}" hint-placeholder-val="{{ true }}"><span style="width:4px;height:52px;border-radius:2px;background:{{ gripColor }}"></span></sc-if>
+      <sc-if value="{{ grip.punkte }}" hint-placeholder-val="{{ false }}"><span style="display:flex;flex-direction:column;gap:5px"><span style="width:5px;height:5px;border-radius:50%;background:{{ gripColor }}"></span><span style="width:5px;height:5px;border-radius:50%;background:{{ gripColor }}"></span><span style="width:5px;height:5px;border-radius:50%;background:{{ gripColor }}"></span></span></sc-if>
+      <sc-if value="{{ grip.kante }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:0;top:0;bottom:0;width:3px;background:{{ gripColor }}"></span></sc-if>
+      <sc-if value="{{ grip.lasche }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--line)"></span><span style="width:26px;height:96px;background:var(--panel);border:1px solid var(--line);border-left:0;border-radius:0 var(--rc) var(--rc) 0;display:flex;align-items:center;justify-content:center;box-shadow:{{ gripTabShadow }}"><span style="writing-mode:vertical-rl;font-family:'Geist Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;color:{{ gripColor }}">LISTE</span></span></sc-if>
+    </div>
+  </sc-if>
+
+  <!-- INVENTAR -->
+  <div style="position:absolute;left:0;right:0;top:150px;bottom:0;transform:{{ invY }};transition:transform .55s cubic-bezier(.2,.7,.2,1);background:var(--panel);border-top:1px solid var(--line);border-radius:var(--rp) var(--rp) 0 0;box-shadow:0 -20px 60px rgba(0,0,0,.35);display:grid;grid-template-columns:220px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden">
+    <div style="grid-column:span 2;display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line)">
+      <span style="font-size:20px;font-weight:700">Inventar</span><span style="font-size:13px;color:var(--muted);white-space:nowrap">{{ invCountText }}</span>
+      <span style="flex:1"></span>
+      <input value="{{ invFilter }}" sc-camel-on-change="{{ onInvFilter }}" placeholder="Filtern …" style="width:240px;background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:7px 11px;font-size:13px;outline:none" style-focus="border-color:var(--acc)">
+      <div style="display:flex;background:var(--field);border-radius:var(--rc);padding:2px;font-size:12.5px;font-weight:600">
+        <sc-for list="{{ invGroups }}" as="v" hint-placeholder-count="2"><button sc-camel-on-click="{{ v.onClick }}" style="border:0;border-radius:var(--rc);padding:5px 10px;background:{{ v.bg }};color:{{ v.fg }};cursor:pointer;white-space:nowrap">{{ v.l }}</button></sc-for>
+      </div>
+      <button sc-camel-on-click="{{ closeInv }}" style="border:1px solid var(--line);background:transparent;border-radius:var(--rc);padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">Zurück ins Dorf · I</button>
+    </div>
+    <div style="border-right:1px solid var(--line);padding:12px 8px;display:flex;flex-direction:column;gap:1px;font-size:13px;overflow-y:auto">
+      <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--faint);padding:4px 10px 8px">HÄUSER</span>
+      <sc-for list="{{ invHouses }}" as="h" hint-placeholder-count="8">
+        <button sc-camel-on-click="{{ h.onClick }}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:0;border-radius:var(--rc);background:{{ h.bg }};text-align:left;cursor:pointer"><span style="width:9px;height:9px;border-radius:2px;background:{{ h.color }}"></span><span style="flex:1;white-space:nowrap">{{ h.name }}</span><span style="color:var(--faint);font-size:12px">{{ h.n }}</span></button>
+      </sc-for>
+      <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--faint);padding:16px 10px 8px">ZUSTAND</span>
+      <sc-for list="{{ invStates }}" as="z" hint-placeholder-count="4">
+        <button sc-camel-on-click="{{ z.onClick }}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:0;border-radius:var(--rc);background:{{ z.bg }};text-align:left;cursor:pointer"><span style="flex:1;white-space:nowrap">{{ z.l }}</span><span style="color:var(--faint);font-size:12px">{{ z.n }}</span></button>
+      </sc-for>
+    </div>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto">
+      <sc-for list="{{ invGroupsData }}" as="g" hint-placeholder-count="4">
+        <div sc-camel-on-drag-over="{{ g.onDragOver }}" sc-camel-on-drop="{{ g.onDrop }}" style="display:flex;flex-direction:column;gap:8px;padding:8px;margin:-8px;border-radius:var(--rp);background:{{ g.dropBg }}">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="width:10px;height:10px;border-radius:3px;background:{{ g.color }}"></span><span style="font-weight:700">{{ g.name }}</span><span style="color:var(--faint)">{{ g.countText }}</span></div>
+          <div style="display:grid;grid-template-columns:{{ gridCols }};gap:8px">
+            <sc-for list="{{ g.tiles }}" as="t" hint-placeholder-count="4">
+              <div draggable="true" sc-camel-on-click="{{ t.onClick }}" sc-camel-on-double-click="{{ t.onDbl }}" sc-camel-on-drag-start="{{ t.onDragStart }}" sc-camel-on-drag-over="{{ t.onDragOver }}" sc-camel-on-drop="{{ t.onDrop }}" sc-camel-on-drag-end="{{ dragEnd }}" style="position:relative;height:{{ t.height }}px;border-radius:var(--rc);background:{{ t.bg }};box-shadow:{{ t.ring }};padding:10px 10px 10px {{ t.padL }}px;display:flex;flex-direction:{{ t.dir }};justify-content:space-between;align-items:{{ t.align }};gap:8px;overflow:hidden;cursor:pointer;user-select:none">
+                <span style="position:absolute;left:0;top:0;bottom:0;width:{{ t.stripe }}px;background:{{ t.kc }}"></span>
+                <sc-if value="{{ t.img }}" hint-placeholder-val="{{ false }}"><span style="height:44px;flex:none;margin:-10px -10px 0 -10px;background:repeating-linear-gradient(135deg,var(--chip) 0 6px,var(--panel) 6px 12px);border-bottom:3px solid {{ t.kc }}"></span></sc-if>
+                <sc-if value="{{ t.dot }}" hint-placeholder-val="{{ false }}"><span style="width:9px;height:9px;flex:none;border-radius:50%;background:{{ t.kc }}"></span></sc-if>
+                <span style="flex:{{ t.titleFlex }};font-size:12.5px;font-weight:600;line-height:1.3;overflow:hidden;white-space:{{ t.ws }};text-overflow:ellipsis">{{ t.t }}</span>
+                <sc-if value="{{ t.showMeta }}" hint-placeholder-val="{{ true }}"><span style="font-size:11px;color:var(--muted);white-space:nowrap">{{ t.meta }}</span></sc-if>
+                <sc-if value="{{ t.sel }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:6px;top:6px;width:16px;height:16px;border-radius:var(--rpill);background:var(--acc);color:var(--accInk);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">✓</span></sc-if>
+                <sc-if value="{{ t.neu }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:6px;bottom:6px;font-size:10px;font-weight:700;color:var(--accText)">neu</span></sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ g.showEmpty }}" hint-placeholder-val="{{ false }}"><div style="height:{{ tileH }}px;border-radius:var(--rc);border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--faint)">Hierher ziehen</div></sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="grid-column:span 2;position:relative;display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid var(--line);background:var(--panel2);font-size:13px;min-height:58px">
+      <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+        <span style="font-weight:700;color:var(--accText);white-space:nowrap">{{ selText }}</span><span style="width:1px;height:18px;background:var(--line);margin:0 6px"></span>
+        <button sc-camel-on-click="{{ menuMove }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:7px 12px;font-weight:600;cursor:pointer;white-space:nowrap">Verschieben nach …</button>
+        <button sc-camel-on-click="{{ menuKind }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:7px 12px;font-weight:600;cursor:pointer;white-space:nowrap">Kategorie …</button>
+        <button sc-camel-on-click="{{ bulkVis }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:7px 12px;font-weight:600;cursor:pointer;white-space:nowrap">{{ bulkVisLabel }}</button>
+        <button sc-camel-on-click="{{ bulkDelete }}" style="border:0;background:transparent;color:var(--danger);border-radius:var(--rc);padding:7px 10px;font-weight:600;cursor:pointer">Löschen</button>
+        <button sc-camel-on-click="{{ clearSel }}" style="border:0;background:transparent;color:var(--muted);padding:7px 10px;cursor:pointer;white-space:nowrap">Auswahl aufheben</button>
+      </sc-if>
+      <span style="flex:1"></span>
+      <sc-if value="{{ noSel }}" hint-placeholder-val="{{ true }}"><span style="color:var(--muted);white-space:nowrap">Klick wählt · Ziehen verschiebt · Doppelklick zeigt im Dorf</span></sc-if>
+      <sc-if value="{{ showMenu }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:{{ menuL }}px;bottom:54px;width:230px;max-height:320px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column">
+          <sc-for list="{{ menuItems }}" as="m" hint-placeholder-count="6"><button sc-camel-on-click="{{ m.onClick }}" style="display:flex;align-items:center;gap:9px;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:var(--rc);cursor:pointer" style-hover="background:var(--panel2)"><span style="width:9px;height:9px;border-radius:{{ m.r }};background:{{ m.c }}"></span>{{ m.l }}</button></sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- BAU-MODUS -->
+  <sc-if value="{{ build }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:0;height:52px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 16px">
+      <span style="font-size:15px;font-weight:700">Bauen</span><span style="font-size:12.5px;color:var(--muted);white-space:nowrap">{{ bInfo }}</span>
+      <span style="flex:1"></span>
+      <button sc-camel-on-click="{{ bUndo }}" title="Rückgängig (Strg+Z)" style="border:0;background:var(--chip);border-radius:var(--rc);padding:6px 11px;cursor:pointer;opacity:{{ bUndoOp }}">↶</button>
+      <button sc-camel-on-click="{{ bRedo }}" title="Wiederholen (Strg+Y)" style="border:0;background:var(--chip);border-radius:var(--rc);padding:6px 11px;cursor:pointer;opacity:{{ bRedoOp }}">↷</button>
+      <span style="width:1px;height:22px;background:var(--line)"></span>
+      <button sc-camel-on-click="{{ bCancel }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:8px 14px;font-weight:600;cursor:pointer">Abbrechen</button>
+      <button sc-camel-on-click="{{ bSave }}" style="border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:8px 16px;font-weight:700;cursor:pointer">Speichern</button>
+    </div>
+    <div style="position:absolute;left:16px;top:70px;width:58px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);padding:6px;display:flex;flex-direction:column;gap:4px">
+      <sc-for list="{{ bTools }}" as="t" hint-placeholder-count="5"><button sc-camel-on-click="{{ t.onClick }}" title="{{ t.l }}" style="height:48px;border:0;border-radius:calc(var(--rc) + 1px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:{{ t.bg }};color:{{ t.fg }};cursor:pointer"><span style="font-size:15px;line-height:1">{{ t.g }}</span><span style="font-size:8.5px;font-weight:600">{{ t.l }}</span></button></sc-for>
+    </div>
+    <div style="position:absolute;right:16px;top:70px;width:268px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);padding:16px;display:flex;flex-direction:column;gap:12px">
+      <sc-if value="{{ bPanel.deko }}" hint-placeholder-val="{{ false }}">
+        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--accText)">DEKO AUS DEM SEED</span>
+        <span style="font-size:13px;line-height:1.5;color:var(--ink2)">Bäume ziehen, um sie zu versetzen. Auf Häuser und Wege lassen sie sich nicht stellen. Eigene Deko folgt später.</span>
+        <span style="font-size:12.5px;color:var(--muted)">{{ bPanel.movedTxt }}</span>
+        <button sc-camel-on-click="{{ resetTrees }}" style="align-self:flex-start;border:0;background:var(--chip);border-radius:var(--rc);padding:8px 12px;font-weight:600;cursor:pointer">Alle zurück an Seed-Platz</button>
+        <span style="height:1px;background:var(--line)"></span>
+      </sc-if>
+      <sc-if value="{{ bPanel.weg }}" hint-placeholder-val="{{ false }}">
+        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--accText)">WEGE VON HAND</span>
+        <span style="font-size:13px;line-height:1.5;color:var(--ink2)">Auf einen Weg klicken setzt einen Eckpunkt, ziehen formt den Weg, Doppelklick entfernt ihn.</span>
+        <span style="font-size:12.5px;color:var(--muted)">{{ bPanel.bendTxt }}</span>
+        <button sc-camel-on-click="{{ resetBends }}" style="align-self:flex-start;border:0;background:var(--chip);border-radius:var(--rc);padding:8px 12px;font-weight:600;cursor:pointer">Alle Eckpunkte entfernen</button>
+        <span style="height:1px;background:var(--line)"></span>
+      </sc-if>
+      <sc-if value="{{ bPanel.none }}" hint-placeholder-val="{{ true }}">
+        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--accText)">ANORDNEN</span>
+        <span style="font-size:13px;line-height:1.5;color:var(--ink2)">Haus ziehen, um es zu versetzen. Den runden Griff in der Mitte ziehen, um ein ganzes Quartier zu verschieben. Bäume weichen automatisch aus und kommen zurück, wenn wieder Platz ist.</span>
+      </sc-if>
+      <sc-if value="{{ bPanel.q }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:9px"><span style="width:12px;height:12px;border-radius:3px;background:{{ bPanel.qColor }}"></span><span style="font-size:16px;font-weight:700">{{ bPanel.qName }}</span></div>
+        <span style="font-size:12px;color:var(--muted)">{{ bPanel.qInfo }}</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--faint)">WEGFORM</span>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px">
+          <sc-for list="{{ bForms }}" as="w" hint-placeholder-count="3"><button sc-camel-on-click="{{ w.onClick }}" style="padding:8px 4px;border-radius:var(--rc);font-size:12px;font-weight:600;cursor:pointer;background:{{ w.bg }};color:{{ w.fg }};border:1px solid {{ w.bd }}">{{ w.l }}</button></sc-for>
+        </div>
+        <span style="font-size:11.5px;color:var(--muted);line-height:1.45">{{ bPanel.formHint }}</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--faint)">{{ bPanel.radL }}</span>
+        <div style="display:flex;align-items:center;gap:8px"><button sc-camel-on-click="{{ bRadMinus }}" style="border:0;background:var(--chip);border-radius:var(--rc);width:28px;height:28px;cursor:pointer">−</button><span style="flex:1;height:4px;border-radius:2px;background:var(--chip);position:relative;overflow:hidden"><span style="position:absolute;left:0;top:0;bottom:0;width:{{ bPanel.radPct }}%;background:var(--accLine)"></span></span><button sc-camel-on-click="{{ bRadPlus }}" style="border:0;background:var(--chip);border-radius:var(--rc);width:28px;height:28px;cursor:pointer">+</button><span style="font-family:'Geist Mono',monospace;font-size:11.5px;width:36px;text-align:right">{{ bPanel.radM }}</span></div>
+        <button sc-camel-on-click="{{ bResetQ }}" style="align-self:flex-start;border:0;background:transparent;padding:0;font-size:12.5px;color:var(--muted);cursor:pointer;text-decoration:underline">Zurück auf Ausgangslage</button>
+      </sc-if>
+      <sc-if value="{{ bPanel.h }}" hint-placeholder-val="{{ false }}">
+        <span style="height:1px;background:var(--line)"></span>
+        <div style="display:flex;align-items:center;gap:9px"><span style="width:12px;height:12px;border-radius:3px;background:{{ bPanel.hColor }}"></span><span style="font-size:15px;font-weight:700">{{ bPanel.hName }}</span></div>
+        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--faint)">DACH</span>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px">
+          <sc-for list="{{ bRoofs }}" as="r" hint-placeholder-count="3"><button sc-camel-on-click="{{ r.onClick }}" style="padding:7px 2px;border-radius:var(--rc);font-size:11.5px;font-weight:600;cursor:pointer;background:{{ r.bg }};color:{{ r.fg }};border:1px solid {{ r.bd }}">{{ r.l }}</button></sc-for>
+        </div>
+      </sc-if>
+      <span style="font-size:11.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:10px">Esc hebt die Auswahl auf · Strg+Z rückgängig</span>
+    </div>
+    <div style="position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid {{ bMsgBd }};border-radius:var(--rp);padding:9px 14px;font-size:13px;font-weight:600;color:{{ bMsgC }};white-space:nowrap">{{ bMsg }}</div>
+  </sc-if>
+
+  <!-- EINSTELLUNGEN (Vollbild) -->
+  <div style="position:absolute;left:0;right:0;top:150px;bottom:0;transform:{{ setY }};transition:transform .55s cubic-bezier(.2,.7,.2,1);background:var(--panel);border-top:1px solid var(--line);border-radius:var(--rp) var(--rp) 0 0;box-shadow:0 -20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line)"><span style="font-size:20px;font-weight:700">Einstellungen</span><span style="font-size:13px;color:var(--muted)">Änderungen gelten sofort</span><span style="flex:1"></span><button sc-camel-on-click="{{ closeScreen }}" style="border:1px solid var(--line);background:transparent;border-radius:var(--rc);padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">Zurück ins Dorf · Esc</button></div>
+    <div style="flex:1;min-height:0;display:grid;grid-template-columns:230px minmax(0,1fr)">
+      <div style="border-right:1px solid var(--line);padding:14px 10px;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ setNav }}" as="n" hint-placeholder-count="4"><button sc-camel-on-click="{{ n.onClick }}" style="text-align:left;border:0;padding:10px 12px;border-radius:var(--rc);background:{{ n.bg }};color:{{ n.fg }};cursor:pointer;transition:background .2s"><div style="font-size:13.5px;font-weight:700">{{ n.l }}</div><div style="font-size:11.5px;color:{{ n.sc }}">{{ n.s }}</div></button></sc-for>
+      </div>
+      <div style="padding:20px 26px 30px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+        <sc-if value="{{ setTab.profil }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:var(--rp);padding:16px;display:flex;flex-direction:column;gap:10px;max-width:640px">
+            <span style="font-size:15px;font-weight:700">Anzeigename</span>
+            <div style="display:flex;gap:8px"><input value="{{ displayName }}" sc-camel-on-change="{{ onDisplayName }}" style="flex:1;background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:9px 11px;font-size:14px;outline:none" style-focus="border-color:var(--accLine)"><button sc-camel-on-click="{{ saveName }}" style="border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:9px 14px;font-weight:700;cursor:pointer">Speichern</button></div>
+            <span style="font-size:12.5px;color:var(--muted)">Benutzername @gian · so finden dich Freunde</span>
+          </div>
+          <button sc-camel-on-click="{{ logout }}" style="align-self:flex-start;border:0;background:var(--chip);border-radius:var(--rc);padding:9px 14px;font-weight:600;cursor:pointer">Abmelden</button>
+        </sc-if>
+        <sc-if value="{{ setTab.dorf }}" hint-placeholder-val="{{ true }}">
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:var(--rp);padding:16px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:center;max-width:820px">
+            <span style="height:110px;border-radius:var(--rc);background:repeating-linear-gradient(135deg,var(--w1) 0 8px,var(--w2) 8px 16px);display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:9.5px;color:var(--faint)">KARTE</span>
+            <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:15px;font-weight:700">Landschaft</span><span style="font-size:13px;color:var(--ink2)">{{ landDesc }}</span><span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--faint)">{{ landSeed }}</span><button sc-camel-on-click="{{ startReroll }}" style="align-self:flex-start;margin-top:6px;border:0;background:var(--chip);border-radius:var(--rc);padding:8px 14px;font-weight:600;cursor:pointer">Welt neu würfeln …</button></div>
+          </div>
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:var(--rp);padding:16px;display:flex;flex-direction:column;gap:10px;max-width:820px">
+            <span style="font-size:15px;font-weight:700">Stil der Zentrale</span>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+              <sc-for list="{{ zStyles }}" as="z" hint-placeholder-count="3"><button sc-camel-on-click="{{ z.onClick }}" style="text-align:left;padding:0;border-radius:var(--rp);overflow:hidden;border:1px solid {{ z.bd }};box-shadow:{{ z.sh }};background:var(--panel);cursor:pointer"><span style="display:flex;height:78px;background:repeating-linear-gradient(135deg,var(--panel2) 0 7px,var(--chip) 7px 14px);align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:9.5px;color:var(--faint)">3D-VORSCHAU</span><span style="display:block;padding:8px 10px"><span style="display:block;font-size:13px;font-weight:700">{{ z.l }}</span><span style="display:block;font-size:11.5px;color:var(--muted)">{{ z.s }}</span></span></button></sc-for>
+            </div>
+          </div>
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:var(--rp);padding:16px;display:flex;flex-direction:column;gap:12px;max-width:820px">
+            <button sc-camel-on-click="{{ toggleTopdorf }}" style="display:flex;align-items:center;gap:14px;border:0;background:transparent;padding:0;text-align:left;cursor:pointer"><span style="flex:1"><span style="display:block;font-size:15px;font-weight:700">Topdorf</span><span style="display:block;font-size:12.5px;color:var(--muted)">Geteilte Objekte für alle Hub-Dome-Nutzer zeigen, mit deinem Namen.</span></span><span style="width:32px;height:18px;border-radius:9px;background:{{ topTg.track }};position:relative"><span style="position:absolute;top:2px;left:{{ topTg.knob }}px;width:14px;height:14px;border-radius:50%;background:{{ topTg.k }};transition:left .15s"></span></span></button>
+            <span style="height:1px;background:var(--line)"></span>
+            <div style="display:flex;align-items:center;gap:14px"><span style="flex:1"><span style="display:block;font-size:15px;font-weight:700">Tageszeit</span><span style="display:block;font-size:12.5px;color:var(--muted)">«Auto» folgt der Uhrzeit in Zürich.</span></span><div style="display:flex;gap:2px;background:var(--field);border-radius:var(--rc);padding:3px;font-size:12.5px;font-weight:600"><sc-for list="{{ timeModes }}" as="m" hint-placeholder-count="2"><button sc-camel-on-click="{{ m.onClick }}" style="border:0;padding:5px 12px;border-radius:var(--rc);background:{{ m.bg }};color:{{ m.fg }};cursor:pointer">{{ m.l }}</button></sc-for></div></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ setTab.claude }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:var(--rp);padding:16px;display:flex;flex-direction:column;gap:10px;max-width:720px">
+            <span style="font-size:15px;font-weight:700">1. Token erzeugen</span>
+            <div style="display:flex;gap:8px"><input value="{{ tokenName }}" sc-camel-on-change="{{ onTokenName }}" placeholder="Name, z.B. Laptop" style="flex:1;background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:9px 11px;font-size:14px;outline:none" style-focus="border-color:var(--accLine)"><button sc-camel-on-click="{{ makeToken }}" style="border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:9px 14px;font-weight:700;cursor:pointer;white-space:nowrap">Token erzeugen</button></div>
+            <sc-if value="{{ hasNewToken }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:8px;align-items:center;background:var(--field);border:1px solid var(--accLine);border-radius:var(--rc);padding:8px 10px"><span style="flex:1;font-family:'Geist Mono',monospace;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ newToken }}</span><button sc-camel-on-click="{{ copyToken }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer">Kopieren</button></div><span style="font-size:12px;color:var(--muted)">Nur jetzt sichtbar. Wer die URL kennt, kann in deinem Dorf Objekte platzieren.</span></sc-if>
+            <sc-for list="{{ tokens }}" as="t" hint-placeholder-count="1"><div style="display:flex;align-items:center;gap:10px;padding-top:8px;border-top:1px solid var(--line);font-size:13px"><span style="flex:1"><b>{{ t.l }}</b> · erstellt {{ t.d }} · {{ t.u }}</span><button sc-camel-on-click="{{ t.onRevoke }}" style="border:0;background:transparent;color:var(--danger);font-weight:600;cursor:pointer">Widerrufen</button></div></sc-for>
+          </div>
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:var(--rp);padding:16px;display:flex;flex-direction:column;gap:10px;max-width:720px">
+            <span style="font-size:15px;font-weight:700">Anleitung</span>
+            <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4"><div style="display:flex;gap:10px;font-size:13.5px;line-height:1.5"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:{{ st.bg }};color:{{ st.fg }};display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700">{{ st.n }}</span><span>{{ st.t }}</span></div></sc-for>
+            <button sc-camel-on-click="{{ getSkill }}" style="align-self:flex-start;border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:9px 14px;font-weight:700;cursor:pointer">Skill herunterladen</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ setTab.konto }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--panel2);border:1px solid color-mix(in srgb, var(--danger) 30%, transparent);border-radius:var(--rp);padding:16px;display:flex;flex-direction:column;gap:10px;max-width:640px">
+            <span style="font-size:15px;font-weight:700;color:var(--danger)">Konto löschen</span>
+            <span style="font-size:13px;color:var(--ink2);line-height:1.5">Löscht nach einem Tag dein Konto mit Dorf, Häusern, Objekten, Freundschaften und Connector-Tokens. Meldest du dich vorher wieder an, wird die Löschung abgebrochen.</span>
+            <span style="font-size:12.5px;color:var(--muted)">Zur Bestätigung Benutzernamen eingeben (gian)</span>
+            <div style="display:flex;gap:8px"><input value="{{ delName }}" sc-camel-on-change="{{ onDelName }}" style="flex:1;background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:9px 11px;font-size:14px;outline:none"><button sc-camel-on-click="{{ delAccount }}" style="border:0;background:var(--danger);color:#2a0b06;border-radius:var(--rc);padding:9px 14px;font-weight:700;cursor:pointer;opacity:{{ delOp }}">Konto löschen</button></div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <!-- REISE (Inselkarte) -->
+  <sc-if value="{{ travel }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ islandClear }}" style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 55%,color-mix(in srgb, var(--acc) 45%, #0b1416) 0%,#0e1d20 55%,#0a1214 100%);overflow:hidden">
+      <div style="position:absolute;inset:0;background:repeating-radial-gradient(circle at 50% 55%,transparent 0 70px,rgba(127,214,207,.05) 70px 71px);pointer-events:none"></div>
+      <div style="position:absolute;left:20px;top:16px;display:flex;align-items:baseline;gap:12px"><span style="font-size:20px;font-weight:700;color:#f2f2f3">Reise</span><span style="font-size:13px;color:#a9c4c4">Deine Freunde als Inseln, je näher, desto aktiver</span></div>
+      <button sc-camel-on-click="{{ closeScreen }}" style="position:absolute;right:18px;top:14px;border:1px solid var(--line);background:var(--panel);border-radius:var(--rc);padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer">Zurück ins Dorf · Esc</button>
+      <sc-if value="{{ showRoute }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:{{ route.x }}px;top:{{ route.y }}px;width:{{ route.len }}px;height:0;border-top:2px dashed var(--accLine);transform-origin:0 0;transform:rotate({{ route.ang }}deg);pointer-events:none"></span></sc-if>
+      <sc-for list="{{ islands }}" as="i" hint-placeholder-count="5">
+        <button sc-camel-on-click="{{ i.onClick }}" style="position:absolute;left:{{ i.x }}px;top:{{ i.y }}px;transform:translate(-50%,-50%);border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">
+          <span style="width:{{ i.w }}px;height:{{ i.h }}px;border-radius:46% 54% 50% 50%/55% 45% 55% 45%;background:radial-gradient(circle at 40% 40%,#35503f,#25352c);border:{{ i.bd }};box-shadow:{{ i.sh }};position:relative;transition:box-shadow .2s">
+            <span style="position:absolute;left:28%;top:36%;width:11px;height:8px;background:#3a3b3f;border-top:2px solid {{ i.c }}"></span><span style="position:absolute;left:46%;top:54%;width:11px;height:8px;background:#3a3b3f;border-top:2px solid {{ i.c }}"></span><span style="position:absolute;left:60%;top:30%;width:11px;height:8px;background:#3a3b3f;border-top:2px solid {{ i.c }}"></span>
+          </span>
+          <span style="background:var(--panel);border:1px solid var(--line);border-radius:var(--rpill);padding:3px 10px;font-size:11.5px;font-weight:600;white-space:nowrap;color:var(--ink)">{{ i.name }}</span>
+        </button>
+      </sc-for>
+      <sc-if value="{{ hasIsland }}" hint-placeholder-val="{{ false }}">
+        <div sc-camel-on-click="{{ stop }}" style="position:absolute;left:{{ isl.x }}px;top:{{ isl.y }}px;width:240px;background:{{ bx.bg }};border:{{ bx.border }};border-left:{{ bx.left }};border-radius:{{ bx.rad }};box-shadow:{{ bx.sh }};overflow:hidden;color:var(--ink)">
+          <div style="padding:12px 14px 10px;background:{{ bx.headBg }};display:flex;gap:10px;align-items:center">
+            <sc-if value="{{ bx.icon }}" hint-placeholder-val="{{ false }}"><span style="width:34px;height:34px;flex:none;border-radius:var(--rc);background:var(--acc);color:var(--accInk);display:flex;align-items:center;justify-content:center">⌂</span></sc-if>
+            <div style="display:flex;flex-direction:column;gap:{{ bx.gap }};align-items:flex-start"><span style="font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.1em;color:{{ bx.kC }};background:{{ bx.kBg }};padding:{{ bx.kPad }};border-radius:var(--rpill)">{{ isl.kicker }}</span><span style="font-size:16px;font-weight:700;color:{{ bx.tC }}">{{ isl.name }}</span></div>
+          </div>
+          <div style="padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px"><span style="font-size:12.5px;color:var(--muted)">{{ isl.info }}</span><button sc-camel-on-click="{{ isl.go }}" style="border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:9px;font-weight:700;cursor:pointer">{{ isl.goL }}</button></div>
+        </div>
+      </sc-if>
+      <div sc-camel-on-click="{{ stop }}" style="position:absolute;left:18px;bottom:18px;width:330px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);padding:14px;display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--accText)">{{ reqTitle }}</span>
+        <sc-for list="{{ requests }}" as="r" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--rc);background:var(--panel2)"><span style="width:30px;height:30px;flex:none;border-radius:50%;background:#3a3b41;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">{{ r.ini }}</span><span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.n }}</span><span style="display:block;font-family:'Geist Mono',monospace;font-size:11px;color:var(--muted)">@{{ r.u }}</span></span><button sc-camel-on-click="{{ r.onYes }}" style="border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer">Annehmen</button><button sc-camel-on-click="{{ r.onNo }}" style="border:0;background:transparent;color:var(--muted);font-size:12px;cursor:pointer">Ablehnen</button></div></sc-for>
+        <sc-if value="{{ noReq }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px;color:var(--muted)">Keine offenen Anfragen.</span></sc-if>
+      </div>
+      <div sc-camel-on-click="{{ stop }}" style="position:absolute;right:18px;bottom:18px;width:330px;background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);padding:14px;display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:13px;font-weight:700">Freund hinzufügen</span>
+        <div style="display:flex;gap:6px"><input value="{{ inviteUser }}" sc-camel-on-change="{{ onInvite }}" placeholder="@benutzername" style="flex:1;min-width:0;background:var(--field);border:1px solid var(--line);border-radius:var(--rc);padding:8px 10px;font-size:13px;outline:none"><button sc-camel-on-click="{{ sendInvite }}" style="border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:8px 12px;font-weight:700;cursor:pointer">Senden</button></div>
+        <span style="font-size:13px;font-weight:700;margin-top:6px">Freundschaftslink</span>
+        <div style="display:flex;gap:8px;align-items:center"><div style="display:flex;align-items:center;background:var(--field);border:1px solid var(--line);border-radius:var(--rc)"><button sc-camel-on-click="{{ usesMinus }}" style="border:0;background:transparent;padding:6px 10px;cursor:pointer;color:var(--muted)">−</button><span style="font-weight:700;font-size:13px">{{ linkUses }}</span><button sc-camel-on-click="{{ usesPlus }}" style="border:0;background:transparent;padding:6px 10px;cursor:pointer;color:var(--muted)">+</button></div><span style="flex:1;font-size:12px;color:var(--muted)">{{ usesText }}</span><button sc-camel-on-click="{{ makeLink }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:8px 12px;font-weight:600;cursor:pointer;white-space:nowrap">Link erstellen</button></div>
+        <sc-if value="{{ hasLink }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Geist Mono',monospace;font-size:11.5px;background:var(--field);border:1px solid var(--accLine);border-radius:var(--rc);padding:7px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ link }}</span></sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- BESUCH -->
+  <sc-if value="{{ visiting }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:{{ bx.headBg2 }};border:{{ bx.border }};border-radius:var(--rp);box-shadow:var(--shadow);padding:8px 8px 8px 16px;white-space:nowrap;z-index:4">
+      <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:{{ bx.kC2 }}">DU BESUCHST</span><span style="font-size:14px;font-weight:700;color:{{ bx.tC2 }}">{{ visitName }}</span><span style="font-size:12px;color:{{ bx.sC2 }}">nur ansehen</span>
+      <button sc-camel-on-click="{{ goHome }}" style="border:0;background:var(--panel);color:var(--ink);border-radius:var(--rc);padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer">Zurück in mein Dorf</button>
+    </div>
+  </sc-if>
+
+  <!-- NEU WÜRFELN -->
+  <sc-if value="{{ reroll }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:64px;transform:translateX(-50%);width:min(540px,calc(100% - 24px));background:var(--panel);border:1px solid var(--line);border-radius:var(--rp);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:10px;z-index:4">
+      <span style="font-family:'Geist Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:var(--muted)">VORSCHAU · NOCH NICHT GESPEICHERT</span>
+      <span style="font-size:17px;font-weight:700">Neue Landschaft: {{ landDescNew }}</span>
+      <span style="font-size:12.5px;color:var(--muted)">Bäume und Gelände sind neu, deine Häuser behalten ihre Plätze, wo es passt.</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button sc-camel-on-click="{{ rerollApply }}" style="border:0;background:var(--acc);color:var(--accInk);border-radius:var(--rc);padding:9px 14px;font-weight:700;cursor:pointer">{{ rerollApplyL }}</button><button sc-camel-on-click="{{ rerollAgain }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:9px 14px;font-weight:600;cursor:pointer">Nochmals würfeln</button><button sc-camel-on-click="{{ rerollCancel }}" style="border:0;background:var(--chip);border-radius:var(--rc);padding:9px 14px;font-weight:600;cursor:pointer">Verwerfen</button></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;bottom:78px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;background:var(--ink);color:var(--panel);border-radius:var(--rp);padding:10px 14px 10px 16px;font-size:13px;font-weight:600;box-shadow:var(--shadow);white-space:nowrap;z-index:5">
+      <span>{{ toast.text }}</span>
+      <sc-if value="{{ toast.undo }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ undo }}" style="border:0;background:transparent;color:var(--acc);font-weight:700;cursor:pointer;padding:0">Rückgängig</button></sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="">
+class Component extends DCLogic {
+  rootRef = React.createRef();
+  K = { Rechner: '#e8a33d', Quiz: '#6aa7e8', Zusammenfassung: '#8fc27a', Cheatsheet: '#d77fb3', Tool: '#9b8cf0', Visualisierung: '#4fc1b6', Sonstiges: '#8b8c92' };
+  PALETTE = ['#b5523b', '#c96a50', '#c08a2b', '#4f7d3f', '#2f7d8c', '#3f5f8a', '#6b4fd8', '#7a3b4a'];
+  QORDER = ['Zentrale', 'Tragwerk & Bau', 'Grundlagen', 'Digital & Daten', 'Weitere'];
+  QANCHOR = { 'Tragwerk & Bau': [27, 52], 'Grundlagen': [71, 30], 'Digital & Daten': [64, 69], 'Weitere': [86, 74] };
+  TIMES = [['Morgen', '#f7c873', 'rgba(255,200,150,.07)', '#2a1a00'], ['Mittag', '#fff1b8', 'transparent', '#2a2200'], ['Abend', '#f08a4b', 'rgba(255,130,50,.09)', '#2a0e00'], ['Nacht', '#7d8bd6', 'rgba(8,14,50,.38)', '#0b1033']];
+
+  defaults() {
+    const houses = [
+      { id: 'z', name: 'Zentrale', color: '#d9bd8f', q: 'Zentrale', x: 49, y: 47, sem: null },
+      { id: 'h1', name: 'Baustatik 2', color: '#b5523b', q: 'Tragwerk & Bau', x: 30, y: 35, sem: 3 },
+      { id: 'h2', name: 'Holzbau 2', color: '#c96a50', q: 'Tragwerk & Bau', x: 19, y: 54, sem: 3 },
+      { id: 'h3', name: 'Beton 1', color: '#9c4a32', q: 'Tragwerk & Bau', x: 34, y: 66, sem: 2 },
+      { id: 'h4', name: 'Mathematik 2', color: '#3f5f8a', q: 'Grundlagen', x: 64, y: 25, sem: 2 },
+      { id: 'h5', name: 'Physik 1', color: '#5f6f86', q: 'Grundlagen', x: 78, y: 36, sem: 1 },
+      { id: 'h6', name: 'Python', color: '#6b4fd8', q: 'Digital & Daten', x: 71, y: 62, sem: 1 },
+      { id: 'h7', name: 'Data 1', color: '#4d38a3', q: 'Digital & Daten', x: 57, y: 75, sem: 2 },
+    ];
+    const r = [
+      ['h1', 'Momentenrechner Einfeldträger', 'Rechner', 'claude.ai', 'Freunde', 0, '23.10.', true, 'Biegemoment und Querkraft für Einfeldträger mit Streckenlast.'],
+      ['h1', 'Quiz Auflagerkräfte', 'Quiz', 'claude.ai', 'Freunde', 14, '02.10.', false, ''],
+      ['h1', 'Formelsammlung Biegung', 'Cheatsheet', 'switchdrive.ch', 'Freunde', 22, '28.09.', false, 'Alle Formeln aus der Vorlesung auf zwei Seiten.'],
+      ['h1', 'Übungen Rahmentragwerke', 'Tool', 'github.com', 'Nur ich', 3, '19.09.', false, ''],
+      ['h2', 'Holzverbindungen Übersicht', 'Zusammenfassung', 'claude.ai', 'Freunde', 9, '11.10.', false, 'Zapfen, Versatz, Stahlformteile mit Skizzen.'],
+      ['h2', 'Brandschutz Holz', 'Quiz', 'claude.ai', 'Freunde', 0, '17.10.', false, ''],
+      ['h6', 'Plot-Generator Lastfälle', 'Tool', 'github.com', 'Freunde', 31, '05.09.', false, 'Erzeugt Diagramme für Lastkombinationen.'],
+      ['h6', 'Pandas Cheatsheet', 'Cheatsheet', 'gist.github.com', 'Freunde', 18, '12.09.', false, ''],
+      ['h6', 'Übung Listen und Schleifen', 'Quiz', 'claude.ai', 'Nur ich', 0, '20.10.', false, ''],
+      ['h6', 'FEM-Visualisierung Balken', 'Visualisierung', 'claude.ai', 'Freunde', 7, '08.10.', false, ''],
+      ['h7', 'Notebook-Sammlung', 'Sonstiges', 'switchdrive.ch', 'Nur ich', 2, '30.08.', false, ''],
+      ['h4', 'Integrale Spickzettel', 'Cheatsheet', 'claude.ai', 'Freunde', 11, '15.10.', false, ''],
+      ['z', 'Lernplan HS26', 'Sonstiges', 'notion.so', 'Nur ich', 5, '01.09.', false, 'Wochenplan bis zu den Prüfungen.'],
+    ];
+    const objects = r.map((x, i) => ({ id: 'o' + (i + 1), houseId: x[0], t: x[1], k: x[2], link: 'https://' + x[3] + '/…', typ: this.detect('https://' + x[3] + '/x'), vis: x[4], op: x[5], date: x[6], neu: x[7], desc: x[8], allowCopy: true, topdorf: false }));
+    return { houses, objects };
+  }
+
+  state = (() => {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('hubdome-proto-v1') || 'null'); } catch (e) {}
+    const d = this.defaults();
+    return {
+      houses: (saved && saved.houses) || d.houses, objects: (saved && saved.objects) || d.objects,
+      W: 1280, H: 800, zoom: 1, pan: { x: 0, y: 0 }, sel: null, mode: null, objId: null,
+      splitW: 0, inv: false, over: 0, hover: null, invSel: [], invGroup: 'haus', invFilter: '', invHouse: null, invState: null,
+      menu: null, form: {}, toast: null, hint: true, rowY: null, collapsed: {}, search: '', time: 2, view: '3D',
+      dropKey: null, panning: false, gripping: false, sort: 'eigen', acct: false, ready: false,
+      screen: null, setTab: 'dorf', zStyle: 'Klassisch', topdorf: true, timeAuto: false, displayName: 'Gian', tokenName: '', newToken: null,
+      tokens: [{ id: 1, l: 'Laptop', d: '12.10.', u: 'zuletzt benutzt gestern' }], delName: '',
+      friends: [{ id: 'mia', n: 'Mia Frei', d: 'Mias Atelier', hs: 9, os: 31, c: '#c08a2b', act: 3, neu: 3 }, { id: 'lea', n: 'Lea Müller', d: 'Leas Dorf', hs: 7, os: 24, c: '#6b4fd8', act: 2, neu: 1 }, { id: 'noah', n: 'Noah Keller', d: 'Noahs Werkhof', hs: 5, os: 17, c: '#2f7d8c', act: 1, neu: 0 }, { id: 'luca', n: 'Luca Brunner', d: 'Lucas Dorf', hs: 3, os: 8, c: '#4f7d3f', act: 0, neu: 0 }],
+      requests: [{ u: 'sara', n: 'Sara Meier' }, { u: 'tim', n: 'Tim Huber' }], island: null, inviteUser: '', linkUses: 1, link: null, visiting: null,
+      build: false, bsel: null, bq: null, btool: 'select', hist: [], fut: [], bSnap: null, bmsg: '', bbad: false, qcfg: {}, roofs: {},
+      bends: {}, treeMoves: {}, treeSeed: 41, reroll: false, rerollSeed: 0, rerollConfirm: false,
+    };
+  })();
+
+  inkFor(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return '#0b1416';
+    const n = parseInt(m[1], 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    const L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    return L > 0.22 ? '#0b1416' : '#f4fbfb';
+  }
+  detect(link) {
+    try {
+      const h = new URL(link).hostname.replace(/^www\./, '');
+      if (h === 'claude.ai') return 'Claude-Artifact';
+      if (h === 'gist.github.com') return 'Gist';
+      if (h === 'github.com') return 'GitHub-Repo';
+      if (/(onedrive|1drv|sharepoint|drive\.google|docs\.google|switchdrive|switch\.ch|dropbox)/.test(h)) return 'Cloud-Ordner';
+      return 'Link';
+    } catch (e) { return null; }
+  }
+
+  componentDidMount() {
+    this.onResize = () => {
+      const el = this.rootRef.current;
+      const b = el ? el.getBoundingClientRect() : null;
+      const W = (b && b.width) || window.innerWidth, H = (b && b.height) || window.innerHeight;
+      if (!W || !H) { clearTimeout(this.rzT); this.rzT = setTimeout(this.onResize, 100); return; }
+      if (W !== this.state.W || H !== this.state.H) this.setState({ W, H });
+    };
+    this.onResize();
+    window.addEventListener('resize', this.onResize);
+    this.setupRO();
+    this.onKey = (e) => {
+      const t = e.target, typing = t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+      if (e.key === 'Escape') { if (typing) t.blur(); this.escape(); return; }
+      if (this.state.build && (e.ctrlKey || e.metaKey) && /^[zZyY]$/.test(e.key)) { e.preventDefault(); (e.key === 'y' || e.key === 'Y' || e.shiftKey) ? this.bRedo() : this.bUndo(); return; }
+      if (typing || e.metaKey || e.ctrlKey) return;
+      if ((e.key === 'b' || e.key === 'B') && !this.state.build && !this.state.screen) return this.startBuild();
+      if (this.state.build || this.state.screen) return;
+      if (e.key === 'i' || e.key === 'I') this.toggleInv();
+      if (e.key === 'l' || e.key === 'L') this.toggleSplit();
+    };
+    this.onMove = (e) => {
+      if (this.wdrag || this.tdrag) return this.wMove(e);
+      if (this.bdrag || this.qdrag) return this.bMove(e);
+      if (this.panStart) {
+        const p = this.panStart, dx = e.clientX - p.x, dy = e.clientY - p.y;
+        if (Math.abs(dx) + Math.abs(dy) > 3) p.moved = true;
+        if (p.moved) this.setState({ pan: { x: p.px + dx, y: p.py + dy } });
+      }
+      if (this.grip) {
+        const g = this.grip, dx = e.clientX - g.x;
+        if (Math.abs(dx) > 3) g.moved = true;
+        if (g.moved) this.setState({ splitW: Math.max(0, Math.min(680, g.w + dx)) });
+      }
+    };
+    this.onUp = () => {
+      if (this.wdrag || this.tdrag) return this.wUp();
+      if (this.bdrag || this.qdrag) return this.bUp();
+      if (this.panStart) {
+        const moved = this.panStart.moved; this.panStart = null;
+        this.setState(moved ? { panning: false } : { panning: false, sel: null, mode: null, objId: null });
+      }
+      if (this.grip) {
+        const g = this.grip; this.grip = null;
+        let w = this.state.splitW;
+        if (!g.moved) w = g.w > 0 ? 0 : 420; else if (w < 140) w = 0; else if (w < 320) w = 320;
+        const st = this.state, patch = st.sel ? this.flyPatch(st.sel, w, !!st.mode) : {};
+        this.setState({ splitW: w, gripping: false, hint: false, ...patch });
+      }
+    };
+    window.addEventListener('keydown', this.onKey);
+    window.addEventListener('mousemove', this.onMove);
+    window.addEventListener('mouseup', this.onUp);
+  }
+  setupRO() {
+    const el = this.rootRef.current;
+    if (this.ro || !el || typeof ResizeObserver === 'undefined') return;
+    this.ro = new ResizeObserver(() => { cancelAnimationFrame(this.rzF); this.rzF = requestAnimationFrame(this.onResize); });
+    this.ro.observe(el);
+    this.onResize();
+  }
+  componentWillUnmount() {
+    this.ro && this.ro.disconnect();
+    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('mousemove', this.onMove);
+    window.removeEventListener('mouseup', this.onUp);
+  }
+  componentDidUpdate(pp, ps) {
+    const s = this.state;
+    this.setupRO();
+    const key = String(s.sel);
+    if (key !== this.lastReadyKey) {
+      this.lastReadyKey = key;
+      clearTimeout(this.readyT);
+      if (s.sel) {
+        if (s.ready) this.setState({ ready: false });
+        this.readyT = setTimeout(() => this.setState({ ready: true }), s.gripping ? 0 : 580);
+      }
+    }
+    if (!ps || ps.objects !== s.objects || ps.houses !== s.houses) {
+      try { localStorage.setItem('hubdome-proto-v1', JSON.stringify({ houses: s.houses, objects: s.objects })); } catch (e) {}
+    }
+    this.measureRow();
+  }
+  measureRow() {
+    const s = this.state, root = this.rootRef.current;
+    let y = null;
+    if (root && s.splitW > 0 && s.objId && (s.mode === 'obj' || s.mode === 'editObj')) {
+      const r = root.querySelector('[data-row="' + s.objId + '"]');
+      if (r) {
+        const b = r.getBoundingClientRect(), rb = root.getBoundingClientRect();
+        y = b.top - rb.top + b.height / 2;
+        if (y < 90 || y > rb.height - 10) y = null;
+      }
+    }
+    if (y === s.rowY || (y != null && s.rowY != null && Math.abs(y - s.rowY) < 1)) return;
+    this.setState({ rowY: y });
+  }
+
+  dims() {
+    const s = this.state, el = this.rootRef.current, b = el && el.getBoundingClientRect();
+    return { W: (b && b.width) || s.W || window.innerWidth || 1280, H: (b && b.height) || s.H || window.innerHeight || 800 };
+  }
+  area(L = this.state.splitW) {
+    const d = this.dims(), Wa = d.W - L, Ha = d.H;
+    return { L, Wa, Ha, cx: L + Wa / 2, cy: Ha / 2 };
+  }
+  layout(id, L, z) {
+    const s = this.state, a = this.area(L), n = s.objects.filter(o => o.houseId === id).length;
+    const w = 64 + Math.min(n, 8) * 8, ringSize = Math.max(200, w * z + 110);
+    const shp = this.props.ringShape ?? 'Sucher', hh = 42 + Math.min(n, 8) * 3;
+    const reach = shp === 'Leiste' ? Math.max(w * z / 2 + 18, 216) : shp === 'Sucher' ? (w * z + 130) / 2 + 98 : ringSize / 2;
+    const off = reach + 40;
+    const dock = a.Wa < 2 * reach + off + 380 + 84;
+    if (dock) {
+      const tw = Math.max(Math.min(260, a.Wa - 32), Math.min(400, a.Wa - 32 - 170)), free = a.Wa - tw - 32;
+      return { a, reach, off, tw, ringSize, dock, T: { x: a.L + Math.max(70, free / 2), y: Math.max(200, a.Ha * 0.5) } };
+    }
+    const tw = Math.min(420, a.Wa - (reach + 20) - off - 64);
+    const tx = Math.max(a.L + reach + 20, a.L + a.Wa - 64 - tw - off);
+    return { a, reach, off, tw, ringSize, dock, T: { x: tx, y: Math.max(220, a.Ha * 0.5) } };
+  }
+  flyPatch(id, L = this.state.splitW, withTafel = !!this.state.mode) {
+    const s = this.state, h = s.houses.find(x => x.id === id);
+    if (!h) return {};
+    const a0 = this.area(L), lay0 = this.layout(id, L, 1), z = withTafel && lay0.dock ? 0.9 : a0.Wa < 1100 ? 1 : 1.15, lay = this.layout(id, L, z), a = lay.a;
+    let T;
+    if (!withTafel) T = { x: a.L + a.Wa / 2, y: a.Ha / 2 };
+    else if (lay.dock) T = lay.T;
+    else { const G = lay.reach + lay.off + lay.tw, left = a.L + Math.max(24, (a.Wa - 64 - G) / 2); T = { x: left + lay.reach, y: Math.max(220, a.Ha * 0.5) }; }
+    const wx = a.L + a.Wa * h.x / 100, wy = a.Ha * h.y / 100;
+    return { sel: id, zoom: z, pan: { x: T.x - a.cx - z * (wx - a.cx), y: T.y - a.cy - z * (wy - a.cy) }, hover: null, hint: false, acct: false };
+  }
+  escape() {
+    const s = this.state;
+    if (s.screen) return this.closeScreen();
+    if (s.build) return this.setState({ bsel: null, bq: null, bmsg: '' });
+    if (s.reroll) return this.setState({ reroll: false });
+    if (s.acct) return this.setState({ acct: false });
+    if (s.menu) return this.setState({ menu: null });
+    if (s.mode) return this.setState({ mode: null, objId: null });
+    if (s.sel) return this.setState({ sel: null });
+    if (s.inv) return this.closeInv();
+    if (s.splitW) return this.setState({ splitW: 0 });
+  }
+  say(text, snap) {
+    this.undoSnap = snap || null;
+    clearTimeout(this.toastT);
+    this.setState({ toast: { text, undo: !!snap } });
+    this.toastT = setTimeout(() => this.setState({ toast: null }), 3800);
+  }
+  setForm(p) { this.setState(st => ({ form: { ...st.form, ...p, err: p.err || '' } })); }
+  today() { const d = new Date(); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.'; }
+
+  clickHouse(id, fromList) {
+    const s = this.state;
+    if (!fromList && s.sel === id && !s.mode) return this.setState({ sel: null });
+    this.setState({ ...this.flyPatch(id, s.splitW, false), mode: null, objId: null });
+  }
+  openHouseInfo(id) { this.setState({ ...this.flyPatch(id, this.state.splitW, true), mode: 'house', objId: null }); }
+  openObj(id) {
+    const o = this.state.objects.find(x => x.id === id); if (!o) return;
+    this.setState({ ...this.flyPatch(o.houseId, this.state.splitW, true), mode: 'obj', objId: id });
+  }
+  openNew(houseId) {
+    this.setState({ ...this.flyPatch(houseId, this.state.splitW, true), mode: 'new', objId: null, form: { step: 1, link: '', title: '', kind: 'Rechner', vis: 'Freunde', houseId, desc: '', allowCopy: true, topdorf: false, more: false, err: '' } });
+  }
+  openEditObj(id) {
+    const o = this.state.objects.find(x => x.id === id); if (!o) return;
+    this.setState({ ...this.flyPatch(o.houseId, this.state.splitW, true), mode: 'editObj', objId: id, form: { step: 2, link: o.link, title: o.t, kind: o.k, vis: o.vis, houseId: o.houseId, desc: o.desc || '', allowCopy: o.allowCopy, topdorf: o.topdorf, more: false, err: '' } });
+  }
+  openEditHouse(id) {
+    const h = this.state.houses.find(x => x.id === id); if (!h) return;
+    this.setState({ ...this.flyPatch(id, this.state.splitW, true), mode: 'editHouse', objId: null, form: { name: h.name, color: h.color, sem: h.sem, q: h.q, err: '' } });
+  }
+  openSplitFor(id) {
+    const s = this.state, L = s.splitW || 420, c = { ...s.collapsed }; delete c[id];
+    this.setState({ splitW: L, collapsed: c, ...this.flyPatch(id, L, false), mode: null, objId: null, inv: false });
+  }
+  toggleSplit() {
+    const s = this.state, L = s.splitW ? 0 : 420;
+    const patch = s.sel && !s.inv ? this.flyPatch(s.sel, L, !!s.mode) : {};
+    this.setState({ splitW: L, hint: false, ...(s.inv ? { inv: false, zoom: 0.8, pan: { x: 0, y: 0 }, menu: null, over: 0 } : {}), ...patch });
+  }
+  openInv() { clearTimeout(this.overT); this.setState({ inv: true, splitW: 0, sel: null, mode: null, objId: null, over: 0, menu: null, hint: false, acct: false }); }
+  closeInv() { this.setState({ inv: false, zoom: 0.8, pan: { x: 0, y: 0 }, menu: null, over: 0 }); }
+  toggleInv() { this.state.inv ? this.closeInv() : this.openInv(); }
+
+  stepNext() {
+    const f = this.state.form;
+    if (f.step === 1) {
+      if (!/^https:\/\/[^\s]+\.[^\s]+/.test(f.link || '')) return this.setForm({ err: 'Bitte einen Link mit https:// einfügen.' });
+      if (!(f.title || '').trim()) return this.setForm({ err: 'Der Titel fehlt.' });
+    }
+    this.setForm({ step: Math.min(3, (f.step || 1) + 1) });
+  }
+  barVals(bs, tm, L, DW) {
+    const s = this.state, center = L + (DW - L) / 2;
+    const bb = { left: center, tf: 'translateX(-50%)', dir: 'row', align: 'center', gap: 3, bg: 'var(--panel)', border: '1px solid var(--line)', rad: 'var(--rp)', pad: '4px', sh: 'none', blur: 'none',
+      seg: true, segBg: 'transparent', segBorder: '0', segRad: 'var(--rc)', segPad: '0', segSh: 'none', switch: false, divider: true, divW: '1px', divH: '22px', divM: '0 3px', timeBtn: true, timeSegs: false };
+    const tb = { rad: 'var(--rc)', pad: '6px 13px', bg: tm[1], fg: tm[3], sh: 'none' };
+    let vOn = { bg: 'var(--ink)', fg: 'var(--panel)', sh: 'none' }, vOff = { bg: 'transparent', fg: 'var(--ink2)', sh: 'none' }, vRad = 'var(--rc)', vPad = '6px 12px';
+    if (bs === 'Pille') { Object.assign(bb, { rad: '999px', pad: '4px', gap: 4, divider: false }); vRad = '999px'; vOn = { bg: 'var(--acc)', fg: 'var(--accInk)', sh: 'none' }; tb.rad = '999px'; tb.pad = '6px 14px'; }
+    if (bs === 'Getrennt') { Object.assign(bb, { bg: 'transparent', border: '0', pad: '0', gap: 8, divider: false, segBg: 'var(--panel)', segBorder: '1px solid var(--line)', segRad: 'var(--rp)', segPad: '3px', segSh: '0 8px 22px rgba(0,0,0,.3)' }); tb.rad = 'var(--rp)'; tb.pad = '9px 16px'; tb.sh = '0 8px 22px rgba(0,0,0,.3)'; }
+    if (bs === 'Schalter') { Object.assign(bb, { seg: false, switch: true, pad: '4px 4px 4px 2px' }); }
+    if (bs === 'Glas') { Object.assign(bb, { bg: 'color-mix(in srgb, var(--panel) 45%, transparent)', border: '1px solid rgba(255,255,255,.14)', blur: 'blur(14px) saturate(1.4)', rad: '16px', pad: '5px', sh: '0 10px 30px rgba(0,0,0,.25)', divider: false, gap: 5 }); vOn = { bg: 'rgba(255,255,255,.18)', fg: 'var(--ink)', sh: 'inset 0 1px 0 rgba(255,255,255,.2)' }; vRad = '11px'; tb.rad = '11px'; }
+    if (bs === 'Ecke') { Object.assign(bb, { left: L + 26, tf: 'none', dir: 'column', align: 'stretch', gap: 4, pad: '5px', divW: 'auto', divH: '1px', divM: '2px 4px' }); vPad = '7px 14px'; }
+    if (bs === 'Zeitleiste') { Object.assign(bb, { timeBtn: false, timeSegs: true }); }
+    if (bs === 'Minimal') { Object.assign(bb, { bg: 'transparent', border: '0', pad: '0', gap: 10, divider: false }); vOn = { bg: 'transparent', fg: 'var(--ink)', sh: 'inset 0 -2px 0 var(--accLine)' }; vOff = { bg: 'transparent', fg: 'var(--muted)', sh: 'none' }; vRad = '0'; vPad = '5px 2px'; tb.rad = '999px'; tb.pad = '4px 11px'; }
+    const views = ['3D', 'Karte'].map(v => { const on = s.view === v, st = on ? vOn : vOff; return { l: v, rad: vRad, pad: vPad, bg: st.bg, fg: st.fg, sh: st.sh, onClick: () => this.setState({ view: v }) }; });
+    const timeSegs = this.TIMES.map((t, i) => { const on = s.time === i; return { l: t[0], bg: on ? t[1] : 'transparent', fg: on ? t[3] : 'var(--ink2)', sh: on ? 'none' : 'inset 0 -2px 0 ' + t[1], fw: on ? 700 : 600, onClick: () => this.setState({ time: i }) }; });
+    return { bb, tb, views, timeSegs, sw: { knob: s.view === '3D' ? 2 : 17, c3: s.view === '3D' ? 'var(--ink)' : 'var(--muted)', cK: s.view === 'Karte' ? 'var(--ink)' : 'var(--muted)' }, toggleView: () => this.setState(x => ({ view: x.view === '3D' ? 'Karte' : '3D' })) };
+  }
+  openSettings() { this.setState({ screen: 'settings', acct: false, sel: null, mode: null, inv: false, splitW: 0, hint: false }); }
+  openTravel() { this.setState({ screen: 'travel', acct: false, sel: null, mode: null, inv: false, splitW: 0, island: null, hint: false }); }
+  closeScreen() { this.setState({ screen: null, island: null, zoom: 0.9, pan: { x: 0, y: 0 } }); }
+  qCenter(q, houses) { const hs = houses.filter(h => h.q === q && h.id !== 'z'); if (!hs.length) return { x: 50, y: 50 }; return { x: hs.reduce((t, h) => t + h.x, 0) / hs.length, y: hs.reduce((t, h) => t + h.y, 0) / hs.length }; }
+  bFocus(q, houses = this.state.houses) {
+    const c = this.qCenter(q, houses), z = 1.3, a = this.area(0);
+    const T = { x: 90 + (a.Wa - 90 - 300) / 2, y: 52 + (a.Ha - 52 - 60) / 2 };
+    const wx = a.Wa * c.x / 100, wy = a.Ha * c.y / 100;
+    return { zoom: z, pan: { x: T.x - a.cx - z * (wx - a.cx), y: T.y - a.cy - z * (wy - a.cy) } };
+  }
+  startBuild() { this.setState({ build: true, screen: null, inv: false, splitW: 0, sel: null, mode: null, bSnap: this.state.houses, hist: [], fut: [], bsel: null, bq: null, btool: 'select', bmsg: 'Haus ziehen oder Quartier-Griff ziehen', bbad: false, hint: false, acct: false, zoom: 0.95, pan: { x: 0, y: 0 } }); }
+  endBuild(save) { const s = this.state; this.setState({ build: false, bsel: null, bq: null, ...(save ? {} : { houses: s.bSnap }), zoom: 1, pan: { x: 0, y: 0 } }); this.say(save ? 'Dorf gespeichert' : 'Änderungen verworfen'); }
+  bPush(snap) { this.setState(s => ({ hist: [...s.hist, snap].slice(-60), fut: [] })); }
+  bUndo() { const s = this.state; if (!s.hist.length) return; this.setState({ houses: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1), fut: [s.houses, ...s.fut], bmsg: 'Rückgängig', bbad: false }); }
+  bRedo() { const s = this.state; if (!s.fut.length) return; this.setState({ houses: s.fut[0], fut: s.fut.slice(1), hist: [...s.hist, s.houses], bmsg: 'Wiederholt', bbad: false }); }
+  bDown(e, id) {
+    if (e.button !== 0) return; e.stopPropagation(); e.preventDefault();
+    const h = this.state.houses.find(x => x.id === id);
+    if (id === 'z') return this.setState({ bmsg: 'Die Zentrale bleibt in der Mitte', bbad: false });
+    if (this.state.btool === 'quartier') return this.qDown(e, h.q);
+    this.bdrag = { id, x: e.clientX, y: e.clientY, hx: h.x, hy: h.y, moved: false, q: h.q, c: this.qCenter(h.q, this.state.houses), snap: this.state.houses };
+  }
+  qDown(e, q) { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); this.qdrag = { q, x: e.clientX, y: e.clientY, moved: false, snap: this.state.houses }; }
+  bMove(e) {
+    const s = this.state, a = this.area(0), d = this.bdrag || this.qdrag;
+    const dx = (e.clientX - d.x) / (a.Wa * s.zoom) * 100, dy = (e.clientY - d.y) / (a.Ha * s.zoom) * 100;
+    if (!d.moved && Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) < 4) return;
+    d.moved = true;
+    const near = (x, y, others) => others.find(o => Math.abs(o.x - x) < 10 && Math.abs(o.y - y) < 10);
+    if (this.bdrag) {
+      let nx = d.hx + dx, ny = d.hy + dy; const rx = 26, ry = 30, ex = (nx - d.c.x) / rx, ey = (ny - d.c.y) / ry, k = Math.hypot(ex, ey);
+      let limit = false; if (k > 1) { nx = d.c.x + (nx - d.c.x) / k; ny = d.c.y + (ny - d.c.y) / k; limit = true; }
+      nx = Math.max(5, Math.min(95, nx)); ny = Math.max(9, Math.min(91, ny));
+      const bad = near(nx, ny, d.snap.filter(o => o.id !== d.id));
+      this.setState({ houses: s.houses.map(o => o.id === d.id ? { ...o, x: nx, y: ny } : o), bsel: d.id, bq: d.q, bbad: !!bad, bmsg: bad ? 'Zu nah an ' + bad.name : limit ? 'Rand des Bewegungsraums' : 'Passt' });
+    } else {
+      const ins = d.snap.filter(o => o.q === d.q && o.id !== 'z'), outs = d.snap.filter(o => !(o.q === d.q && o.id !== 'z'));
+      let bad = null; const moved = ins.map(o => { const nx = o.x + dx, ny = o.y + dy; if (nx < 5 || nx > 95 || ny < 9 || ny > 91) bad = bad || { name: 'dem Kartenrand' }; const n = near(nx, ny, outs); if (n) bad = bad || n; return { ...o, x: Math.max(5, Math.min(95, nx)), y: Math.max(9, Math.min(91, ny)) }; });
+      const map = Object.fromEntries(moved.map(o => [o.id, o]));
+      this.setState({ houses: s.houses.map(o => map[o.id] || o), bq: d.q, bsel: null, bbad: !!bad, bmsg: bad ? 'Zu nah an ' + bad.name : 'Quartier verschieben · passt' });
+    }
+  }
+  bUp() {
+    const d = this.bdrag || this.qdrag, isHouse = !!this.bdrag; this.bdrag = null; this.qdrag = null;
+    const s = this.state;
+    if (!d.moved) {
+      if (isHouse) return this.setState({ bsel: d.id, bq: d.q, bmsg: 'Haus gewählt · ziehen zum Versetzen', bbad: false, ...this.bFocus(d.q) });
+      return this.setState({ bq: d.q, bsel: null, bmsg: 'Quartier gewählt · Griff ziehen zum Verschieben', bbad: false, ...this.bFocus(d.q) });
+    }
+    if (s.bbad) return this.setState({ houses: d.snap, bmsg: 'Zurückgesetzt: ' + s.bmsg.replace('Zu nah an ', 'zu nah an '), bbad: true });
+    this.bPush(d.snap);
+    this.setState({ bmsg: 'Abgelegt · Bäume passen sich an', bbad: false, ...this.bFocus(d.q, s.houses) });
+  }
+  onRoad(xp, yp, size = 14) {
+    const g = this.roadGeom; if (!g) return false;
+    const px = g.Wa * xp / 100, py = g.Ha * yp / 100, pad = 8 + size / 2;
+    for (const sp of g.spurs) { const a = sp.ang * Math.PI / 180, bx = sp.x + Math.cos(a) * sp.len, by = sp.y + Math.sin(a) * sp.len, dx = bx - sp.x, dy = by - sp.y, L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((px - sp.x) * dx + (py - sp.y) * dy) / L2)); if (Math.hypot(px - sp.x - t * dx, py - sp.y - t * dy) < pad) return true; }
+    for (const r of g.rings) {
+      if (r.form === 'Intelligent') { if (Math.hypot(px - r.cx, py - r.cy) < 20 + pad) return true; continue; }
+      if (r.form === 'Gasse') { if (Math.abs(py - r.cy) < pad && Math.abs(px - r.cx) < r.rx + pad) return true; continue; }
+      const v = Math.sqrt(((px - r.cx) / r.rx) ** 2 + ((py - r.cy) / r.ry) ** 2);
+      if (Math.abs(v - 1) * Math.min(r.rx, r.ry) < pad && (r.form === 'Ring' || py <= r.cy + pad)) return true;
+    }
+    return false;
+  }
+  toWorld(e) {
+    const s = this.state, a = this.area(0), rb = this.rootRef.current.getBoundingClientRect();
+    const sx = e.clientX - rb.left, sy = e.clientY - rb.top;
+    const wx = a.cx + (sx - a.cx - s.pan.x) / s.zoom, wy = a.cy + (sy - a.cy - s.pan.y) / s.zoom;
+    return { x: wx / a.Wa * 100, y: wy / a.Ha * 100 };
+  }
+  wDown(e, hid) { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); const p = this.toWorld(e); this.setState(s => ({ bends: { ...s.bends, [hid]: p }, bmsg: 'Eckpunkt gesetzt · ziehen zum Formen', bbad: false })); this.wdrag = { hid, moved: false }; }
+  bendDown(e, hid) { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); this.wdrag = { hid, moved: false }; }
+  tDown(e, i) { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); this.tdrag = { i, moved: false, snap: { ...this.state.treeMoves } }; }
+  wMove(e) {
+    const p = this.toWorld(e), x = Math.max(2, Math.min(98, p.x)), y = Math.max(4, Math.min(96, p.y));
+    if (this.wdrag) { this.wdrag.moved = true; return this.setState(s => ({ bends: { ...s.bends, [this.wdrag.hid]: { x, y } } })); }
+    const t = this.tdrag; t.moved = true;
+    const bad = this.state.houses.find(o => Math.abs(o.x - x) < 6.5 && Math.abs(o.y - y) < 7.5), road = !bad && this.onRoad(x, y);
+    this.setState(s => ({ treeMoves: { ...s.treeMoves, [t.i]: { x, y } }, bbad: !!bad || road, bmsg: bad ? 'Nicht auf ' + bad.name : road ? 'Nicht auf einen Weg' : 'Baum versetzen · passt' }));
+  }
+  wUp() {
+    if (this.wdrag) { this.wdrag = null; return this.setState({ bmsg: 'Weg angepasst', bbad: false }); }
+    const t = this.tdrag; this.tdrag = null;
+    if (t.moved && this.state.bbad) return this.setState({ treeMoves: t.snap, bmsg: 'Zurückgesetzt: nicht auf Haus oder Weg', bbad: true });
+    this.setState({ bmsg: t.moved ? 'Baum versetzt' : 'Baum ziehen zum Versetzen', bbad: false });
+  }
+  trees(seed, houses, build) {
+    let r = seed * 9301 + 49297; const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+    const qs = build ? [...new Set(houses.filter(o => o.id !== 'z').map(o => o.q))].map(q => this.qCenter(q, houses)) : [];
+    const out = [];
+    for (let i = 0; i < 54; i++) {
+      let x = 4 + rnd() * 92, y = 7 + rnd() * 86; const s = 11 + rnd() * 9, mv = (this.state.treeMoves || {})[i]; if (mv && seed === this.state.treeSeed) { x = mv.x; y = mv.y; }
+      const hidden = houses.some(o => Math.abs(o.x - x) < 6.5 && Math.abs(o.y - y) < 7.5) || qs.some(c => Math.abs(c.x - x) < 4 && Math.abs(c.y - y) < 5);
+      out.push({ i, x, y, s: Math.round(s), op: hidden ? 0 : 0.9, sc: hidden ? 0.3 : 1, hidden, moved: !!mv });
+    }
+    return out;
+  }
+  extraVals(DW, DH, p, byId) {
+    const s = this.state, stop = e => e.stopPropagation();
+    const BX = {
+      Kopf: { bg: 'var(--panel)', border: '1px solid var(--line)', left: '1px solid var(--line)', rad: 'var(--rp)', sh: 'var(--shadow)', headBg: 'color-mix(in srgb, var(--acc) 85%, var(--panel))', hLine: 'transparent', kC: 'color-mix(in srgb, var(--accInk) 72%, transparent)', kBg: 'transparent', kPad: '0', tC: 'var(--accInk)', sC: 'color-mix(in srgb, var(--accInk) 78%, transparent)' },
+      'Getönt': { bg: 'color-mix(in srgb, var(--acc) 22%, var(--panel))', border: '1px solid color-mix(in srgb, var(--accLine) 40%, transparent)', headBg: 'transparent', hLine: 'color-mix(in srgb, var(--acc) 40%, var(--panel))' },
+      Rahmen: { border: '1px solid var(--accLine)', sh: '0 0 0 4px color-mix(in srgb, var(--accLine) 16%, transparent), var(--shadow)' },
+      Marke: { kBg: 'var(--acc)', kC: 'var(--accInk)', kPad: '3px 9px', gap: '6px' },
+      Symbol: { icon: true, hAlign: 'center' },
+      Verlauf: { bg: 'linear-gradient(180deg, color-mix(in srgb, var(--acc) 40%, var(--panel)) 0%, var(--panel) 52%)', headBg: 'transparent', hLine: 'transparent' },
+      Strich: { left: '3px solid var(--acc)', rad: 'var(--rc) var(--rp) var(--rp) var(--rc)' },
+    };
+    const base = { bg: 'var(--panel)', border: '1px solid var(--line)', left: '1px solid var(--line)', rad: 'var(--rp)', sh: 'var(--shadow)', headBg: 'transparent', hLine: 'var(--line)', kC: 'var(--accText)', kBg: 'transparent', kPad: '0', tC: 'var(--ink)', sC: 'var(--muted)', icon: false, gap: '3px', hAlign: 'flex-start' };
+    const bs = p.boxStyle ?? 'Kopf', bx = { ...base, ...(BX[bs] || {}) };
+    if (bs !== 'Strich' && !(BX[bs] || {}).left) bx.left = bx.border;
+    Object.assign(bx, bs === 'Kopf' ? { headBg2: bx.headBg, kC2: bx.kC, tC2: bx.tC, sC2: bx.sC } : { headBg2: bs === 'Getönt' || bs === 'Verlauf' ? 'color-mix(in srgb, var(--acc) 30%, var(--panel))' : 'var(--panel)', kC2: 'var(--accText)', tC2: 'var(--ink)', sC2: 'var(--muted)' });
+
+    // Bau-Modus
+    const a = this.area(0), Wa = a.Wa, Ha = a.Ha;
+    const qs = [...new Set(s.houses.filter(o => o.id !== 'z').map(o => o.q))];
+    const spurs = [], weg = s.build && s.btool === 'weg';
+    const seg = (a, b, hid) => { const len = Math.hypot(b.x - a.x, b.y - a.y); if (len < 0.5) return; spurs.push({ x: a.x, y: a.y, len: len + 1.5, ang: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI, hh: weg ? 9 : 5, bg: weg ? '#4a4d52' : '#3e4044', pe: weg ? 'auto' : 'none', onDown: (e) => this.wDown(e, hid) }); };
+    const ringsGeo = [];
+    const bQuarters = qs.map(q => {
+      const hs = s.houses.filter(o => o.q === q && o.id !== 'z'), c = this.qCenter(q, s.houses), cfg = { form: 'Ring', r: 13, ...(s.qcfg[q] || {}) };
+      const cp = { x: Wa * c.x / 100, y: Ha * c.y / 100 }, rxp = cfg.r / 100 * Wa, ryp = rxp * 0.72;
+      ringsGeo.push({ cx: cp.x, cy: cp.y, rx: rxp, ry: ryp, form: cfg.form });
+      let mdx = 0, mdy = 0;
+      if (cfg.form === 'Intelligent') { const rr = this.smartRoads(hs, cp, cfg, Wa, Ha, spurs, seg); mdx = rr.mdx; mdy = rr.mdy; } else hs.forEach(o => {
+        const hp = { x: Wa * o.x / 100, y: Ha * o.y / 100 }; mdx = Math.max(mdx, Math.abs(hp.x - cp.x)); mdy = Math.max(mdy, Math.abs(hp.y - cp.y));
+        let pt;
+        if (cfg.form === 'Gasse') pt = { x: Math.max(cp.x - rxp, Math.min(cp.x + rxp, hp.x)), y: cp.y };
+        else { const t = Math.atan2((hp.y - cp.y) / ryp, (hp.x - cp.x) / rxp); pt = { x: cp.x + rxp * Math.cos(t), y: cp.y + ryp * Math.sin(t) }; }
+        const len = Math.hypot(hp.x - pt.x, hp.y - pt.y);
+        const bd = s.bends[o.id];
+        if (bd) { const bp = { x: Wa * bd.x / 100, y: Ha * bd.y / 100 }; let p2 = pt; if (cfg.form !== 'Gasse') { const t2 = Math.atan2((bp.y - cp.y) / ryp, (bp.x - cp.x) / rxp); p2 = { x: cp.x + rxp * Math.cos(t2), y: cp.y + ryp * Math.sin(t2) }; } seg(hp, bp, o.id); seg(bp, p2, o.id); }
+        else if (len > 2) seg(pt, hp, o.id);
+      });
+      const sel = s.bq === q, col = hs[0] ? hs[0].color : '#888';
+      return { x: c.x, y: c.y, rw: 2 * Math.max(rxp + 50, mdx + 70), rh: 2 * Math.max(ryp + 40, mdy + 60), color: col, fill: col + '14', op: sel ? 1 : 0.55,
+        ow: cfg.form === 'Intelligent' ? 40 : 2 * rxp, oh: cfg.form === 'Gasse' ? 6 : cfg.form === 'Intelligent' ? 40 : 2 * ryp, orad: cfg.form === 'Gasse' ? '3px' : '50%', bw: cfg.form === 'Gasse' ? '3px' : cfg.form === 'Halbkreis' ? '6px 6px 0 6px' : '6px',
+        lblY: -(Math.max(ryp + 40, mdy + 60)) - 12, label: q.toUpperCase(), hBg: sel ? 'var(--acc)' : '#2b2c30', hBd: sel ? '#f4fbfb' : col, hDisp: s.btool === 'haus' ? 'none' : 'flex', onDown: (e) => this.qDown(e, q) };
+    });
+    this.roadGeom = { spurs, rings: ringsGeo, Wa, Ha };
+    const bh = s.bsel ? byId[s.bsel] : null, bqc = s.bq ? this.qCenter(s.bq, s.houses) : null, qcfg = { form: 'Ring', r: 13, ...(s.qcfg[s.bq] || {}) };
+    const setQ = patch => this.setState(x => ({ qcfg: { ...x.qcfg, [x.bq]: { ...{ form: 'Ring', r: 13 }, ...(x.qcfg[x.bq] || {}), ...patch } } }));
+    const roof = bh ? (s.roofs[bh.id] || 'Satteldach') : '';
+    const chipSt = on => ({ bg: on ? 'var(--accSoft)' : 'transparent', fg: on ? 'var(--ink)' : 'var(--ink2)', bd: on ? 'var(--accLine)' : 'var(--line)' });
+
+    // Einstellungen
+    const tabs = [['profil', 'Profil', 'Name, Abmelden'], ['dorf', 'Dorf', 'Landschaft, Zentrale, Topdorf'], ['claude', 'Claude', 'Connector und Skill'], ['konto', 'Konto', 'Löschen, Datenschutz']];
+    const steps = ['Oben ein Token erzeugen und die Connector-URL kopieren.', 'In claude.ai: Einstellungen › Connectors › Eigenen Connector hinzufügen, URL einfügen.', 'Skill herunterladen und in claude.ai unter Fähigkeiten hochladen.', 'Ein Artifact erstellen. Claude fragt, in welches Haus es soll.'];
+    // Reise
+    const own = { x: DW * 0.5, y: Math.max(160, Math.min(DH - 300, (DH - 200) * 0.6)) }, angs = [-20, 200, -60, -120, 20, 160], sc = Math.min(1, DW / 1200, (DH - 200) / 520);
+    const fr = s.friends.map((f, i) => { const dist = (140 + (3 - Math.min(3, f.act)) * 50) * sc, an = angs[i % angs.length] * Math.PI / 180, w = (70 + f.hs * 5) * Math.max(0.75, sc); return { ...f, an, dist, x: Math.max(60, Math.min(DW - 60, own.x + Math.cos(an) * dist * 1.5)), y: Math.max(80, Math.min(DH - 300, own.y + Math.sin(an) * dist * 0.8)), w }; });
+    const placed = [{ x: own.x, y: own.y, w: 150 * Math.max(0.75, sc) }];
+    fr.forEach(f => {
+      for (let k = 0; k < 24; k++) {
+        const clash = placed.some(o => Math.abs(o.x - f.x) < (o.w + f.w) / 2 + 30 && Math.abs(o.y - f.y) < (o.w + f.w) * 0.36 + 34);
+        if (!clash) break;
+        const an = f.an + (k % 2 ? 1 : -1) * Math.ceil((k + 1) / 2) * 0.35, d = f.dist * (1 + 0.08 * k);
+        f.x = Math.max(60, Math.min(DW - 60, own.x + Math.cos(an) * d * 1.5)); f.y = Math.max(80, Math.min(DH - 300, own.y + Math.sin(an) * d * 0.8));
+      }
+      placed.push(f);
+    });
+    const selF = s.island === 'me' ? { id: 'me', n: 'Gian', d: 'Gians Dorf', hs: s.houses.length, os: s.objects.length, x: own.x, y: own.y, w: 150, neu: 0 } : fr.find(f => f.id === s.island);
+    const isl = selF ? { x: Math.min(DW - 260, selF.x + selF.w / 2 + 24), y: Math.max(60, Math.min(DH - 230, selF.y - 70)), kicker: selF.id === 'me' ? 'DEIN DORF' : selF.n.toUpperCase() + ' · @' + selF.id.toUpperCase(), name: selF.d, info: selF.hs + ' Häuser · ' + selF.os + ' Objekte' + (selF.neu ? ' · ' + selF.neu + ' neu für dich' : ''), goL: selF.id === 'me' ? 'Hier bleiben' : 'Hinreisen', go: (e) => { e.stopPropagation(); if (selF.id === 'me') return this.closeScreen(); this.setState({ visiting: selF.d, screen: null, island: null, zoom: 0.9, pan: { x: 0, y: 0 } }); this.say('Reise nach ' + selF.d); } } : { x: 0, y: 0, kicker: '', name: '', info: '', goL: '', go: () => {} };
+    const route = selF && selF.id !== 'me' ? { x: own.x, y: own.y, len: Math.hypot(selF.x - own.x, selF.y - own.y), ang: Math.atan2(selF.y - own.y, selF.x - own.x) * 180 / Math.PI } : { x: 0, y: 0, len: 0, ang: 0 };
+    const islands = [{ id: 'me', name: 'Gians Dorf · du', x: own.x, y: own.y, w: 150, c: '#b5523b' }, ...fr.map(f => ({ id: f.id, name: f.d, x: f.x, y: f.y, w: f.w, c: f.c }))].map(i => ({ ...i, h: Math.round(i.w * 0.72), bd: s.island === i.id ? '2px solid var(--accLine)' : i.id === 'me' ? '2px solid var(--acc)' : '1px solid #3b4a40', sh: s.island === i.id ? '0 0 0 7px color-mix(in srgb, var(--accLine) 22%, transparent)' : 'none', onClick: (e) => { e.stopPropagation(); this.setState({ island: i.id }); } }));
+    const seedNow = s.reroll ? s.rerollSeed : s.treeSeed;
+    return {
+      bx, build: s.build, bQuarters, spurs, trees: this.trees(seedNow, s.houses, s.build).map(t => { if (!t.hidden && this.onRoad(t.x, t.y, t.s)) { t.hidden = true; t.op = 0; t.sc = 0.3; } const dk = s.build && s.btool === 'deko' && !t.hidden; return { ...t, pe: dk ? 'auto' : 'none', cur: dk ? 'grab' : 'default', ol: dk && t.moved ? '1.5px solid var(--accLine)' : 'none', onDown: dk ? (e) => this.tDown(e, t.i) : undefined }; }),
+      bendHandles: s.build ? Object.entries(s.bends).filter(([id]) => s.houses.some(o => o.id === id)).map(([id, b]) => ({ x: b.x, y: b.y, onDown: (e) => this.bendDown(e, id), onDbl: (e) => { e.stopPropagation(); this.setState(x => { const nb = { ...x.bends }; delete nb[id]; return { bends: nb, bmsg: 'Eckpunkt entfernt' }; }); } })) : [],
+      resetTrees: () => this.setState({ treeMoves: {}, bmsg: 'Alle Bäume am Seed-Platz' }), resetBends: () => this.setState({ bends: {}, bmsg: 'Alle Wege wieder automatisch' }),
+      showMoveR: s.build && !!bh && !!bqc, mr: bqc ? { x: bqc.x, y: bqc.y, w: 2 * 0.26 * Wa, h: 2 * 0.30 * Ha } : { x: 0, y: 0, w: 0, h: 0 },
+      hudDisp: s.build || s.screen === 'travel' ? 'none' : 'flex',
+      startBuild: () => this.startBuild(), bSave: () => this.endBuild(true), bCancel: () => this.endBuild(false), bUndo: () => this.bUndo(), bRedo: () => this.bRedo(),
+      bUndoOp: s.hist.length ? 1 : 0.4, bRedoOp: s.fut.length ? 1 : 0.4, bInfo: s.houses.length + ' Häuser · ' + qs.length + ' Quartiere',
+      bTools: [['select', '↖', 'Wählen'], ['haus', '⇄', 'Haus'], ['quartier', '⬚', 'Quartier'], ['weg', '〰', 'Weg'], ['deko', '✿', 'Deko']].map(([id, g, l]) => ({ g, l, bg: s.btool === id ? 'var(--acc)' : 'transparent', fg: s.btool === id ? 'var(--accInk)' : 'var(--ink2)', onClick: () => this.setState({ btool: id, bmsg: { select: 'Haus oder Griff anklicken', haus: 'Haus ziehen zum Versetzen', quartier: 'Runden Griff ziehen, um ein Quartier zu verschieben', weg: 'Auf einen Weg klicken setzt einen Eckpunkt', deko: 'Bäume ziehen zum Versetzen' }[id], bbad: false }) })),
+      bPanel: { deko: s.btool === 'deko', weg: s.btool === 'weg', movedTxt: (n => n === 1 ? '1 Baum versetzt' : n + ' Bäume versetzt')(Object.keys(s.treeMoves).length), bendTxt: (n => n === 1 ? '1 Weg mit Eckpunkt' : n + ' Wege mit Eckpunkt')(Object.keys(s.bends).length), none: !s.bq && s.btool !== 'deko' && s.btool !== 'weg', q: !!s.bq, h: !!bh, qName: s.bq || '', qColor: (s.houses.find(o => o.q === s.bq) || {}).color || '#888', qInfo: s.bq ? s.houses.filter(o => o.q === s.bq && o.id !== 'z').length + ' Häuser · Griff in der Mitte verschiebt alles' : '', radPct: Math.round((qcfg.r - 8) / 16 * 100), radM: qcfg.form === 'Intelligent' ? ['gerade', 'sanft', 'sanft', 'mittel', 'mittel', 'stark', 'stark', 'stark', 'stark'][Math.round((qcfg.r - 8) / 2)] : Math.round(qcfg.r * 2.2) + ' m',
+        radL: qcfg.form === 'Intelligent' ? 'KURVE' : 'RADIUS', formHint: qcfg.form === 'Intelligent' ? 'Jeder Weg sucht den kürzesten Weg zum Platz. Kommt er einem anderen Weg nahe, vereinen sie sich.' : 'Häuser hängen mit kurzen Stichwegen am Weg rund ums Quartier.', hName: bh ? bh.name : '', hColor: bh ? bh.color : '' },
+      bForms: ['Intelligent', 'Ring', 'Halbkreis', 'Gasse'].map(fm => ({ l: fm, ...chipSt(qcfg.form === fm), onClick: () => setQ({ form: fm }) })),
+      bRadMinus: () => setQ({ r: Math.max(8, qcfg.r - 2) }), bRadPlus: () => setQ({ r: Math.min(24, qcfg.r + 2) }),
+      bResetQ: () => { const snap = s.bSnap || s.houses; this.bPush(s.houses); this.setState({ houses: s.houses.map(o => o.q === s.bq ? (snap.find(x => x.id === o.id) || o) : o), bmsg: 'Quartier zurückgesetzt' }); },
+      bRoofs: ['Satteldach', 'Pultdach', 'Flachdach'].map(r => ({ l: r, ...chipSt(roof === r), onClick: () => this.setState(x => ({ roofs: { ...x.roofs, [x.bsel]: r } })) })),
+      bMsg: s.bmsg || 'Bereit', bMsgC: s.bbad ? 'var(--danger)' : 'var(--accText)', bMsgBd: s.bbad ? 'color-mix(in srgb, var(--danger) 45%, transparent)' : 'var(--line)',
+      openSettings: () => this.openSettings(), openTravel: () => this.openTravel(), closeScreen: () => this.closeScreen(),
+      setY: s.screen === 'settings' ? 'translateY(0)' : 'translateY(105%)',
+      setNav: tabs.map(([id, l, sub]) => { const on = s.setTab === id; return { l, s: sub, bg: on ? 'color-mix(in srgb, var(--acc) 82%, var(--panel))' : 'transparent', fg: on ? 'var(--accInk)' : 'var(--ink)', sc: on ? 'color-mix(in srgb, var(--accInk) 75%, transparent)' : 'var(--muted)', onClick: () => this.setState({ setTab: id }) }; }),
+      setTab: { profil: s.setTab === 'profil', dorf: s.setTab === 'dorf', claude: s.setTab === 'claude', konto: s.setTab === 'konto' },
+      displayName: s.displayName, onDisplayName: e => this.setState({ displayName: e.target.value }), saveName: () => this.say('Anzeigename gespeichert'), logout: () => this.say('Abgemeldet (Demo)'),
+      landDesc: this.landDesc(s.treeSeed), landSeed: 'Welt «tannen-ahorn-' + s.treeSeed + '» · Generator 2', landDescNew: this.landDesc(s.rerollSeed),
+      startReroll: () => this.setState({ screen: null, reroll: true, rerollSeed: s.treeSeed + 7, rerollConfirm: false, zoom: 0.85, pan: { x: 0, y: 0 } }),
+      reroll: s.reroll, rerollApplyL: s.rerollConfirm ? 'Ja, diese Welt übernehmen' : 'Übernehmen …',
+      rerollApply: () => { if (!s.rerollConfirm) return this.setState({ rerollConfirm: true }); this.setState({ treeSeed: s.rerollSeed, reroll: false }); this.say('Neue Landschaft übernommen'); },
+      rerollAgain: () => this.setState({ rerollSeed: s.rerollSeed + 13, rerollConfirm: false }), rerollCancel: () => this.setState({ reroll: false }),
+      zStyles: [['Klassisch', 'Holz und Giebel'], ['Modern', 'Glas und Beton'], ['Werkstatt', 'Backstein, Sheddach']].map(([l, sub]) => ({ l, s: sub, bd: s.zStyle === l ? 'var(--accLine)' : 'var(--line)', sh: s.zStyle === l ? '0 0 0 1px var(--accLine)' : 'none', onClick: () => { this.setState({ zStyle: l }); this.say('Stil der Zentrale: ' + l); } })),
+      toggleTopdorf: () => this.setState(x => ({ topdorf: !x.topdorf })), topTg: { track: s.topdorf ? 'var(--acc)' : 'var(--chip)', knob: s.topdorf ? 16 : 2, k: s.topdorf ? 'var(--accInk)' : 'var(--muted)' },
+      timeModes: [['Auto', true], ['Fest', false]].map(([l, v]) => ({ l, bg: s.timeAuto === v ? 'var(--acc)' : 'transparent', fg: s.timeAuto === v ? 'var(--accInk)' : 'var(--ink2)', onClick: () => this.setState({ timeAuto: v }) })),
+      tokenName: s.tokenName, onTokenName: e => this.setState({ tokenName: e.target.value }),
+      makeToken: () => { const l = s.tokenName.trim() || 'Token ' + (s.tokens.length + 1); this.setState({ tokens: [...s.tokens, { id: Date.now(), l, d: this.today(), u: 'noch nie benutzt' }], tokenName: '', newToken: 'https://hubdome.ch/api/mcp/hdm_' + Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12) }); },
+      hasNewToken: !!s.newToken, newToken: s.newToken || '', copyToken: () => this.say('Connector-URL kopiert'),
+      tokens: s.tokens.map(t => ({ ...t, onRevoke: () => { this.setState(x => ({ tokens: x.tokens.filter(y => y.id !== t.id) })); this.say('Token «' + t.l + '» widerrufen'); } })),
+      steps: steps.map((t, i) => { const done = i === 0 && s.tokens.length > 0; return { n: done ? '✓' : String(i + 1), t, bg: done ? 'var(--acc)' : 'var(--chip)', fg: done ? 'var(--accInk)' : 'var(--ink)' }; }),
+      getSkill: () => this.say('hub-dome-platzieren.zip wird geladen'),
+      delName: s.delName, onDelName: e => this.setState({ delName: e.target.value }), delOp: s.delName.trim() === 'gian' ? 1 : 0.45,
+      delAccount: () => s.delName.trim() === 'gian' ? this.say('Löschung beantragt (Demo)') : this.say('Benutzername stimmt nicht'),
+      travel: s.screen === 'travel', islands, hasIsland: !!selF, isl, showRoute: !!selF && selF.id !== 'me', route, stop, islandClear: () => this.setState({ island: null }),
+      requests: s.requests.map(r => ({ ...r, ini: r.n[0], onYes: () => { this.setState(x => ({ requests: x.requests.filter(y => y.u !== r.u), friends: [...x.friends, { id: r.u, n: r.n, d: r.n.split(' ')[0] + 's Dorf', hs: 2, os: 4, c: '#7a3b4a', act: 2, neu: 0 }] })); this.say(r.n + ' ist jetzt dein Freund'); }, onNo: () => this.setState(x => ({ requests: x.requests.filter(y => y.u !== r.u) })) })),
+      noReq: !s.requests.length, reqTitle: 'ANFRAGEN AN DICH · ' + s.requests.length, hasReq: s.requests.length > 0, reqCount: s.requests.length,
+      inviteUser: s.inviteUser, onInvite: e => this.setState({ inviteUser: e.target.value }),
+      sendInvite: () => { const u = s.inviteUser.trim().replace(/^@/, ''); if (!u) return this.say('Benutzername fehlt'); this.setState({ inviteUser: '' }); this.say('Anfrage an @' + u + ' gesendet'); },
+      linkUses: s.linkUses, usesText: (s.linkUses === 1 ? '1 Person' : s.linkUses + ' Personen') + ' · 7 Tage', usesMinus: () => this.setState(x => ({ linkUses: Math.max(1, x.linkUses - 1) })), usesPlus: () => this.setState(x => ({ linkUses: Math.min(20, x.linkUses + 1) })),
+      makeLink: () => this.setState({ link: 'https://hubdome.ch/freund/' + Math.random().toString(36).slice(2, 14) }), hasLink: !!s.link, link: s.link || '',
+      visiting: !!s.visiting, visitName: s.visiting || '', goHome: () => { this.setState({ visiting: null, sel: null, mode: null, zoom: 1, pan: { x: 0, y: 0 } }); this.say('Zurück in Gians Dorf'); },
+    };
+  }
+  smartRoads(hs, cp, cfg, Wa, Ha, spurs, seg) {
+    const bend = (cfg.r - 8) / 16 * 0.5;
+    let mdx = 0, mdy = 0;
+    const items = hs.map(o => { const p = { x: Wa * o.x / 100, y: Ha * o.y / 100 }; mdx = Math.max(mdx, Math.abs(p.x - cp.x)); mdy = Math.max(mdy, Math.abs(p.y - cp.y)); return { hid: o.id, p, th: Math.atan2(p.y - cp.y, p.x - cp.x), d: Math.hypot(p.x - cp.x, p.y - cp.y) }; }).sort((a, b) => a.d - b.d);
+    const trunks = [];
+    const curve = (a, b, sign) => { const dx = b.x - a.x, dy = b.y - a.y, c = { x: (a.x + b.x) / 2 - dy * bend * sign, y: (a.y + b.y) / 2 + dx * bend * sign }, pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12, u = 1 - t; pts.push({ x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y }); } return pts; };
+    items.forEach((it, idx) => {
+      let target = null, best = Infinity;
+      trunks.forEach(tr => { const dth = Math.abs(Math.atan2(Math.sin(it.th - tr.th), Math.cos(it.th - tr.th))); if (dth > 0.8) return; tr.pts.forEach(q => { const dd = Math.hypot(q.x - it.p.x, q.y - it.p.y); if (dd < best && Math.hypot(q.x - cp.x, q.y - cp.y) > 30) { best = dd; target = q; } }); });
+      if (!target || best > it.d * 0.8) target = { x: cp.x + Math.cos(it.th) * 22, y: cp.y + Math.sin(it.th) * 22 };
+      const bd = this.state.bends[it.hid], bp = bd ? { x: Wa * bd.x / 100, y: Ha * bd.y / 100 } : null;
+      const pts = bp ? [...curve(it.p, bp, idx % 2 ? 0.5 : -0.5), ...curve(bp, target, idx % 2 ? 0.5 : -0.5).slice(1)] : curve(it.p, target, idx % 2 ? 1 : -1);
+      trunks.push({ th: it.th, pts });
+      for (let i = 0; i < pts.length - 1; i++) seg(pts[i], pts[i + 1], it.hid);
+    });
+    return { mdx, mdy };
+  }
+  landDesc(seed) { return ['Flusstal mit See im Norden', 'Hochplateau mit Bucht im Westen', 'Hügel mit Mühle am Bach', 'Seeufer mit Kapelle', 'Breites Tal mit zwei Flüssen', 'Bergweiden mit Wasserfall'][seed % 6]; }
+  saveObj() {
+    const s = this.state, f = s.form;
+    if (!/^https:\/\/[^\s]+\.[^\s]+/.test(f.link || '')) return this.setForm({ err: 'Bitte einen Link mit https:// einfügen.' });
+    if (!(f.title || '').trim()) return this.setForm({ err: 'Der Titel fehlt.' });
+    const hn = (s.houses.find(h => h.id === f.houseId) || {}).name;
+    const data = { houseId: f.houseId, t: f.title.trim(), k: f.kind, link: f.link, typ: this.detect(f.link) || 'Link', vis: f.vis, desc: f.desc, allowCopy: f.allowCopy, topdorf: f.vis === 'Freunde' && f.topdorf };
+    if (s.mode === 'new') {
+      const o = { id: 'o' + Date.now(), op: 0, date: this.today(), neu: true, ...data };
+      this.setState({ objects: [...s.objects, o], ...this.flyPatch(f.houseId, s.splitW, true), mode: 'obj', objId: o.id });
+      this.say('An ' + hn + ' gehängt');
+    } else {
+      this.setState({ objects: s.objects.map(o => o.id === s.objId ? { ...o, ...data } : o), ...this.flyPatch(f.houseId, s.splitW, true), mode: 'obj' });
+      this.say('Gespeichert');
+    }
+  }
+  deleteObj() {
+    const s = this.state, snap = { objects: s.objects };
+    this.setState({ objects: s.objects.filter(o => o.id !== s.objId), mode: 'house', objId: null });
+    this.say('Objekt gelöscht', snap);
+  }
+  saveHouse() {
+    const s = this.state, f = s.form;
+    if (!(f.name || '').trim()) return this.setForm({ err: 'Der Titel fehlt.' });
+    const cur = s.houses.find(h => h.id === s.sel), moved = cur && f.q && f.q !== cur.q && cur.id !== 'z';
+    let pos = {};
+    if (moved) {
+      const an = this.QANCHOR[f.q] || [86, 74], others = s.houses.filter(h => h.id !== cur.id);
+      const free = (x, y) => others.every(o => Math.abs(o.x - x) >= 14 || Math.abs(o.y - y) >= 12);
+      const cands = [[an[0], an[1]]];
+      for (const r of [12, 15, 18, 22, 26]) for (let d = 0; d < 360; d += 45) { const a = d * Math.PI / 180; cands.push([an[0] + r * Math.cos(a), an[1] + r * 0.8 * Math.sin(a)]); }
+      const clamp = ([x, y]) => [Math.max(8, Math.min(92, x)), Math.max(12, Math.min(88, y))];
+      const best = cands.map(clamp).find(([x, y]) => free(x, y)) || clamp(cands[cands.length - 1]);
+      pos = { q: f.q, x: best[0], y: best[1] };
+    }
+    this.setState({ houses: s.houses.map(h => h.id === s.sel ? { ...h, name: f.name.trim(), color: f.color, sem: f.sem, ...pos } : h), mode: 'house' });
+    if (moved) setTimeout(() => this.setState({ ...this.flyPatch(s.sel, this.state.splitW, true) }), 30);
+    this.say(moved ? 'Haus zieht nach ' + f.q : 'Haus gespeichert');
+  }
+  deleteHouse() {
+    const s = this.state, snap = { houses: s.houses, objects: s.objects };
+    this.setState({ houses: s.houses.filter(h => h.id !== s.sel), objects: s.objects.filter(o => o.houseId !== s.sel), sel: null, mode: null });
+    this.say('Haus gelöscht', snap);
+  }
+
+  dragStart(e, id, fromInv) {
+    try { e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; } catch (x) {}
+    const sel = this.state.invSel;
+    this.dragIds = fromInv && sel.includes(id) ? sel : [id];
+  }
+  over(e, key) { e.preventDefault(); if (this.state.dropKey !== key) this.setState({ dropKey: key }); }
+  drop(e, patch, beforeId) {
+    e.preventDefault(); e.stopPropagation();
+    const ids = this.dragIds || []; this.dragIds = null;
+    if (!ids.length || (beforeId && ids.includes(beforeId))) return this.setState({ dropKey: null });
+    const s = this.state, snap = { objects: s.objects };
+    const moving = s.objects.filter(o => ids.includes(o.id)).map(o => ({ ...o, ...patch }));
+    const rest = s.objects.filter(o => !ids.includes(o.id));
+    let i = beforeId ? rest.findIndex(o => o.id === beforeId) : -1;
+    if (i < 0) i = rest.length;
+    rest.splice(i, 0, ...moving);
+    this.setState({ objects: rest, dropKey: null });
+    this.say(ids.length === 1 ? 'Verschoben' : ids.length + ' Objekte verschoben', snap);
+  }
+
+  renderVals() {
+    const s = this.state, p = { ...{ accent: '#0b5c63', surface: 'dunkel', scrollbars: 'Versteckt', boxStyle: 'Verlauf', ringShape: 'Sucher', btnStyle: 'Sucher', leader: false, infoLevel: 'ausführlich', barStyle: 'Schalter', corners: 'weich', tileStyle: 'Vorschau', gripStyle: 'Punkte' }, listStyle: 'Baum' }, K = this.K, DD = this.dims(), DW = DD.W, DH = DD.H;
+    const acc = p.accent ?? '#0b5c63', light = (p.surface ?? 'dunkel') === 'hell', shape = p.ringShape ?? 'Sucher';
+    const btn = p.btnStyle ?? 'Sucher', gripStyle = p.gripStyle ?? 'Strich', sbMode = p.scrollbars ?? 'Schmal';
+    const kantig = (p.corners ?? 'weich') === 'kantig', tile = p.tileStyle ?? 'Streifen', info = p.infoLevel ?? 'normal', leader = p.leader ?? true;
+    const T = light
+      ? { '--w1': '#cfd3c4', '--w2': '#c9cdbd', '--grid': 'rgba(0,0,0,.07)', '--panel': '#f8f7f3', '--panel2': '#efeee8', '--line': '#dedcd3', '--ink': '#1b1b19', '--ink2': '#33332f', '--muted': '#5f5e58', '--faint': '#77756d', '--field': '#ffffff', '--chip': '#e6e4dc', '--house': '#f4f1ea', '--houseLine': '#8f8c81', '--shadow': '0 20px 50px rgba(40,35,20,.2)', '--danger': '#b3261e' }
+      : { '--w1': '#202124', '--w2': '#1c1d20', '--grid': 'rgba(255,255,255,.05)', '--panel': '#161719', '--panel2': '#1f2023', '--line': '#2a2b2f', '--ink': '#f2f2f3', '--ink2': '#d4d4d8', '--muted': '#a1a1aa', '--faint': '#8b8c92', '--field': '#0f1012', '--chip': '#2a2b2f', '--house': '#2b2c30', '--houseLine': '#55565c', '--shadow': '0 24px 60px rgba(0,0,0,.5)', '--danger': '#ffa89d' };
+    const rootStyle = {
+      position: 'fixed', inset: 0, overflow: 'hidden', fontFamily: 'Geist, system-ui, sans-serif', color: 'var(--ink)', background: 'var(--panel)',
+      WebkitFontSmoothing: 'antialiased', userSelect: s.panning || s.gripping ? 'none' : 'auto', ...T,
+      '--acc': acc, '--accInk': this.inkFor(acc), '--accLine': this.inkFor(acc) === '#0b1416' ? acc : 'color-mix(in oklab, ' + acc + ' 62%, #fff)', '--accSoft': acc + '2e', '--accText': light ? 'color-mix(in oklab, ' + acc + ' 45%, #000)' : (this.inkFor(acc) === '#0b1416' ? acc : 'color-mix(in oklab, ' + acc + ' 55%, #fff)'),
+      '--rp': kantig ? '3px' : '14px', '--rc': kantig ? '2px' : '9px', '--rpill': kantig ? '3px' : '999px',
+    };
+    const H = s.houses, byId = Object.fromEntries(H.map(h => [h.id, h]));
+    const objsOf = id => s.objects.filter(o => o.houseId === id);
+    const a = this.area();
+    const scr = h => { const wx = a.L + a.Wa * h.x / 100, wy = a.Ha * h.y / 100; return { x: a.cx + (wx - a.cx) * s.zoom + s.pan.x, y: a.cy + (wy - a.cy) * s.zoom + s.pan.y }; };
+    const size = n => ({ w: 64 + Math.min(n, 8) * 8, hh: 42 + Math.min(n, 8) * 3 });
+    const countTxt = n => n === 0 ? 'Baustelle' : n === 1 ? '1 Objekt' : n + ' Objekte';
+
+    // Welt
+    const worldHouses = H.map(h => {
+      const n = objsOf(h.id).length;
+      return { ...h, ...size(n), border: n === 0 && h.id !== 'z' ? 'dashed' : 'solid', ring: (s.build ? s.bsel === h.id : s.sel === h.id) ? (s.build && s.bbad ? '0 0 0 2px var(--danger)' : '0 0 0 2px var(--accLine), 0 0 0 8px var(--accSoft)') : 'none', onDown: s.build ? (e) => this.bDown(e, h.id) : undefined, onClick: (e) => { e.stopPropagation(); if (!this.state.build) this.clickHouse(h.id); }, onEnter: () => this.setState({ hover: h.id }) };
+    });
+    const quarterLabels = this.QORDER.slice(1).map(q => {
+      const hs = H.filter(h => h.q === q); if (!hs.length) return null;
+      return { name: q.toUpperCase(), x: hs.reduce((t, h) => t + h.x, 0) / hs.length, y: Math.min(...hs.map(h => h.y)) - 10 };
+    }).filter(Boolean);
+    const hr = new Date().getHours(), autoT = hr < 10 ? 0 : hr < 16 ? 1 : hr < 20 ? 2 : 3;
+    const tm = this.TIMES[s.timeAuto ? autoT : s.time];
+    const worldBg = (s.view === 'Karte' || s.build)
+      ? 'linear-gradient(var(--grid) 1px, transparent 1px) 0 0/48px 48px, linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/48px 48px, var(--w1)'
+      : 'repeating-linear-gradient(135deg, var(--w1) 0 12px, var(--w2) 12px 24px)';
+
+    // Auswahl, Ring, Tafel
+    const selH = (s.inv || s.build || s.screen) ? null : byId[s.sel];
+    const sp = selH ? scr(selH) : null, selSize = selH ? size(objsOf(selH.id).length) : null;
+    const showRing = !!selH, rdy = !!s.ready;
+    let ring = { x: 0, y: 0, size: 0, radius: '50%' }, bar = { x: 0, y: 0 }, ringActions = [];
+    if (showRing) {
+      const sz = Math.max(200, selSize.w * s.zoom + 110);
+      const bw = selSize.w * s.zoom + 130, bh = selSize.hh * s.zoom + 95;
+      ring = { x: sp.x, y: sp.y, size: sz, bw, bh, radius: shape === 'Ring' ? '50%' : (kantig ? '4px' : '24px') };
+      bar = { x: sp.x, y: sp.y + selSize.hh * s.zoom / 2 + 50 };
+      const acts = [['Öffnen', 'house', () => this.openHouseInfo(selH.id), '↗'], ['Objekt', 'new', () => this.openNew(selH.id), '+'], ['Bearbeiten', 'editHouse', () => this.openEditHouse(selH.id), '✎'], ['Liste', 'list', () => this.openSplitFor(selH.id), '≡']];
+      const pos = shape === 'Leiste'
+        ? [-162, -54, 54, 162].map(dx => [bar.x + dx, bar.y])
+        : shape === 'Sucher'
+          ? [[sp.x, sp.y - bh / 2 - 48], [sp.x + bw / 2 + 55, sp.y], [sp.x, sp.y + bh / 2 + 48], [sp.x - bw / 2 - 55, sp.y]]
+          : [[sp.x, sp.y - sz / 2], [sp.x + sz / 2, sp.y], [sp.x, sp.y + sz / 2], [sp.x - sz / 2, sp.y]];
+      const nSel = objsOf(selH.id).length;
+      ringActions = acts.map(([label, m, fn, glyph], i) => {
+        const on = s.mode === m || (m === 'house' && s.mode === 'obj') || (m === 'new' && s.mode === 'editObj');
+        const base = { label: btn === 'Pille' ? (m === 'new' ? '+ Objekt' : label) : label, glyph, x: pos[i][0], y: pos[i][1], onClick: (e) => { e.stopPropagation(); fn(); },
+          dir: 'row', gap: 6, w: 'auto', h: 'auto', pad: '6px 12px', rad: 'var(--rpill)', fs: '12.5px', blur: 'none', showGlyph: false, gs: 15, gc: 'inherit', fw: 600, badge: '',
+          op: rdy ? 1 : 0, sc: rdy ? 'scale(1)' : 'scale(.55)', pe: rdy ? 'auto' : 'none',
+          tr: 'opacity .25s ease ' + (i * 60) + 'ms, transform .38s cubic-bezier(.3,1.5,.5,1) ' + (i * 60) + 'ms, background .15s' + (s.panning || s.gripping ? '' : ', left .55s cubic-bezier(.2,.7,.2,1), top .55s cubic-bezier(.2,.7,.2,1)'),
+          bg: on ? 'var(--acc)' : 'var(--panel)', fg: on ? 'var(--accInk)' : 'var(--ink)', border: '1px solid ' + (on ? 'var(--acc)' : 'var(--line)'), sh: '0 4px 14px rgba(0,0,0,.25)' };
+        if (btn === 'Kachel') Object.assign(base, { dir: 'column', gap: 4, w: '72px', h: '58px', pad: '6px', rad: 'var(--rc)', fs: '11px', showGlyph: true });
+        if (btn === 'Etikett') Object.assign(base, { pad: '5px 8px', rad: '2px', showGlyph: true, bg: 'color-mix(in srgb, var(--panel) 72%, transparent)', fg: on ? 'var(--accText)' : 'var(--ink)', border: '0', sh: 'inset 0 -2px 0 ' + (on ? 'var(--acc)' : 'var(--line)') });
+        if (btn === 'Sucher') Object.assign(base, { dir: 'column', gap: 5, w: '86px', h: '72px', pad: '6px', rad: 'calc(var(--rc) + 11px)', fs: '11.5px', fw: 700, showGlyph: true, gs: m === 'new' ? 24 : 21,
+          gc: m === 'new' ? 'inherit' : 'var(--accText)', label, badge: m === 'house' && nSel ? String(nSel) : '',
+          bg: m === 'new' ? 'var(--acc)' : 'var(--panel)', fg: m === 'new' ? 'var(--accInk)' : 'var(--ink)',
+          border: '1px solid ' + (on ? 'var(--accLine)' : m === 'new' ? 'var(--acc)' : 'var(--line)'), sh: (on ? '0 0 0 2px var(--accLine), ' : '') + '0 8px 24px rgba(0,0,0,.35)' });
+        if (btn === 'Glas') Object.assign(base, { showGlyph: true, pad: '7px 13px', blur: 'blur(10px) saturate(1.3)', bg: on ? 'var(--acc)' : 'color-mix(in srgb, var(--panel) 50%, transparent)', border: '1px solid ' + (on ? 'var(--acc)' : 'rgba(255,255,255,.18)'), sh: '0 8px 24px rgba(0,0,0,.25)' });
+        return base;
+      });
+      if (s.visiting) ringActions = ringActions.filter((_, i) => i === 0 || i === 3);
+    }
+    const showTafel = showRing && rdy && !!s.mode;
+    let tf = { x: 0, y: 0, w: 420, maxH: 0, dock: false }, ld = { x: 0, y: 0, w: 0, dx: 0 }, showLeader = false;
+    if (showTafel) {
+      const lay = this.layout(selH.id, s.splitW, s.zoom), reach = lay.reach, off = lay.off, tw = lay.tw;
+      let x = sp.x + off, right = true, y;
+      if (lay.dock) { x = DW - 16 - tw; y = 62; right = true; }
+      else {
+        if (x + tw > DW - 16) { x = sp.x - off - tw; right = false; }
+        if (x < a.L + 16) { x = Math.max(a.L + 16, DW - 16 - tw); right = null; }
+        y = Math.max(62, Math.min(sp.y - 170, DH - 16 - Math.min(560, DH - 78)));
+      }
+      tf = { x, y, w: tw, maxH: DH - y - 16, dock: lay.dock };
+      if (leader && right !== null) {
+        const hr = lay.dock ? selSize.w * s.zoom / 2 + 8 : reach;
+        const x1 = right ? sp.x + hr : x + tw, x2 = right ? x : sp.x - hr;
+        if (x2 > x1) { ld = { x: x1, y: sp.y, w: x2 - x1, dx: right ? x2 : x1 }; showLeader = true; }
+      }
+    }
+    const showRowLeader = leader && !!selH && s.splitW > 0 && s.rowY != null && (s.mode === 'obj' || s.mode === 'editObj') && sp.x > s.splitW;
+    const rl = showRowLeader ? { x: s.splitW, y: s.rowY, w: sp.x - s.splitW, vx: sp.x, vy: Math.min(s.rowY, sp.y), vh: Math.abs(sp.y - s.rowY) } : { x: 0, y: 0, w: 0, vx: 0, vy: 0, vh: 0 };
+
+    // Tooltip
+    const hovH = !s.inv && s.hover && s.hover !== s.sel ? byId[s.hover] : null;
+    let tip = { x: 0, y: 0, name: '', lines: [] };
+    if (hovH) {
+      const hp = scr(hovH), n = objsOf(hovH.id), sz = size(n.length);
+      const lines = info === 'minimal' ? [] : info === 'normal' ? [countTxt(n.length)] : [hovH.q + (hovH.sem ? ' · ' + hovH.sem + '. Semester' : ''), countTxt(n.length) + ' · ' + n.filter(o => o.neu).length + ' neu', n.reduce((t, o) => t + o.op, 0) + '× geöffnet'];
+      tip = { x: hp.x, y: hp.y - sz.hh * s.zoom / 2 - 12, name: hovH.name, lines };
+    }
+
+    // Tafel-Inhalte
+    const selObj = s.objId ? s.objects.find(o => o.id === s.objId) : null;
+    const f = s.form || {};
+    const tafel = { kicker: '', title: '', sub: '', glyph: { house: '⌂', obj: '↗', new: '+', editObj: '✎', editHouse: '✎' }[s.mode] || '⌂' };
+    if (selH) {
+      const n = objsOf(selH.id);
+      if (s.mode === 'house') Object.assign(tafel, { kicker: 'HAUS · ' + selH.q.toUpperCase(), title: selH.name, sub: countTxt(n.length) + (selH.sem ? ' · ' + selH.sem + '. Semester' : '') });
+      if (s.mode === 'obj' && selObj) Object.assign(tafel, { kicker: 'OBJEKT · ' + selH.name.toUpperCase(), title: selObj.t, sub: selObj.typ + ' · ' + selObj.k });
+      if (s.mode === 'new') { const dt = this.detect(f.link); Object.assign(tafel, { kicker: 'NEUES OBJEKT IN ' + ((byId[f.houseId] || selH).name).toUpperCase(), title: (f.title || '').trim() || 'Neues Objekt', sub: dt ? dt + ' erkannt' : 'Link einfügen, der Rest ist schnell gewählt' }); }
+      if (s.mode === 'editObj') Object.assign(tafel, { kicker: 'OBJEKT BEARBEITEN', title: (f.title || '').trim() || 'Ohne Titel', sub: (byId[f.houseId] || selH).name });
+      if (s.mode === 'editHouse') Object.assign(tafel, { kicker: 'HAUS BEARBEITEN', title: (f.name || '').trim() || 'Ohne Titel', sub: selH.q });
+    }
+    const hObjs = selH ? objsOf(selH.id) : [];
+    const hInfo = {
+      empty: hObjs.length === 0, showList: info !== 'minimal' && hObjs.length > 0, showStats: info === 'ausführlich', showCount: info === 'minimal' && hObjs.length > 0,
+      countText: countTxt(hObjs.length) + ' · ' + hObjs.filter(o => o.neu).length + ' neu',
+      stats: [{ v: hObjs.length, l: 'Objekte' }, { v: hObjs.filter(o => o.neu).length, l: 'neu' }, { v: hObjs.reduce((t, o) => t + o.op, 0), l: 'geöffnet' }, { v: selH && selH.sem ? selH.sem + '.' : '–', l: 'Semester' }],
+      list: hObjs.map(o => ({ t: o.t, kc: K[o.k], neu: o.neu, meta: info === 'minimal' ? o.k : info === 'normal' ? o.k + ' · ' + o.vis : o.k + ' · ' + (o.op ? o.op + '× geöffnet' : 'nie geöffnet'), onClick: () => this.openObj(o.id) })),
+    };
+    const oInfo = { showImg: false, showDesc: false, desc: '', rows: [] };
+    if (selObj) {
+      oInfo.showImg = info === 'ausführlich';
+      oInfo.showDesc = info !== 'minimal' && !!selObj.desc;
+      oInfo.desc = selObj.desc;
+      const rows = [{ k: 'Kategorie', v: selObj.k, dot: K[selObj.k] }];
+      if (info !== 'minimal') rows.push({ k: 'Sichtbar für', v: selObj.vis, dot: '' }, { k: 'Geöffnet', v: selObj.op === 0 ? 'noch nie' : selObj.op + '×', dot: '' });
+      if (info === 'ausführlich') rows.push({ k: 'Typ', v: selObj.typ, dot: '' }, { k: 'Link', v: selObj.link.replace(/^https:\/\//, ''), dot: '' }, { k: 'Hinzugefügt', v: selObj.date, dot: '' }, { k: 'Übernehmen', v: selObj.allowCopy ? 'erlaubt' : 'gesperrt', dot: '' });
+      oInfo.rows = rows;
+    }
+    const kindChips = Object.keys(K).map(k => { const on = f.kind === k; return { k, kc: K[k], tbg: on ? 'var(--accSoft)' : 'transparent', tbd: on ? 'var(--accLine)' : 'var(--line)', onClick: () => this.setForm({ kind: k }) }; });
+    const step = f.step || 1, isNew = s.mode === 'new';
+    const stepCells = [['Link', 1], ['Einordnen', 2], ['Freigabe', 3]].map(([l, n]) => ({ l: n + ' ' + l + (n < step ? ' ✓' : ''), bar: n <= step ? 'var(--accLine)' : 'var(--line)', fw: n === step ? 700 : 500, c: n === step ? 'var(--ink)' : 'var(--muted)', onClick: () => (!isNew || n <= step) && this.setForm({ step: n }) }));
+    const fh = byId[f.houseId] || {};
+    let host = ''; try { host = f.link ? new URL(f.link).hostname.replace(/^www\./, '') : ''; } catch (e) {}
+    const card = { title: (f.title || '').trim() || 'Titel folgt', titleC: (f.title || '').trim() ? 'var(--ink)' : 'var(--faint)', kc: K[f.kind] || 'var(--chip)', kind: f.kind || 'Kategorie', hc: fh.color || 'var(--chip)', house: fh.name || 'Haus', vis: f.vis === 'Nur ich' ? 'Nur ich' : 'Freunde', host: host ? host + ' · ' + (this.detect(f.link) || 'Link') : 'Link fehlt noch', toTitle: () => this.setForm({ step: 1 }), toKind: () => this.setForm({ step: 2 }), toVis: () => this.setForm({ step: 3 }) };
+    const quarterChips = this.QORDER.slice(1).map(q => { const on = f.q === q; return { l: q, bg: on ? 'var(--accSoft)' : 'transparent', bd: on ? 'var(--accLine)' : 'var(--line)', fg: on ? 'var(--ink)' : 'var(--ink2)', onClick: () => this.setForm({ q }) }; });
+    const hPrev = { name: (f.name || '').trim() || 'Ohne Titel', color: f.color || 'var(--chip)', q: (f.q || '').toUpperCase(), sem: f.sem ? f.sem + '. SEMESTER' : '' };
+    const visCards = [['Freunde', 'sehen und öffnen'], ['Nur ich', 'privat']].map(([l, sub]) => { const on = f.vis === l; return { l, s: sub, bg: on ? 'var(--accSoft)' : 'transparent', bd: on ? 'var(--acc)' : 'var(--line)', onClick: () => this.setForm({ vis: l }) }; });
+    const houseChips = H.map(h => ({ name: h.name, color: h.color, ring: f.houseId === h.id ? '0 0 0 2px var(--panel), 0 0 0 4px var(--acc)' : 'none', onClick: () => this.setForm({ houseId: h.id }) }));
+    const tg = (l, on, fn, dis) => ({ l, op: dis ? 0.45 : 1, track: on && !dis ? 'var(--acc)' : 'var(--chip)', knob: on && !dis ? 15 : 2, knobC: on && !dis ? 'var(--accInk)' : 'var(--muted)', onClick: () => !dis && fn() });
+    const formToggles = [tg('Andere dürfen übernehmen', f.allowCopy, () => this.setForm({ allowCopy: !f.allowCopy })), tg('Im Topdorf zeigen', f.topdorf, () => this.setForm({ topdorf: !f.topdorf }), f.vis !== 'Freunde')];
+    const formTypeD = this.detect(f.link || '');
+    const colorChips = this.PALETTE.map(c => ({ c, ring: f.color === c ? '0 0 0 2px var(--panel), 0 0 0 4px var(--acc)' : 'none', onClick: () => this.setForm({ color: c }) }));
+    const semChips = [null, 1, 2, 3, 4, 5, 6, 7, 8].map(v => { const on = f.sem === v; return { l: v ? String(v) : '–', bg: on ? 'var(--ink)' : 'transparent', fg: on ? 'var(--panel)' : 'var(--ink2)', onClick: () => this.setForm({ sem: v }) }; });
+
+    // Brotkrumen
+    const crumbs = [{ l: 'Gians Dorf', sep: false, w: s.sel || s.inv ? 400 : 700, color: s.sel || s.inv ? 'var(--muted)' : 'var(--ink)', onClick: () => this.setState({ sel: null, mode: null, zoom: 1, pan: { x: 0, y: 0 } }) }];
+    crumbs[0].flex = '0 3 auto';
+    if (s.inv) crumbs.push({ flex: '0 1 auto', l: 'Inventar', sep: true, w: 700, color: 'var(--ink)', onClick: () => {} });
+    else if (selH) {
+      if (selH.id !== 'z') crumbs.push({ flex: '0 4 auto', l: selH.q, sep: true, w: 400, color: 'var(--muted)', onClick: () => this.clickHouse(selH.id, true) });
+      crumbs.push({ flex: '0 1 auto', l: selH.name, sep: true, w: 700, color: 'var(--ink)', onClick: () => this.clickHouse(selH.id, true) });
+    }
+
+    // Liste links
+    const sq = s.search.trim().toLowerCase();
+    const dn = d => { const x = d.split('.'); return (+x[1]) * 100 + (+x[0]); };
+    let lastQ = null;
+    const tree = [...H].sort((x, y) => this.QORDER.indexOf(x.q) - this.QORDER.indexOf(y.q)).map(h => {
+      let items = objsOf(h.id).filter(o => !sq || (o.t + ' ' + o.k).toLowerCase().includes(sq));
+      if (s.sort === 'name') items = [...items].sort((x, y) => x.t.localeCompare(y.t, 'de'));
+      if (s.sort === 'zuletzt') items = [...items].sort((x, y) => dn(y.date) - dn(x.date));
+      if (sq && !items.length) return null;
+      const col = !!s.collapsed[h.id] && !sq, n = objsOf(h.id).length;
+      const showQ = h.q !== lastQ; lastQ = h.q;
+      return {
+        id: h.id, name: h.name, color: h.color, count: n === 0 ? 'Baustelle' : String(n), chev: col ? '▸' : '▾', open: !col, showQ, qLabel: h.q.toUpperCase(),
+        hBg: s.sel === h.id && !s.objId ? 'var(--accSoft)' : 'transparent', drop: s.dropKey === 't' + h.id ? 'inset 0 0 0 1.5px var(--acc)' : 'none',
+        nNum: String(n), neu: objsOf(h.id).filter(o => o.neu).length, hasNeu: objsOf(h.id).some(o => o.neu),
+        items: items.map(o => ({ id: o.id, k: o.k, vis: o.vis === 'Nur ich' ? 'privat' : 'Freunde', opTxt: o.op ? o.op + '×' : '–', date: o.date, meta: o.k + ' · ' + (o.vis === 'Nur ich' ? 'privat' : 'Freunde') + ' · ' + (o.op ? o.op + '× geöffnet' : 'nie geöffnet'), selSh: s.objId === o.id ? '0 0 0 2px var(--accLine)' : 'none', t: o.t, kc: K[o.k], tag: o.neu ? 'neu' : o.vis === 'Nur ich' ? 'privat' : '', bg: s.objId === o.id ? 'var(--accSoft)' : 'transparent', bd: s.dropKey === 'r' + o.id ? 'inset 0 2px 0 var(--acc)' : 'none', onClick: () => this.openObj(o.id), onDragStart: (e) => this.dragStart(e, o.id, false), onDragOver: (e) => this.over(e, 'r' + o.id), onDrop: (e) => this.drop(e, { houseId: h.id }, o.id) })),
+        onClick: () => this.clickHouse(h.id, true),
+        onChev: (e) => { e.stopPropagation(); this.setState(st => ({ collapsed: { ...st.collapsed, [h.id]: !st.collapsed[h.id] } })); },
+        onAdd: (e) => { e.stopPropagation(); this.openNew(h.id); },
+        onDragOver: (e) => this.over(e, 't' + h.id), onDrop: (e) => this.drop(e, { houseId: h.id }, null),
+      };
+    }).filter(Boolean);
+    const flat = tree.flatMap(g => g.items.map(o => ({ ...o, hc: g.color, hn: g.name })));
+    const cats = Object.keys(K).map(k => ({ k, c: K[k], items: flat.filter(o => o.k === k) })).filter(c => c.items.length).map(c => ({ ...c, n: c.items.length }));
+    let lastD = null;
+    const timeline = [...flat].sort((x, y) => dn(y.date) - dn(x.date)).map(o => { const sd = o.date !== lastD; lastD = o.date; return { ...o, showDate: sd }; });
+    const lh = s.listHouse && byId[s.listHouse] ? s.listHouse : (tree[0] || {}).id;
+    const houseTabs = tree.map(g => ({ name: g.name, color: g.color, n: g.items.length, bg: g.id === lh ? 'color-mix(in srgb, var(--acc) 82%, var(--panel))' : 'var(--panel2)', fg: g.id === lh ? 'var(--accInk)' : 'var(--ink2)', onClick: () => this.setState({ listHouse: g.id }) }));
+    const tabG = tree.find(g => g.id === lh) || { items: [], name: '', onAdd: () => {} };
+    const LS = p.listStyle;
+    const ls = Object.fromEntries(['Baum', 'Kompakt', 'Karten', 'Kacheln', 'Tabelle', 'Kategorien', 'Zeitachse', 'Chips', 'Vorschau', 'Haus-Reiter', 'Minimal', 'Akkordeon'].map(v => [v.replace('-', ''), LS === v]));
+    const sortLabel = { eigen: 'Eigene Reihenfolge', name: 'Nach Name', zuletzt: 'Zuletzt hinzugefügt' }[s.sort];
+
+    // Inventar
+    const iq = s.invFilter.trim().toLowerCase();
+    const st = s.invState;
+    const pass = o => (!iq || (o.t + ' ' + o.k + ' ' + (o.desc || '')).toLowerCase().includes(iq)) && (!s.invHouse || o.houseId === s.invHouse) &&
+      (!st || (st === 'neu' && o.neu) || (st === 'nie' && o.op === 0) || (st === 'privat' && o.vis === 'Nur ich') || (st === 'ohne' && !o.desc));
+    const filtered = !!(iq || s.invHouse || st);
+    const tileH = tile === 'Kompakt' ? 42 : tile === 'Vorschau' ? 118 : 76;
+    const defs = s.invGroup === 'haus'
+      ? [...H].sort((x, y) => this.QORDER.indexOf(x.q) - this.QORDER.indexOf(y.q)).filter(h => !s.invHouse || h.id === s.invHouse).map(h => ({ key: h.id, name: h.name, color: h.color, match: o => o.houseId === h.id, patch: { houseId: h.id } }))
+      : Object.keys(K).map(k => ({ key: k, name: k, color: K[k], match: o => o.k === k, patch: { k } }));
+    let shown = 0;
+    const invGroupsData = defs.map(g => {
+      const items = s.objects.filter(o => g.match(o) && pass(o)); shown += items.length;
+      if (filtered && !items.length) return null;
+      return {
+        name: g.name, color: g.color, countText: countTxt(items.length), showEmpty: !items.length,
+        dropBg: s.dropKey === 'g' + g.key ? 'var(--accSoft)' : 'transparent',
+        onDragOver: (e) => this.over(e, 'g' + g.key), onDrop: (e) => this.drop(e, g.patch, null),
+        tiles: items.map(o => {
+          const sel = s.invSel.includes(o.id), kc = K[o.k];
+          return {
+            t: o.t, kc, sel, neu: o.neu, meta: o.k + ' · ' + o.vis, showMeta: tile !== 'Kompakt', img: tile === 'Vorschau', dot: tile === 'Kompakt',
+            stripe: tile === 'Streifen' ? 3 : 0, padL: tile === 'Streifen' ? 13 : 10, height: tileH,
+            bg: tile === 'Fläche' ? 'color-mix(in srgb, ' + kc + ' 24%, var(--panel2))' : 'var(--panel2)',
+            ring: sel ? '0 0 0 2px var(--acc)' : (s.dropKey === 'i' + o.id ? 'inset 3px 0 0 var(--acc)' : 'none'),
+            dir: tile === 'Kompakt' ? 'row' : 'column', align: tile === 'Kompakt' ? 'center' : 'stretch', titleFlex: tile === 'Kompakt' ? '1' : '0 1 auto', ws: tile === 'Kompakt' ? 'nowrap' : 'normal',
+            onClick: () => this.setState(x => ({ invSel: x.invSel.includes(o.id) ? x.invSel.filter(i => i !== o.id) : [...x.invSel, o.id], menu: null })),
+            onDbl: () => { this.setState({ inv: false, invSel: [], menu: null }, () => this.openObj(o.id)); },
+            onDragStart: (e) => this.dragStart(e, o.id, true), onDragOver: (e) => this.over(e, 'i' + o.id), onDrop: (e) => this.drop(e, g.patch, o.id),
+          };
+        }),
+      };
+    }).filter(Boolean);
+    const invHouses = [...H].sort((x, y) => this.QORDER.indexOf(x.q) - this.QORDER.indexOf(y.q)).map(h => ({ name: h.name, color: h.color, n: objsOf(h.id).length, bg: s.invHouse === h.id ? 'var(--accSoft)' : 'transparent', onClick: () => this.setState(x => ({ invHouse: x.invHouse === h.id ? null : h.id })) }));
+    const invStates = [['neu', 'Neu', o => o.neu], ['nie', 'Nie geöffnet', o => o.op === 0], ['privat', 'Nur ich', o => o.vis === 'Nur ich'], ['ohne', 'Ohne Beschreibung', o => !o.desc]].map(([id, l, fn]) => ({ l, n: s.objects.filter(fn).length, bg: s.invState === id ? 'var(--accSoft)' : 'transparent', onClick: () => this.setState(x => ({ invState: x.invState === id ? null : id })) }));
+    const selObjs = s.objects.filter(o => s.invSel.includes(o.id));
+    const allPriv = selObjs.length > 0 && selObjs.every(o => o.vis === 'Nur ich');
+    const bulk = (patch, text) => { const snap = { objects: s.objects }; this.setState(x => ({ objects: x.objects.map(o => x.invSel.includes(o.id) ? { ...o, ...patch } : o), menu: null })); this.say(text, snap); };
+    const menuItems = s.menu === 'move'
+      ? H.map(h => ({ l: h.name, c: h.color, r: '2px', onClick: () => bulk({ houseId: h.id }, s.invSel.length + ' nach ' + h.name + ' verschoben') }))
+      : Object.keys(K).map(k => ({ l: k, c: K[k], r: '50%', onClick: () => bulk({ k }, 'Kategorie: ' + k) }));
+
+    const L = s.splitW;
+    return {
+      rootRef: this.rootRef, rootStyle,
+      ...this.extraVals(DW, DH, p, byId),
+      worldL: L, worldB: (s.inv || s.screen === 'settings') ? Math.max(0, DH - 160) : 0, worldBg, tint: s.build ? 'transparent' : tm[2],
+      areaTrans: s.gripping ? 'none' : 'left .35s ease, bottom .55s cubic-bezier(.2,.7,.2,1)',
+      worldCursor: s.panning ? 'grabbing' : 'grab',
+      worldTransform: (s.inv || s.screen === 'settings') ? 'translate(0px,0px) scale(0.36)' : 'translate(' + s.pan.x + 'px,' + s.pan.y + 'px) scale(' + s.zoom + ')',
+      worldTrans: s.panning || s.gripping ? 'none' : 'transform .55s cubic-bezier(.2,.7,.2,1)',
+      quarterLabelsShown: s.build ? [] : quarterLabels, worldHouses, inv: s.inv,
+      onWorldDown: (e) => { if (e.button !== 0 || s.inv || e.target.closest('[data-house]')) return; this.panStart = { x: e.clientX, y: e.clientY, px: s.pan.x, py: s.pan.y, moved: false }; this.setState({ panning: true, acct: false }); },
+      onWheel: (e) => {
+        const x = this.state;
+        if (x.inv) { if (e.deltaY < 0) this.closeInv(); return; }
+        const out = e.deltaY > 0;
+        if (out && x.zoom <= 0.651) {
+          const over = x.over + Math.min(120, Math.abs(e.deltaY));
+          clearTimeout(this.overT);
+          if (over > 300) return this.openInv();
+          this.overT = setTimeout(() => this.setState({ over: 0 }), 1100);
+          return this.setState({ over });
+        }
+        const nz = Math.max(0.65, Math.min(1.8, x.zoom * Math.exp(-e.deltaY * 0.0016))), r = nz / x.zoom;
+        this.setState({ zoom: nz, pan: { x: x.pan.x * r, y: x.pan.y * r }, over: 0, hover: null });
+      },
+      onLeave: () => this.setState({ hover: null }),
+      showRing, ringOutline: showRing && shape !== 'Leiste' && shape !== 'Sucher' && ring.size > 0, ringSucher: showRing && shape === 'Sucher' && ring.size > 0,
+      ringTr: 'opacity .25s ease, transform .4s cubic-bezier(.2,.8,.2,1)' + (s.panning || s.gripping ? '' : ', left .55s cubic-bezier(.2,.7,.2,1), top .55s cubic-bezier(.2,.7,.2,1), width .55s ease, height .55s ease'),
+      tafelTr: s.panning || s.gripping ? 'none' : 'left .55s cubic-bezier(.2,.7,.2,1), top .55s cubic-bezier(.2,.7,.2,1)',
+      ringOp: rdy ? 1 : 0, ringOpHalf: rdy ? 0.45 : 0, ringFsc: rdy ? 'scale(1)' : 'scale(1.18)', ringBar: showRing && shape === 'Leiste' && ringActions.length > 0, ring, bar, ringActions,
+      showLeader, ld, showRowLeader, rl,
+      showTip: !!hovH, tip,
+      showTafel, tf, tafel, closeTafel: () => this.setState({ mode: null, objId: null }),
+      mHouse: s.mode === 'house', mObj: s.mode === 'obj' && !!selObj, mForm: s.mode === 'new' || s.mode === 'editObj', mHouseEdit: s.mode === 'editHouse',
+      hInfo, oInfo, tafelAdd: () => this.openNew(s.sel), tafelEditHouse: () => this.openEditHouse(s.sel),
+      objOpen: () => { this.setState(x => ({ objects: x.objects.map(o => o.id === x.objId ? { ...o, op: o.op + 1, neu: false } : o) })); this.say('Öffnet in neuem Tab'); },
+      objEdit: () => this.openEditObj(s.objId), objDelete: () => this.deleteObj(),
+      form: { link: f.link || '', title: f.title || '', name: f.name || '', desc: f.desc || '', more: !!f.more, err: f.err || '' },
+      formType: formTypeD ? formTypeD + ' erkannt' : 'Claude-Artifact, GitHub, Gist, Cloud-Ordner oder Link',
+      onLink: (e) => this.setForm({ link: e.target.value }), onTitle: (e) => this.setForm({ title: e.target.value }), onDesc: (e) => this.setForm({ desc: e.target.value }),
+      onHName: (e) => this.setForm({ name: e.target.value }),
+      kindChips, visCards, houseChips, formHouseName: (byId[f.houseId] || {}).name || '', formToggles,
+      onMore: () => this.setForm({ more: !f.more }), moreLabel: f.more ? 'Weniger ‹' : 'Beschreibung, Übernehmen, Topdorf ›',
+      isEditObj: s.mode === 'editObj', saveLabel: s.mode === 'new' ? 'Ans Haus hängen' : 'Speichern', onSaveObj: () => this.saveObj(),
+      colorChips, semChips, onSaveHouse: () => this.saveHouse(), quarterChips, hPrev, canQuarter: !!selH && selH.id !== 'z',
+      stepCells, card, step1: step === 1, step2: step === 2, step3: step === 3, canBack: step > 1, stepBack: () => this.setForm({ step: step - 1 }),
+      showNext: step < 3, stepNext: () => this.stepNext(), showSave: !isNew || step === 3,
+      nextBg: isNew ? 'var(--acc)' : 'var(--chip)', nextFg: isNew ? 'var(--accInk)' : 'var(--ink)',
+      canDeleteHouse: !!selH && selH.id !== 'z', deleteHouseLabel: hObjs.length ? 'Haus und ' + hObjs.length + ' Objekte löschen' : 'Haus löschen', onDeleteHouse: () => this.deleteHouse(),
+      hudL: L + 26, crumbMax: Math.max(120, DW - L - 26 - 240), hudC: L + (DW - L) / 2, hintL: L + 26, crumbs,
+      splitBtnBd: L ? 'var(--acc)' : 'var(--line)', invBtnBd: s.inv ? 'var(--acc)' : 'var(--line)',
+      toggleSplit: () => this.toggleSplit(), toggleInv: () => this.toggleInv(), closeInv: () => this.closeInv(),
+      acct: s.acct, toggleAcct: () => this.setState(x => ({ acct: !x.acct })),
+      resetData: () => { const d = this.defaults(); this.setState({ houses: d.houses, objects: d.objects, sel: null, mode: null, invSel: [], acct: false }); this.say('Beispieldaten wiederhergestellt'); },
+      showHud: !s.inv && !s.build && !s.screen, showBottomBar: !s.inv && !showTafel && !s.build && !s.screen,
+      ...this.barVals(p.barStyle ?? 'Standard', tm, L, DW),
+      time: (s.timeAuto ? 'Auto · ' : '') + tm[0], timeDot: tm[1], cycleTime: () => this.setState(x => ({ time: ((x.timeAuto ? autoT : x.time) + 1) % 4, timeAuto: false })),
+      knobTop: 12 + (1 - (s.zoom - 0.65) / (1.8 - 0.65)) * 112,
+      zoomIn: () => this.setState(x => { const nz = Math.min(1.8, x.zoom * 1.2), r = nz / x.zoom; return { zoom: nz, pan: { x: x.pan.x * r, y: x.pan.y * r } }; }),
+      zoomOut: () => { const x = this.state; if (x.zoom <= 0.651) return this.openInv(); const nz = Math.max(0.65, x.zoom / 1.2), r = nz / x.zoom; this.setState({ zoom: nz, pan: { x: x.pan.x * r, y: x.pan.y * r } }); },
+      invEndBg: s.zoom <= 0.651 ? 'var(--acc)' : 'var(--panel)', invEndFg: s.zoom <= 0.651 ? 'var(--accInk)' : 'var(--muted)', invEndBd: s.zoom <= 0.651 ? 'var(--acc)' : 'var(--line)',
+      showZoomHint: !s.inv && s.zoom <= 0.651, overPct: Math.min(100, s.over / 3),
+      showHint: s.hint && !s.inv && !s.sel && !s.build && !s.screen, hideHint: () => this.setState({ hint: false }),
+      splitW: L, splitInnerW: Math.max(L, 320), splitTrans: s.gripping ? 'none' : 'width .35s ease, left .35s ease',
+      showGrip: !s.inv && !s.build && !s.screen, gripColor: L || s.gripping ? 'var(--acc)' : 'var(--faint)', sbMode,
+      grip: { strich: gripStyle === 'Strich', punkte: gripStyle === 'Punkte', kante: gripStyle === 'Kante', lasche: gripStyle === 'Lasche' },
+      gripW: gripStyle === 'Lasche' ? 28 : gripStyle === 'Kante' ? 12 : 16, gripJustify: gripStyle === 'Lasche' ? 'flex-start' : 'center',
+      gripHover: gripStyle === 'Lasche' ? 'transparent' : 'var(--accSoft)', gripTabShadow: L ? 'none' : '4px 0 14px rgba(0,0,0,.25)',
+      onGripDown: (e) => { e.preventDefault(); this.grip = { x: e.clientX, w: s.splitW, moved: false }; this.setState({ gripping: true }); },
+      totalText: s.objects.length + ' in ' + H.length + ' Häusern', search: s.search, onSearch: (e) => this.setState({ search: e.target.value }),
+      cycleSort: () => this.setState(x => ({ sort: { eigen: 'name', name: 'zuletzt', zuletzt: 'eigen' }[x.sort] })), sortLabel,
+      onTreeScroll: () => this.measureRow(), tree, flat, cats, timeline, houseTabs, tabG, ls, dragEnd: () => { this.dragIds = null; this.setState({ dropKey: null }); },
+      invY: s.inv ? 'translateY(0)' : 'translateY(105%)', invCountText: (filtered ? shown + ' von ' : '') + s.objects.length + ' Objekten',
+      invFilter: s.invFilter, onInvFilter: (e) => this.setState({ invFilter: e.target.value }),
+      invGroups: [['haus', 'Nach Haus'], ['kategorie', 'Nach Kategorie']].map(([id, l]) => ({ l, bg: s.invGroup === id ? 'var(--chip)' : 'transparent', fg: s.invGroup === id ? 'var(--ink)' : 'var(--muted)', onClick: () => this.setState({ invGroup: id }) })),
+      invHouses, invStates, invGroupsData, tileH,
+      gridCols: tile === 'Kompakt' ? 'repeat(auto-fill,minmax(220px,1fr))' : 'repeat(auto-fill,minmax(170px,1fr))',
+      hasSel: s.invSel.length > 0, noSel: s.invSel.length === 0, selText: s.invSel.length + ' ausgewählt',
+      menuMove: () => this.setState(x => ({ menu: x.menu === 'move' ? null : 'move' })), menuKind: () => this.setState(x => ({ menu: x.menu === 'kind' ? null : 'kind' })),
+      showMenu: !!s.menu && s.invSel.length > 0, menuL: s.menu === 'move' ? 140 : 290, menuItems,
+      bulkVisLabel: allPriv ? 'Für Freunde freigeben' : 'Auf «Nur ich» setzen',
+      bulkVis: () => bulk({ vis: allPriv ? 'Freunde' : 'Nur ich' }, allPriv ? 'Für Freunde freigegeben' : 'Auf «Nur ich» gesetzt'),
+      bulkDelete: () => { const snap = { objects: s.objects }, n = s.invSel.length; this.setState(x => ({ objects: x.objects.filter(o => !x.invSel.includes(o.id)), invSel: [], menu: null })); this.say(n + ' gelöscht', snap); },
+      clearSel: () => this.setState({ invSel: [], menu: null }),
+      showToast: !!s.toast, toast: s.toast || { text: '', undo: false },
+      undo: () => { if (this.undoSnap) this.setState({ ...this.undoSnap }); this.undoSnap = null; this.setState({ toast: null }); },
+    };
+  }
+}
+</script>
+
+
+</body></html>
