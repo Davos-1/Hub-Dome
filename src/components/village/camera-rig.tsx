@@ -44,6 +44,35 @@ type Controls = {
  * Rand für Sucher und Kacheln). Nach der Fahrt meldet sie «angekommen» (Sucher und Kacheln erscheinen).
  * Es wird nur gerendert, solange die Fahrt läuft.
  */
+/**
+ * Inventar offen: Die Welt erscheint verkleinert im Streifen oben. Statt die Kamera zu bewegen (die Pan-Grenze
+ * würde das abschneiden), wird nur der Bildausschnitt verschoben und der Blickwinkel geweitet.
+ */
+export function InventoryLens({ store }: { store: SceneStore }) {
+  const inv = useScene(store, (s) => s.inv);
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const width = useThree((s) => s.size.width);
+  const height = useThree((s) => s.size.height);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    lens(camera, inv, width, height);
+    invalidate();
+  }, [inv, camera, width, height, invalidate]);
+  return null;
+}
+
+/** Bildausschnitt für den Inventar-Streifen setzen bzw. zurücksetzen (ausserhalb von React-Werten). */
+function lens(camera: THREE.PerspectiveCamera, on: boolean, width: number, height: number) {
+  if (on) {
+    camera.setViewOffset(width, height, 0, height / 2 - STRIP / 2, width, height);
+    camera.zoom = 0.42;
+  } else {
+    camera.clearViewOffset();
+    camera.zoom = 1;
+  }
+  camera.updateProjectionMatrix();
+}
+
 export function CameraRig({
   layout,
   store,
@@ -104,10 +133,9 @@ export function CameraRig({
       frame: hud.frame,
       hullOf,
     });
-    // Übersicht: in die Mitte der freien Fläche verschieben (Liste links), im Inventar weiter weg in den Streifen
-    const p = fitted
-      ? raw
-      : shiftPose(fitPortrait(raw, aspect, 2), hud.frame, aspect, inv ? 2.4 : 1);
+    // Übersicht: in die Mitte der freien Fläche verschieben (Liste links); im Inventar übernimmt die
+    // Bildverschiebung der Kamera (`InventoryLens`) den Streifen oben
+    const p = fitted || inv ? raw : shiftPose(fitPortrait(raw, aspect, 2), hud.frame, aspect);
     // Einstieg: weit draussen beginnen, nach dem Start-Dialog zur Übersicht einfliegen
     return intro
       ? { position: p.position.map((c) => c * 1.45) as [number, number, number], target: p.target }

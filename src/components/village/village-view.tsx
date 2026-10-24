@@ -34,8 +34,10 @@ import { BottomBar } from "./hud/bottom-bar";
 import { Breadcrumb } from "./hud/breadcrumb";
 import { CommandPalette, type Command } from "./hud/command-palette";
 import { HintCard } from "./hud/hint-card";
+import { ListGrip, ListPanel, listWidth } from "./hud/list-panel";
 import { Selection } from "./hud/selection";
 import { TafelHost } from "./hud/tafel-host";
+import { Inventory } from "./hud/inventory";
 import { HouseTooltip } from "./hud/tooltip";
 import { TopRight } from "./hud/top-right";
 import { ToastView, UiProvider, useUi } from "./hud/ui-context";
@@ -82,17 +84,6 @@ type Props = {
 };
 
 const DEFAULT_WORLD_ACTIONS: WorldActions = { save: saveWorld, reroll: rerollWorld };
-const LIST_KEY = "hubdome-liste-breite";
-/** Breite der Liste beim Öffnen (zuletzt gezogene Breite, sonst 420 px). */
-export function listWidth(): number {
-  try {
-    const v = Number(localStorage.getItem(LIST_KEY));
-    return v >= 320 && v <= 680 ? v : 420;
-  } catch {
-    return 420;
-  }
-}
-
 /** Media-Query als Hook (Server: false). */
 function useMedia(query: string) {
   return useSyncExternalStore(
@@ -473,7 +464,12 @@ function VillageShell(props: Props) {
 
   // Weiter herauszoomen am Anschlag füllt den Hinweis; voll = Inventar (nur Besitzer)
   const onWheel = (e: React.WheelEvent) => {
-    if (!props.isOwner || store.get().inv || store.get().building || e.deltaY <= 0) return;
+    // Inventar offen: Hereinzoomen über dem Welt-Streifen schliesst es (im Inventar selbst wird gescrollt)
+    if (store.get().inv) {
+      if (e.deltaY < 0 && !(e.target as HTMLElement).closest("[data-hd-inv]")) closeInv();
+      return;
+    }
+    if (!props.isOwner || store.get().building || e.deltaY <= 0) return;
     if (overlay.get().zoom < ZOOM_END) return;
     const next = over + Math.min(40, Math.abs(e.deltaY) / 3);
     if (overTimer.current) clearTimeout(overTimer.current);
@@ -575,6 +571,23 @@ function VillageShell(props: Props) {
         >
           {!building && (
             <>
+              <ListPanel
+                model={model}
+                store={store}
+                actions={actions}
+                artifacts={artifacts}
+                isOwner={props.isOwner}
+              />
+              {!inv && <ListGrip store={store} />}
+              {props.isOwner && (
+                <Inventory
+                  model={model}
+                  store={store}
+                  actions={actions}
+                  artifacts={artifacts}
+                  onClose={closeInv}
+                />
+              )}
               <Breadcrumb
                 model={model}
                 store={store}
@@ -631,6 +644,15 @@ function VillageShell(props: Props) {
                   onSettings={() => openSettings()}
                   onAddHouse={addHouse}
                 />
+              )}
+              {inv && (
+                <button
+                  type="button"
+                  onClick={closeInv}
+                  className="hd-rise pointer-events-auto absolute top-[96px] left-1/2 -translate-x-1/2 cursor-pointer rounded-full border border-hd-line bg-hd-surface px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap"
+                >
+                  ↑ Hereinzoomen oder Esc · zurück ins Dorf
+                </button>
               )}
               {!inv && (
                 <ZoomSlider

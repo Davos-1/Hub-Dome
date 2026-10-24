@@ -35,7 +35,7 @@ export function makeActions(store: SceneStore, model: VillageModel) {
       nav: { level: "haus", q: quarterOf(id), h: id },
       tafel,
       camHold: false,
-      pinnedObjId: tafel?.mode === "objekt" ? (tafel.objId ?? null) : null,
+      pinnedObjId: null,
       highlight: null,
       hoverObjId: null,
       kbdHouse: id,
@@ -68,10 +68,8 @@ export function makeActions(store: SceneStore, model: VillageModel) {
     const s = store.get();
     const tafel: Tafel = { mode, objId, houseId };
     if (s.nav.level === "haus" && s.nav.h === houseId) {
-      store.set({
-        tafel,
-        pinnedObjId: mode === "objekt" || mode === "objektedit" ? objId : null,
-      });
+      // Kein angeheftetes Objekt (die 3D-Karte läge über den Kacheln); der Leuchtring zeigt es in der Welt
+      store.set({ tafel, pinnedObjId: null });
     } else openHouse(houseId, tafel);
     if (objId && (mode === "objekt" || mode === "objektedit"))
       store.set({ highlight: { kind: "obj", id: objId, t0: performance.now() } });

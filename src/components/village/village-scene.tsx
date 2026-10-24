@@ -9,7 +9,7 @@ import type { ZentraleStyle } from "@/lib/styles";
 import type { VillageModel } from "@/lib/village-model";
 import { Boards } from "./boards";
 import { House3D, modelOfHouse, ZENTRALE_LIFT, Zentrale3D } from "./buildings";
-import { CameraRig } from "./camera-rig";
+import { CameraRig, InventoryLens } from "./camera-rig";
 import { hullLookup } from "./hull";
 import { Daylight } from "./daylight";
 import { DekoLayer } from "./deko-layer";
@@ -484,6 +484,7 @@ export default function VillageScene(props: SceneProps) {
         reducedMotion={reducedMotion}
         hullOf={hullOf}
       />
+      <InventoryLens store={store} />
       <ScreenProbe
         store={store}
         overlay={overlay}

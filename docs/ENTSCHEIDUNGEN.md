@@ -382,3 +382,10 @@ Laufendes Log. Neueste Einträge unten. Format: Datum – Titel, Kontext, Entsch
 - **Profil-Menü «G»:** Angemeldet als, Einstellungen, Abmelden (statt «Beispieldaten zurücksetzen» aus dem Prototyp).
 - **Befehlspalette** (Strg/⌘+K oder «/»): Häuser, Objekte, Befehle; ersetzt das Suchfeld.
 - **Lehre (wieder):** Turbopack lieferte nach Änderungen an `globals.css` eine alte Fassung ohne neue Klassen; `.next/dev` löschen und neu starten.
+
+## 2026-10-24 – Phase 4h, Phase C: Liste und Inventar
+- **Liste** (`hud/list-panel.tsx`): Baum Quartier › Haus › Objekt, Suche, Sortierung (eigene, Name, zuletzt), Ziehen zum Umsortieren und Verschieben (Besitzer, nur in «Eigene Reihenfolge»; auch per Alt+Pfeil), «+» pro Haus. Griff «Punkte» am linken Rand: Klick öffnet/schliesst, Ziehen ändert die Breite (unter 140 px zu, 320–680 px, gemerkt im Browser). Die Liste liegt über der Leinwand; die Kamera spart sie über den Ausschnitt aus (kein Neuaufbau der Leinwand beim Ziehen).
+- **Reihenfolge = Gartenplätze:** `reorderArtifacts` schreibt `artifacts.sort`; die Welt ordnet die Objekte im Garten danach. Rückgängig schreibt die alte Reihenfolge (und das alte Haus) zurück.
+- **Inventar** (`hud/inventory.tsx`): Taste I, Knopf oben rechts, «INV» am Zoomregler oder weiter herauszoomen am Anschlag. Die Welt erscheint verkleinert im Streifen oben: Bildausschnitt der Kamera verschoben (`setViewOffset`) und Blickwinkel geweitet, statt die Kamera zu bewegen (die Pan-Grenze schnitt das ab, der Streifen zeigte nur Himmel).
+- **Massenaktionen** (`app/dorf/inventar-actions.ts`): `bulkMoveArtifacts`, `bulkSetVisibility` (Übernahmen bleiben privat), `bulkSetKind`, `bulkDelete`, `reorderArtifacts`; Zod (höchstens 200 Ids), RLS-Client plus `owner_id`-Filter, Zielhaus muss im eigenen Dorf stehen. Unit-Tests mit Supabase-Fake, RLS-Test «Freunde ändern keine fremden Objekte in einer Liste».
+- **Objekt-Tafel ohne 3D-Karte:** Das angeheftete Objekt zeigte eine weisse Karte in der Welt, die über den Kacheln lag; die Tafel zeigt die Angaben, in der Welt bleibt der Leuchtring.
