@@ -13,6 +13,7 @@ import {
   checkFreeGroup,
   checkFreeHouse,
   freePose,
+  pickLane,
   pinsFromSettlement,
   PLOT,
   spineAt,
@@ -89,9 +90,9 @@ function fromSpine(lane: Lane, t: number, d: number) {
  */
 export function snapToRow(base: DragBase, houseId: string, x: number, z: number) {
   if (!base.lanes.length) return { x, z };
-  const lane = base.lanes.reduce((a, b) =>
-    spineAt(a, x, z).dist <= spineAt(b, x, z).dist ? a : b,
-  );
+  const lane = pickLane(base.lanes, x, z);
+  // v3: nahe am Platz von Ring, Halbkreis und Intelligent gibt es keine Reihe an der Gasse
+  if (freePose(lane, x, z).polar) return { x, z };
   const s = spineAt(lane, x, z);
   let t = Math.round(s.t * 2) / 2;
   let d = Math.round(s.d * 2) / 2;
@@ -150,9 +151,7 @@ export function houseGhost(base: DragBase, houseId: string, x: number, z: number
     }
   }
   // Rot an der Zeigerstelle, gleich ausgerichtet wie ein gültiges Haus dort
-  const lane = base.lanes.length
-    ? base.lanes.reduce((a, b) => (spineAt(a, x, z).dist <= spineAt(b, x, z).dist ? a : b))
-    : null;
+  const lane = base.lanes.length ? pickLane(base.lanes, x, z) : null;
   return { ok: false, x, z, angle: lane ? freePose(lane, x, z).angle : 0, grund: first.grund };
 }
 
@@ -169,6 +168,20 @@ export type GroupGhost = {
   /** Deko des Quartiers bei der geltenden Verschiebung. */
   deko: DekoItem[];
 };
+
+/**
+ * Quartier genau um (dx, dz) verschieben, ohne Einrasten: alle Häuser (samt Garten) und die eigene Deko des
+ * Quartiers. Gültig nur, wenn jedes Element an seiner neuen Lage passt (gegen alles übrige und gegen die
+ * Gruppe selbst); sonst das erste anstossende Element mit Grund. Im Bau-Modus: Ablegen an ungültiger Stelle
+ * setzt das Quartier zurück.
+ */
+export const quarterMove = (
+  base: DragBase,
+  houses: { id: string; x: number; z: number }[],
+  deko: DekoItem[],
+  dx: number,
+  dz: number,
+) => tryGroup(base, houses, deko, dx, dz);
 
 function tryGroup(
   base: DragBase,

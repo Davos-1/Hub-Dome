@@ -5,6 +5,8 @@ import { checkDeko } from "@/lib/world/rules";
 import type { DekoItem, WorldDoc } from "@/lib/world/doc";
 import type { OwnWorld } from "@/lib/world/server-data";
 import { GENERATOR_VERSION } from "@/lib/world/seed";
+import { pinsFromSettlement } from "@/lib/world/settlement";
+import type { FachbereichId } from "@/lib/fachbereiche";
 
 // Die Aktionen laufen hier ohne Datenbank: Sitzung, Laden und Schreiben sind Fakes, die Welt rechnet echt.
 const mocks = vi.hoisted(() => ({
@@ -351,5 +353,61 @@ describe("rerollWorld", () => {
     expect(await rerollWorld({ seed: "abcd1234", resetPlacements: true })).toEqual({
       error: "Die Welt konnte nicht gespeichert werden.",
     });
+  });
+});
+
+describe("saveWorld (v3: Wegformen, Eckpunkte, Bäume)", () => {
+  const seed = "abcd1234";
+  const pinned = (extra: Partial<WorldDoc> = {}): WorldDoc => {
+    const w = generateWorld({ seed, version: 3, houses });
+    return { v: 1, ...pinsFromSettlement(w.settlement), ...extra };
+  };
+
+  it("lehnt unbekannte Formen und Radien ausserhalb des Bereichs ab", async () => {
+    for (const bad of [
+      { v: 1, quarterRoads: { tragwerk: { form: "stern" } } },
+      { v: 1, quarterRoads: { tragwerk: { form: "ring", radius: 40 } } },
+      { v: 1, quarterRoads: { erfunden: { form: "ring" } } },
+      { v: 1, treeMoves: { abc: { x: 0, z: 0 } } },
+      { v: 1, roadBends: { h1: { x: 900, z: 0 } } },
+    ]) {
+      expect(await saveWorld(bad)).toEqual({ error: "Die Platzierungen sind ungültig." });
+    }
+    expect(mocks.writeWorld).not.toHaveBeenCalled();
+  });
+
+  it("speichert eine passende Wegform samt Fixierung", async () => {
+    const base = pinned();
+    const q = Object.keys(base.quartiere ?? {})[0] as FachbereichId;
+    const doc0: WorldDoc = {
+      v: 1,
+      quartiere: base.quartiere,
+      quarterRoads: { [q]: { form: "intelligent" } },
+    };
+    const w = generateWorld({ seed, version: 3, houses, doc: doc0 });
+    const doc = { ...doc0, ...pinsFromSettlement(w.settlement) };
+    mocks.loadOwnWorld.mockResolvedValue(own(seed, { v: 1 }, true, 3));
+    expect(await saveWorld(doc)).toEqual({ ok: true });
+    expect(mocks.writeWorld.mock.calls[0][2].placements.quarterRoads).toEqual({
+      [q]: { form: "intelligent" },
+    });
+  });
+
+  it("weist einen Baum mitten im Haus und einen unmöglichen Eckpunkt mit Grund ab", async () => {
+    mocks.loadOwnWorld.mockResolvedValue(own(seed, { v: 1 }, true, 3));
+    const w = generateWorld({ seed, version: 3, houses });
+    const house = Object.values(w.settlement.houses)[0];
+    const tree = w.vegetation.trees[0];
+    const doc = pinned({
+      treeMoves: { [String(tree.i)]: { x: house.x, z: house.z } },
+      // Eckpunkt mitten im Garten eines anderen Hauses
+      roadBends: { [Object.keys(w.settlement.houses)[1]]: { x: house.x, z: house.z } },
+    });
+    const res = await saveWorld(doc);
+    expect(res).toMatchObject({ error: "Einige Elemente passen nicht an ihren Platz." });
+    const ids = ("abgewiesen" in res ? (res.abgewiesen ?? []) : []).map((a) => a.id);
+    expect(ids).toContain(`baum:${tree.i}`);
+    expect(ids.some((id) => id.startsWith("eckpunkt:"))).toBe(true);
+    expect(mocks.writeWorld).not.toHaveBeenCalled();
   });
 });

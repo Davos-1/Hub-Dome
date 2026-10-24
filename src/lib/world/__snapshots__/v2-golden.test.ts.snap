@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Generator v2 (eingefroren) > liefert für feste Eingaben dieselbe Welt wie bei der Einführung von v3 1`] = `
+[
+  "hubdome1/0 fcd65927",
+  "hubdome1/12 b5be9072",
+  "b7k2m9qx/25 daace92b",
+  "flussb01/8 9fe17783",
+  "q0q0q0q0/18 5451ffd5",
+  "kx81bb20/30 615481d9",
+]
+`;

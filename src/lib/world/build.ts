@@ -1,3 +1,4 @@
+import type { FachbereichId } from "../fachbereiche";
 import { DEKO, MAX_DEKO, type DekoTyp } from "./catalog";
 import type { DekoItem, Variante, WorldDoc } from "./doc";
 import { checkDeko, snapDeko } from "./rules";
@@ -7,7 +8,10 @@ import {
   type Settlement,
   type SettlementPins,
 } from "./settlement";
+import type { Pt } from "./geom";
+import type { QuarterRoad } from "./roads";
 import type { Space } from "./space";
+import type { TreeMoves } from "./vegetation";
 
 /**
  * Bau-Modus als reine Logik: Entwurf (eigene Deko und Varianten) mit Rückgängig/Wiederholen, Live-Prüfung
@@ -19,6 +23,10 @@ export type Draft = {
   deko: DekoItem[];
   varianten: Record<string, Variante>;
   pins: Required<Pick<SettlementPins, "quartiere" | "haeuser">>;
+  /** v3: Wegform je Quartier, Eckpunkte in Stichwegen, versetzte Bäume. */
+  roads: Partial<Record<FachbereichId, QuarterRoad>>;
+  bends: Record<string, Pt>;
+  trees: TreeMoves;
 };
 export type BuildHistory = { past: Draft[]; present: Draft; future: Draft[] };
 
@@ -33,8 +41,22 @@ export function draftFromDoc(doc: WorldDoc, settlement?: Settlement): Draft {
   const pins = settlement
     ? pinsFromSettlement(settlement)
     : { quartiere: { ...(doc.quartiere ?? {}) }, haeuser: { ...(doc.haeuser ?? {}) } };
-  return { deko: [...(doc.deko ?? [])], varianten: { ...(doc.varianten ?? {}) }, pins };
+  return {
+    deko: [...(doc.deko ?? [])],
+    varianten: { ...(doc.varianten ?? {}) },
+    pins,
+    roads: { ...(doc.quarterRoads ?? {}) },
+    bends: { ...(doc.roadBends ?? {}) },
+    trees: { ...(doc.treeMoves ?? {}) },
+  };
 }
+
+/** v3-Felder nur, wenn etwas drinsteht (das Dokument bleibt klein). */
+const extras = (d: Draft): Partial<WorldDoc> => ({
+  ...(Object.keys(d.roads).length ? { quarterRoads: d.roads } : {}),
+  ...(Object.keys(d.bends).length ? { roadBends: d.bends } : {}),
+  ...(Object.keys(d.trees).length ? { treeMoves: d.trees } : {}),
+});
 
 /** Dokument der Entwurfswelt (für die Vorschau in der Szene). */
 export const draftDoc = (d: Draft): WorldDoc => ({
@@ -42,11 +64,24 @@ export const draftDoc = (d: Draft): WorldDoc => ({
   ...d.pins,
   deko: d.deko,
   varianten: d.varianten,
+  ...extras(d),
 });
 
-/** Haus auf einen anderen Bauplatz setzen (Gasse `r`, Platz `s`). */
+/** Ohne die Eckpunkte dieser Häuser (sie gehören zum alten Weg). */
+function withoutBends(bends: Record<string, Pt>, ids: readonly string[]) {
+  if (!ids.some((id) => bends[id])) return bends;
+  const out = { ...bends };
+  for (const id of ids) delete out[id];
+  return out;
+}
+
+/** Haus auf einen anderen Bauplatz setzen (Gasse `r`, Platz `s`); sein Eckpunkt entfällt. */
 export function pinHouse(d: Draft, houseId: string, pin: HousePin): Draft {
-  return { ...d, pins: { ...d.pins, haeuser: { ...d.pins.haeuser, [houseId]: pin } } };
+  return {
+    ...d,
+    pins: { ...d.pins, haeuser: { ...d.pins.haeuser, [houseId]: pin } },
+    bends: withoutBends(d.bends, [houseId]),
+  };
 }
 
 /** Häuser zurück auf Automatik (Fixierung entfernen): Sie bekommen den nächsten freien Bauplatz ihres Quartiers. */
@@ -69,11 +104,52 @@ export function moveGroup(
     ...d,
     pins: { ...d.pins, haeuser },
     deko: d.deko.map((x) => moved.get(x.id) ?? x),
+    bends: withoutBends(d.bends, Object.keys(poses)),
   };
 }
 
+/**
+ * v3: Wegform eines Quartiers ändern. Die Häuser des Quartiers ordnen sich neu (Fixierung und Eckpunkte
+ * entfallen), alle anderen bleiben, wo sie sind. `null` = zurück auf die Gasse.
+ */
+export function setRoad(
+  d: Draft,
+  q: FachbereichId,
+  road: QuarterRoad | null,
+  houseIds: readonly string[],
+): Draft {
+  const roads = { ...d.roads };
+  if (road && road.form !== "gasse") roads[q] = road;
+  else delete roads[q];
+  const next = unpinHouses({ ...d, roads }, houseIds);
+  return { ...next, bends: withoutBends(next.bends, houseIds) };
+}
+
+/** v3: Eckpunkt im Weg eines Hauses setzen, verschieben oder (`null`) entfernen. */
+export function setBend(d: Draft, houseId: string, p: Pt | null): Draft {
+  const bends = { ...d.bends };
+  if (p) bends[houseId] = { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 };
+  else delete bends[houseId];
+  return { ...d, bends };
+}
+
+/** v3: Baum aus dem Seed versetzen oder (`null`) an seinen Seed-Platz zurück. */
+export function moveTree(d: Draft, i: number, p: Pt | null): Draft {
+  const trees = { ...d.trees };
+  if (p) trees[String(i)] = { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 };
+  else delete trees[String(i)];
+  return { ...d, trees };
+}
+
 /** Alles zurück auf Automatik: keine eigene Deko, keine Varianten, keine Fixierung. */
-export const EMPTY_DRAFT: Draft = { deko: [], varianten: {}, pins: { quartiere: {}, haeuser: {} } };
+export const EMPTY_DRAFT: Draft = {
+  deko: [],
+  varianten: {},
+  pins: { quartiere: {}, haeuser: {} },
+  roads: {},
+  bends: {},
+  trees: {},
+};
 
 export const startHistory = (draft: Draft): BuildHistory => ({
   past: [],
@@ -174,6 +250,7 @@ export function docForSave(d: Draft, settlement: Settlement): WorldDoc {
     ...pinsFromSettlement(settlement),
     deko: d.deko,
     varianten: d.varianten,
+    ...extras(d),
   };
 }
 

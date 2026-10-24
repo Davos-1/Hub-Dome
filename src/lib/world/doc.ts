@@ -2,6 +2,7 @@ import { z } from "zod";
 import { FACH_ORDER, type FachbereichId } from "../fachbereiche";
 import { DIRECTIONS } from "./axes";
 import { DEKO_TYPEN, MAX_DEKO } from "./catalog";
+import { KURVEN, RADIUS, WEGFORMEN } from "./roads";
 
 /**
  * Platzierungen eines Dorfs (Spalte `village_worlds.placements`, Version 1). Alles, was der Besitzer
@@ -52,6 +53,23 @@ export const varianteSchema = z.object({
 });
 export type Variante = z.infer<typeof varianteSchema>;
 
+const coord = z.number().finite().min(-150).max(150);
+/** Höchstens so viele versetzte Bäume und Eckpunkte (das Dokument bleibt klein). */
+export const MAX_TREE_MOVES = 200;
+export const MAX_BENDS = 200;
+
+/** v3: Wegform eines Quartiers (Radius für Ring und Halbkreis, Krümmung für Intelligent). */
+export const quarterRoadSchema = z.object({
+  form: z.enum(WEGFORMEN),
+  radius: z.number().int().min(RADIUS.min).max(RADIUS.max).optional(),
+  curve: z
+    .number()
+    .int()
+    .min(0)
+    .max(KURVEN.length - 1)
+    .optional(),
+});
+
 export const worldDocSchema = z.object({
   v: z.literal(1),
   quartiere: z
@@ -79,7 +97,7 @@ export const worldDocSchema = z.object({
             .int()
             .min(0)
             .max(DIRECTIONS - 1),
-          s: z.string().regex(/^(p[01]|g\d{1,2})$/),
+          s: z.string().regex(/^(p[01]|g\d{1,2}|k\d{1,3})$/),
         }),
         // Freie Lage der Hausmitte im Quartier (nur v2; Ausrichtung automatisch)
         z.object({
@@ -93,6 +111,18 @@ export const worldDocSchema = z.object({
         }),
       ]),
     )
+    .optional(),
+  /** v3: Wegform je Quartier (fehlt = Gasse). */
+  quarterRoads: z.partialRecord(fachSchema, quarterRoadSchema).optional(),
+  /** v3: Eckpunkt im Weg eines Hauses (Haus-Id → Lage). */
+  roadBends: z
+    .record(idSchema, z.object({ x: coord, z: coord }))
+    .refine((r) => Object.keys(r).length <= MAX_BENDS, "Zu viele Eckpunkte.")
+    .optional(),
+  /** v3: versetzte Bäume aus dem Seed (Nummer → Lage). */
+  treeMoves: z
+    .record(z.string().regex(/^\d{1,4}$/), z.object({ x: coord, z: coord }))
+    .refine((r) => Object.keys(r).length <= MAX_TREE_MOVES, "Zu viele versetzte Bäume.")
     .optional(),
   deko: z.array(dekoItemSchema).max(MAX_DEKO).optional(),
   varianten: z.record(idSchema, varianteSchema).optional(),

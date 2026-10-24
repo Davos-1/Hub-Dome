@@ -33,7 +33,13 @@ import {
   type Settlement,
 } from "./settlement";
 import { Space } from "./space";
-import { placeLamps, placeVegetation, type LampSpot, type Vegetation } from "./vegetation";
+import {
+  placeLamps,
+  placeVegetation,
+  placeVegetationV3,
+  type LampSpot,
+  type Vegetation,
+} from "./vegetation";
 
 export type WorldInput = {
   seed: string;
@@ -71,6 +77,8 @@ export type World = {
   };
   /** Hühnerhof (eingezäunt, die Hühner bleiben darin), falls Platz ist. */
   chickenRun: { x: number; z: number; r: number } | null;
+  /** v3: versetzte Bäume (Nummern), die an ihrer neuen Lage nicht passen. */
+  invalidTreeMoves: number[];
 };
 
 /** Objekt-Plätze im Garten: je Seite zwei Spalten und drei Reihen (12), ab 13 Objekten ein Archivschrank. */
@@ -180,7 +188,13 @@ export function generateWorld(input: WorldInput): World {
     seed,
     space,
     homes.map((h) => ({ id: h.id, fach: h.fach, order: order.get(h.id) ?? 0 })),
-    { quartiere: doc?.quartiere, haeuser: doc?.haeuser, keep: input.keepQuarters },
+    {
+      quartiere: doc?.quartiere,
+      haeuser: doc?.haeuser,
+      keep: input.keepQuarters,
+      roads: doc?.quarterRoads,
+      bends: doc?.roadBends,
+    },
     () => {
       // Zonen am Dorfplatz, die eigene Deko frei lassen muss
       // Feste Grösse (nicht von der Objektzahl abhängig): Besucher sehen keine privaten Objekte und
@@ -205,6 +219,7 @@ export function generateWorld(input: WorldInput): World {
       });
       dekoResult = applyDeko(space, doc?.deko ?? []);
     },
+    version,
   );
 
   const editSpace = space.clone();
@@ -219,15 +234,27 @@ export function generateWorld(input: WorldInput): World {
   let settlementR = map.plaza.a + 6;
   for (const h of Object.values(settlement.houses))
     settlementR = Math.max(settlementR, Math.hypot(h.x, h.z) + 5);
-  const vegetation = placeVegetation(
-    space,
-    seed,
-    settlementR,
-    map.plaza,
-    exits,
-    input.lowDetail ? 0.4 : 1,
-    !input.lowDetail,
-  );
+  // v3: feste Lagen aus dem Seed, die Siedlung blendet nur aus (Bäume kommen am selben Ort zurück)
+  const veg =
+    version >= 3
+      ? placeVegetationV3(space, seed, {
+          settlementR,
+          density: input.lowDetail ? 0.4 : 1,
+          forest: !input.lowDetail,
+          moves: doc?.treeMoves,
+        })
+      : null;
+  const vegetation =
+    veg ??
+    placeVegetation(
+      space,
+      seed,
+      settlementR,
+      map.plaza,
+      exits,
+      input.lowDetail ? 0.4 : 1,
+      !input.lowDetail,
+    );
 
   const layout = toLayout(map, settlement, input.houses, ring.slots, terrace);
   return {
@@ -244,6 +271,7 @@ export function generateWorld(input: WorldInput): World {
     plazaDeco,
     plazaProps,
     chickenRun,
+    invalidTreeMoves: veg?.invalidMoves ?? [],
   };
 }
 
@@ -415,6 +443,18 @@ function toLayout(
       if (lane.builtT > lane.nodeT + NODE_RP) used.push(h);
       if (lane.slots.p0) used.push(h + Math.PI / 2);
       if (lane.slots.p1) used.push(h - Math.PI / 2);
+      // v3: Wege, die am Platz enden (Intelligent, Speichen des Halbkreises), öffnen den Randstein
+      if (s.v3) {
+        const ends = [
+          ...Object.entries(s.spurs)
+            .filter(([id]) => s.houses[id]?.quarterId === q)
+            .map(([, pts]) => pts[pts.length - 1]),
+          ...(lane.core ?? []).map((pts) => pts[pts.length - 1]),
+        ];
+        for (const e of ends)
+          if (Math.hypot(e.x - node.x, e.z - node.z) < NODE_RP)
+            used.push(Math.atan2(e.z - node.z, e.x - node.x));
+      }
       polys.push({
         x: node.x,
         z: node.z,

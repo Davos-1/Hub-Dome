@@ -52,6 +52,16 @@ function rejections(world: World): Abgewiesen {
           : "Das Haus passt nicht auf den gewählten Bauplatz.",
     });
   }
+  // v3: Wegform, Eckpunkt oder versetzter Baum, die nicht passen
+  for (const q of world.settlement.droppedForms)
+    list.push({
+      id: `wegform:${q}`,
+      grund: `Die Wegform von «${FACHBEREICHE[q].name}» hat hier keinen Platz.`,
+    });
+  for (const id of world.settlement.droppedBends)
+    list.push({ id: `eckpunkt:${id}`, grund: "Der Weg über den Eckpunkt geht nicht." });
+  for (const i of world.invalidTreeMoves)
+    list.push({ id: `baum:${i}`, grund: "Der Baum passt nicht an seinen neuen Platz." });
   return list;
 }
 

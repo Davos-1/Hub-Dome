@@ -13,7 +13,7 @@ import { DISTS, village, violations } from "./test-world";
 
 const SEEDS = Array.from({ length: 220 }, (_, i) => makeSeed(seededRandom(`welt-${i}`)));
 
-describe.each([1, 2] as const)("Welt-Generator v%i: Invarianten über viele Seeds", (version) => {
+describe.each([1, 2, 3] as const)("Welt-Generator v%i: Invarianten über viele Seeds", (version) => {
   it("keine Überlappungen, alles in der Karte, freier Zugang, Pflanzen ohne Konflikte (220 Seeds)", () => {
     const problems: string[] = [];
     SEEDS.forEach((seed, i) => {

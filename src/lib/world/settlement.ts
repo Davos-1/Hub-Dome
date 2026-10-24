@@ -23,28 +23,38 @@ import {
   type Box,
   type Pt,
 } from "./geom";
+import {
+  CORRIDOR_HW,
+  GATE_GAP,
+  LANE_WIDTH,
+  MAIN_PATH_WIDTH,
+  NODE_N,
+  PLOT,
+  SPUR_WIDTH,
+} from "./plot";
+import {
+  coreSpur,
+  isPolar,
+  roadCurve,
+  roadsForQuarter,
+  smartPaths,
+  type PolarSlot,
+  type QuarterFrame,
+  type QuarterRoad,
+} from "./roads";
 import { rng } from "./seed";
 import { inWater, riverCrossings, type Bridge } from "./map";
 import type { ClaimKind, Space } from "./space";
 
-/** Feste Grösse jedes Grundstücks: Haus der Stufe 3 samt Anbau und 12 Objekt-Plätze (lokal: +z = Tor). */
-export const PLOT = { hw: 3.45, front: 5.9, back: 2.8 } as const;
-export const NODE_N = 8;
-export const MAIN_PATH_WIDTH = 1.9;
-export const LANE_WIDTH = 1.7;
-/** Abstand Wegrand → Gartentor. */
-const GATE_GAP = 0.4;
-/** Halbe Breite des reservierten Korridors jeder Gasse. */
-const CORRIDOR_HW = LANE_WIDTH / 2 + 0.7;
+export { GATE, LANE_WIDTH, MAIN_PATH_WIDTH, NODE_N, PLOT, SPUR_WIDTH } from "./plot";
+
 const MARGIN_PLOT = 0.6;
 /** Abstand zweier Häuser auf derselben Gassenseite (Grundstücksbreite plus Lücke). */
 const LANE_SPACING = PLOT.hw * 2 + 1.4;
-/** Halbe Breite der Toröffnung in der Hecke. */
-export const GATE = 0.95;
-/** v2: Breite der Stichwege (Tor → Rückgrat). */
-export const SPUR_WIDTH = 1.1;
 /** v2: Quartierfläche reicht bis so weit (Hausmitte) von der eigenen Gassenachse (zwei Reihen). */
 export const AREA_MAX = 18.5;
+/** v3: grösserer Bewegungsraum (drei Reihen, Ring und Halbkreis bis zum grössten Radius). */
+export const AREA_MAX_V3 = 26;
 /** Spielraum der Quartierfläche über die Mittellinie zur nächsten fremden Achse hinaus. */
 const AREA_SLACK = 2.5;
 /** Abstand der Hausmitte zur Achse für die erste Reihe (wie die Bauplätze an der Gasse). */
@@ -57,8 +67,10 @@ export type SettlementHouse = {
   order: number;
 };
 
-/** Bauplatz: «p0»/«p1» am Quartierplatz (links/rechts), «g<j>» an der Gasse. */
-export type SlotKey = `p${0 | 1}` | `g${number}`;
+/** Bauplatz: «p0»/«p1» am Quartierplatz (links/rechts), «g<j>» an der Gasse, «k<j>» rund um den Platz (v3). */
+export type SlotKey = `p${0 | 1}` | `g${number}` | `k${number}`;
+/** Gültige Schlüssel eines Bauplatzes im Welt-Dokument. */
+export const SLOT_RE = /^(p[01]|g\d{1,2}|k\d{1,3})$/;
 /**
  * Fixierung eines Hauses: Bauplatz `s` an Gasse `r` (v1 und v2) oder freie Lage `x`, `z` (Hausmitte, nur v2;
  * die Ausrichtung ergibt sich automatisch: Front quer zur Gasse, Tor zum nächsten Weganschluss).
@@ -71,6 +83,10 @@ export type SettlementPins = {
   haeuser?: Record<string, HousePin>;
   /** Quartiere, deren Ausgänge auch ohne Häuser bleiben (Prüfwelt im Bau-Modus). */
   keep?: FachbereichId[];
+  /** v3: Wegform je Quartier (fehlt = Gasse). */
+  roads?: Partial<Record<FachbereichId, QuarterRoad>>;
+  /** v3: Eckpunkt im Stichweg eines Hauses. */
+  bends?: Record<string, Pt>;
 };
 
 export type Lane = Axis & {
@@ -85,6 +101,20 @@ export type Lane = Axis & {
   builtT: number;
   /** Abgewiesene Bauplätze mit Grund; sie bleiben abgewiesen (das Register wächst nur). */
   rejected: Map<SlotKey, string>;
+  /** v3, nur erste Gasse eines Quartiers: wirksame Wegform (Ring, Halbkreis, Intelligent), sonst Gasse. */
+  road?: QuarterRoad;
+  /** v3: Mitte des Quartierplatzes und Richtung nach aussen. */
+  frame?: QuarterFrame;
+  /** v3: Bauplätze rund um den Platz. */
+  polar?: PolarSlot[];
+  /** v3: Kernweg (Ring, Halbkreis). */
+  core?: Pt[][];
+  /** v3: Bis zu diesem Abstand von der Platzmitte schauen Häuser zur Mitte. */
+  reach?: number;
+  /** v3: Bogenlänge, ab der die Gasse für weitere Häuser beginnt (hinter Ring und Halbkreis). */
+  gStart?: number;
+  /** v3: Bogenlänge des ersten Bauplatzes an der Gasse (ausserhalb des Bereichs, der zur Mitte schaut). */
+  gSlot0?: number;
 };
 
 export type SettlementNode = {
@@ -137,6 +167,12 @@ export type Settlement = {
   droppedPins: string[];
   /** Nur v2: Stichweg je Haus (vom Tor zum Rückgrat). */
   spurs: Record<string, Pt[]>;
+  /** Generator v3 (Wegformen, Eckpunkte). */
+  v3: boolean;
+  /** v3: Quartiere, deren gewählte Wegform nicht passt (sie bekommen die Gasse). */
+  droppedForms: FachbereichId[];
+  /** v3: Häuser, deren Eckpunkt keinen gültigen Weg ergibt (Weg ohne Eckpunkt). */
+  droppedBends: string[];
 };
 
 /** Index der Quartierfarbe (stabil pro Fachbereich). */
@@ -191,7 +227,15 @@ function slice(lane: Axis, t0: number, t1: number): Pt[] {
 }
 
 /** Lage eines Bauplatzes. Am Quartierplatz links/rechts, an der Gasse versetzt abwechselnd. */
-export function slotPose(lane: Axis & { primary: boolean }, key: SlotKey) {
+export function slotPose(
+  lane: Axis & { primary: boolean; polar?: PolarSlot[]; gSlot0?: number },
+  key: SlotKey,
+) {
+  if (key.startsWith("k")) {
+    const k = lane.polar?.find((p) => p.key === key);
+    if (!k) return { x: NaN, z: NaN, angle: 0, t: 0 };
+    return { x: k.x, z: k.z, angle: k.angle, t: spineAt(lane, k.x, k.z).t };
+  }
   let t: number;
   let side: 1 | -1;
   let off: number;
@@ -201,7 +245,8 @@ export function slotPose(lane: Axis & { primary: boolean }, key: SlotKey) {
     off = NODE_RP + 0.5;
   } else {
     const j = Number(key.slice(1));
-    const t0 = lane.primary ? lane.nodeT + PLOT.hw * 2 + 1.0 : 6;
+    const t0 =
+      lane.gSlot0 !== undefined ? lane.gSlot0 : lane.primary ? lane.nodeT + PLOT.hw * 2 + 1.0 : 6;
     t = t0 + Math.floor(j / 2) * LANE_SPACING + (j % 2) * (LANE_SPACING / 2);
     side = j % 2 === 0 ? 1 : -1;
     off = LANE_WIDTH / 2 + GATE_GAP;
@@ -218,6 +263,7 @@ export function slotPose(lane: Axis & { primary: boolean }, key: SlotKey) {
 }
 
 const laneId = (k: number) => `weg-gasse-${k}`;
+const coreId = (q: FachbereichId, i: number) => `ring-${q}-${i}`;
 const corridorId = (k: number) => `korridor-${k}`;
 const nodeClaimId = (q: FachbereichId) => `quartierplatz-${q}`;
 
@@ -270,12 +316,25 @@ type Ctx = {
   /** Generator v2: Stichwege, freie Lagen, Rückfall der Platzsuche. */
   v2: boolean;
   spurs: Record<string, Pt[]>;
+  /** Generator v3: Wegformen und Eckpunkte. */
+  v3: boolean;
+  roads: Partial<Record<FachbereichId, QuarterRoad>>;
+  bends: Record<string, Pt>;
+  /** v3 «Intelligent»: Wege des Quartiers, in die neue Wege münden dürfen. */
+  trunks: Map<FachbereichId, Pt[][]>;
+  droppedBends: string[];
+  /** v3: Wegformen gelten nur für fixierte Quartiere (sonst hinge das Ergebnis von der Reihenfolge ab). */
+  pinning: boolean;
 };
 
 /** Reihenfolge der Bauplätze einer Gasse: zuerst am Quartierplatz (Seite per Seed), dann die Gasse hinaus. */
 function slotKeys(seed: string, space: Space, lane: Lane): SlotKey[] {
   const out: SlotKey[] = [];
-  if (lane.primary)
+  // v3: Plätze rund um den Quartierplatz, danach die Gasse für weitere Häuser
+  if (lane.polar) {
+    for (const k of lane.polar)
+      if (Math.hypot(k.x, k.z) <= space.map.rBuild - PLOT.hw) out.push(k.key);
+  } else if (lane.primary)
     out.push(
       ...((rng(seed, `platz-${lane.dir}`)() < 0.5 ? ["p0", "p1"] : ["p1", "p0"]) as SlotKey[]),
     );
@@ -289,9 +348,13 @@ function slotKeys(seed: string, space: Space, lane: Lane): SlotKey[] {
 }
 
 /** Ist der Bauplatz frei (Grundstück und nötige Verlängerung der Gasse)? Abweisungen werden gemerkt. */
-function slotFree(space: Space, lane: Lane, key: SlotKey): boolean {
+function slotFree(space: Space, lane: Lane, key: SlotKey, ctx?: Ctx): boolean {
   if (lane.slots[key] || lane.rejected.has(key)) return false;
-  const why = slotCheck(space, lane, key);
+  const why = key.startsWith("k")
+    ? ctx
+      ? polarSlotCheck(ctx, lane, key)
+      : "kein Bauplatz"
+    : slotCheck(space, lane, key);
   if (why) lane.rejected.set(key, why);
   return !why;
 }
@@ -334,6 +397,8 @@ function slotCheck(space: Space, lane: Lane, key: SlotKey): string | null {
         laneId(lane.dir),
         nodeClaimId(lane.quarterId),
         "hauptplatz",
+        // v3: Die Gasse beginnt am Kernweg (Ring, Halbkreis)
+        ...(lane.core ?? []).map((_, i) => coreId(lane.quarterId, i)),
       ]);
       const e = space.pathConflict(ext, LANE_WIDTH / 2, ign, 0, 0, true, clearance(space));
       if (e) return `Gasse: ${e.grund}`;
@@ -379,6 +444,8 @@ function claimSlot(ctx: Ctx, lane: Lane, key: SlotKey, houseId: string, pinned: 
     angle: p.angle,
     pinned,
   };
+  // v3: Weg vom Tor zum Kernweg bzw. zum Quartierplatz
+  if (key.startsWith("k")) return claimPolarSpur(ctx, lane, houseId, p);
   // v2: kurzer Stichweg vom Tor zur Gasse bzw. zum Quartierplatz (kein Grasspalt)
   if (ctx.v2) claimSpur(ctx, lane, houseId, p);
 }
@@ -403,11 +470,21 @@ export function spineAt(lane: Axis, x: number, z: number) {
   return { t: lane.acc[best.i] + best.f * AXIS_STEP, d, dist: Math.sqrt(best.d2), ...p };
 }
 
-/** Lage eines frei gesetzten Hauses: Mitte (x, z), Front quer zur Achse und zum Weg gedreht. */
-export function freePose(lane: Axis, x: number, z: number) {
+/**
+ * Lage eines frei gesetzten Hauses: Mitte (x, z), Front quer zur Achse und zum Weg gedreht. v3 bei Ring,
+ * Halbkreis und Intelligent: nahe am Quartierplatz schaut die Front zur Platzmitte (`polar`).
+ */
+export function freePose(
+  lane: Axis & { frame?: QuarterFrame; reach?: number },
+  x: number,
+  z: number,
+) {
   const s = spineAt(lane, x, z);
+  const f = lane.frame;
+  if (f && lane.reach && Math.hypot(x - f.x, z - f.z) <= lane.reach)
+    return { x, z, angle: Math.atan2(f.x - x, f.z - z), t: s.t, d: s.d, polar: true };
   const side = s.d >= 0 ? 1 : -1;
-  return { x, z, angle: Math.atan2(-side * s.nx, -side * s.nz), t: s.t, d: s.d };
+  return { x, z, angle: Math.atan2(-side * s.nx, -side * s.nz), t: s.t, d: s.d, polar: false };
 }
 
 /** Stichweg vom Tor gerade zum Rückgrat (Gasse oder Quartierplatz); `null`, wenn das Tor schon anliegt. */
@@ -416,16 +493,152 @@ export function spurOf(
   pose: { x: number; z: number; angle: number },
 ): Pt[] | null {
   const gate = toWorld(pose.x, pose.z, pose.angle, 0, PLOT.front - 0.05);
-  const s = spineAt(lane, gate.x, gate.z);
+  const end = spurEnd(lane, gate);
+  if (Math.hypot(gate.x - end.x, gate.z - end.z) < 0.15) return null;
+  return resample([gate, end], 0.5);
+}
+
+/** Ende eines Stichwegs von `from` gerade zum Rückgrat (Gasse oder Quartierplatz), am Wegrand. */
+function spurEnd(lane: Axis & { primary: boolean }, from: Pt): Pt {
+  const s = spineAt(lane, from.x, from.z);
   const onNode = lane.primary && Math.abs(s.t - lane.nodeT) < NODE_RP + 0.6;
   const reach = onNode ? NODE_RP - 0.15 : LANE_WIDTH / 2 - 0.15;
   const c = onNode ? at(lane, lane.nodeT) : s;
-  const dx = gate.x - c.x;
-  const dz = gate.z - c.z;
+  const dx = from.x - c.x;
+  const dz = from.z - c.z;
   const l = Math.hypot(dx, dz) || 1;
-  const end = { x: c.x + (dx / l) * reach, z: c.z + (dz / l) * reach };
-  if (Math.hypot(gate.x - end.x, gate.z - end.z) < 0.15) return null;
-  return resample([gate, end], 0.5);
+  return { x: c.x + (dx / l) * reach, z: c.z + (dz / l) * reach };
+}
+
+/** Liegt ein Wegende am Quartierplatz oder an der gebauten Gasse? */
+function onBuilt(lane: Lane, p: Pt): boolean {
+  const s = spineAt(lane, p.x, p.z);
+  if (lane.primary && Math.abs(s.t - lane.nodeT) < NODE_RP + 0.6) return true;
+  const start = lane.primary ? (lane.gStart ?? lane.nodeT + NODE_RP) - 0.35 : 0;
+  return s.t >= start && s.t <= lane.builtT;
+}
+
+/** v3: Stichweg über einen Eckpunkt (Tor → Eckpunkt → Rückgrat). */
+function bentSpur(lane: Lane, pose: { x: number; z: number; angle: number }, bend: Pt): Pt[] {
+  const gate = toWorld(pose.x, pose.z, pose.angle, 0, PLOT.front - 0.05);
+  return resample([gate, bend, spurEnd(lane, bend)], 0.5);
+}
+
+/** Was ein Weg vom Tor eines Hauses nicht prüft: eigenes Grundstück, eigene Achse, Platz, Kernweg. */
+function spurIgnore(lane: Lane, houseId: string): Set<string> {
+  const ign = new Set([
+    `haus-${houseId}`,
+    `front-${houseId}`,
+    corridorId(lane.dir),
+    laneId(lane.dir),
+    nodeClaimId(lane.quarterId),
+    `tafel-${lane.quarterId}`,
+  ]);
+  lane.core?.forEach((_, i) => ign.add(coreId(lane.quarterId, i)));
+  return ign;
+}
+
+/**
+ * v3: Weg vom Tor eines Hauses mit Front zur Platzmitte. Ring und Halbkreis: gerade zum Kernweg; Intelligent:
+ * geschwungen zum Platz oder in einen nahen Weg. `null` = kein Weg nötig, `false` = kein gültiger Weg.
+ */
+function polarSpur(
+  ctx: Ctx,
+  lane: Lane,
+  houseId: string,
+  pose: { x: number; z: number; angle: number },
+  bend: Pt | null,
+): Pt[] | null | false {
+  const gate = toWorld(pose.x, pose.z, pose.angle, 0, PLOT.front - 0.05);
+  const ign = spurIgnore(lane, houseId);
+  if (lane.road?.form === "intelligent" && lane.frame) {
+    const front = { x: Math.sin(pose.angle), z: Math.cos(pose.angle) };
+    const trunks = ctx.trunks.get(lane.quarterId) ?? [];
+    // Die eigene Achse hinter dem Platz bleibt frei (dort führt die Gasse für weitere Häuser hinaus)
+    const axis = slice(lane, lane.nodeT + NODE_RP + 1, lane.acc[lane.acc.length - 1]);
+    for (const c of smartPaths(lane.frame, gate, front, roadCurve(lane.road), trunks, bend)) {
+      const end = c.merge ? 3.0 : 1.0;
+      if (ctx.space.pathConflict(c.pts, SPUR_WIDTH / 2, ign, 0, end, false, 0.3)) continue;
+      const inner = c.pts.slice(0, Math.max(1, c.pts.length - Math.ceil(end / 0.5)));
+      if (
+        inner.some((p) => distPointPolyline(p.x, p.z, axis) < LANE_WIDTH / 2 + SPUR_WIDTH / 2 + 0.3)
+      )
+        continue;
+      return c.pts;
+    }
+    return false;
+  }
+  const spur = coreSpur(gate, lane.core ?? [], bend);
+  if (!spur) return null;
+  return ctx.space.pathConflict(spur, SPUR_WIDTH / 2, ign, 0, 0.6, false, 0.3) ? false : spur;
+}
+
+/** Stichweg eintragen (Register, Liste, bei «Intelligent» als möglicher Mündungsweg). */
+function addSpur(ctx: Ctx, lane: Lane, houseId: string, pts: Pt[]) {
+  ctx.spurs[houseId] = pts;
+  ctx.space.addPath({
+    id: `stich-${houseId}`,
+    pts,
+    hw: SPUR_WIDTH / 2,
+    label: "auf dem Stichweg",
+  });
+  if (lane.road?.form === "intelligent") {
+    const list = ctx.trunks.get(lane.quarterId) ?? [];
+    list.push(pts);
+    ctx.trunks.set(lane.quarterId, list);
+  }
+}
+
+/** v3: Weg eines Hauses mit Front zur Mitte eintragen; Eckpunkt nur, wenn er einen gültigen Weg ergibt. */
+function claimPolarSpur(
+  ctx: Ctx,
+  lane: Lane,
+  houseId: string,
+  pose: { x: number; z: number; angle: number },
+) {
+  const bend = ctx.bends[houseId];
+  let spur = bend ? polarSpur(ctx, lane, houseId, pose, bend) : false;
+  if (bend && !spur) ctx.droppedBends.push(houseId);
+  if (!spur) spur = polarSpur(ctx, lane, houseId, pose, null);
+  if (spur) addSpur(ctx, lane, houseId, spur);
+}
+
+/**
+ * v3: Prüft ein Haus mit Front zur Platzmitte (Bauplatz rund um den Platz oder freie Lage nahe am Platz):
+ * Quartierfläche, Grundstück (die eigene Achse bleibt frei), Front und Weg zum Tor.
+ */
+function polarFits(
+  ctx: Ctx,
+  lane: Lane,
+  pose: { x: number; z: number; angle: number },
+  houseId: string,
+): string | null {
+  const area = inQuarterArea(ctx, lane, pose.x, pose.z);
+  if (area) return area;
+  const c = ctx.space.conflict(plotShape(pose.x, pose.z, pose.angle), {
+    margin: MARGIN_PLOT,
+    pathClearance: 0.3,
+    kinds: PLOT_BLOCKERS,
+    asKind: "grundstueck",
+  });
+  if (c) return c.grund;
+  const f = ctx.space.conflict(frontZone(pose.x, pose.z, pose.angle), {
+    margin: 0.3,
+    pathClearance: 0,
+    kinds: TALL,
+    skipWater: true,
+    skipBounds: true,
+    skipPaths: true,
+  });
+  if (f) return "Baum vor der Front";
+  if (polarSpur(ctx, lane, houseId, pose, null) === false) return "kein Weg zum Tor";
+  return null;
+}
+
+function polarSlotCheck(ctx: Ctx, lane: Lane, key: SlotKey): string | null {
+  const p = slotPose(lane, key);
+  if (!Number.isFinite(p.x)) return "kein Bauplatz";
+  return polarFits(ctx, lane, p, "");
 }
 
 function claimSpur(
@@ -434,15 +647,20 @@ function claimSpur(
   houseId: string,
   pose: { x: number; z: number; angle: number },
 ) {
-  const spur = spurOf(lane, pose);
+  let spur = spurOf(lane, pose);
+  // v3: Eckpunkt, falls der Weg darüber gültig ist
+  const bend = ctx.v3 ? ctx.bends[houseId] : undefined;
+  if (bend) {
+    const bent = bentSpur(lane, pose, bend);
+    if (
+      onBuilt(lane, bent[bent.length - 1]) &&
+      !ctx.space.pathConflict(bent, SPUR_WIDTH / 2, spurIgnore(lane, houseId), 0, 0.6, false, 0.3)
+    )
+      spur = bent;
+    else ctx.droppedBends.push(houseId);
+  }
   if (!spur) return;
-  ctx.spurs[houseId] = spur;
-  ctx.space.addPath({
-    id: `stich-${houseId}`,
-    pts: spur,
-    hw: SPUR_WIDTH / 2,
-    label: "auf dem Stichweg",
-  });
+  addSpur(ctx, lane, houseId, spur);
 }
 
 /**
@@ -451,7 +669,8 @@ function claimSpur(
  */
 function inQuarterArea(ctx: Ctx, lane: Lane, x: number, z: number): string | null {
   const own = spineAt(lane, x, z);
-  if (Math.abs(own.d) > AREA_MAX || own.dist > AREA_MAX + 0.5) return "zu weit weg von der Gasse";
+  const max = ctx.v3 ? AREA_MAX_V3 : AREA_MAX;
+  if (Math.abs(own.d) > max || own.dist > max + 0.5) return "zu weit weg von der Gasse";
   // Nächste fremde Achse; Häuser am Quartierplatz liegen auf der Mittellinie, daher etwas Spielraum
   let best = { k: -1, dist: Infinity };
   ctx.axes.forEach((a, k) => {
@@ -473,9 +692,10 @@ function inQuarterArea(ctx: Ctx, lane: Lane, x: number, z: number): string | nul
 function freeCheck(
   ctx: Ctx,
   lane: Lane,
-  pose: { x: number; z: number; angle: number; t: number },
+  pose: { x: number; z: number; angle: number; t: number; polar?: boolean },
   houseId: string,
 ): string | null {
+  if (pose.polar) return polarFits(ctx, lane, pose, houseId);
   const plot = plotShape(pose.x, pose.z, pose.angle);
   const area = inQuarterArea(ctx, lane, pose.x, pose.z);
   if (area) return area;
@@ -534,6 +754,8 @@ function freeCheck(
       laneId(lane.dir),
       nodeClaimId(lane.quarterId),
       "hauptplatz",
+      // v3: Die Gasse beginnt am Kernweg (Ring, Halbkreis)
+      ...(lane.core ?? []).map((_, i) => coreId(lane.quarterId, i)),
     ]);
     const e = ctx.space.pathConflict(ext, LANE_WIDTH / 2, ign, 0, 0, true, 0.3);
     if (e) return `Gasse: ${e.grund}`;
@@ -560,7 +782,7 @@ function spurGap(a: Pt[], b: Pt[]) {
 function claimFree(
   ctx: Ctx,
   lane: Lane,
-  pose: { x: number; z: number; angle: number; t: number },
+  pose: { x: number; z: number; angle: number; t: number; polar?: boolean },
   houseId: string,
   pinned: boolean,
 ) {
@@ -577,7 +799,7 @@ function claimFree(
     label: "verdeckt ein Haus",
   });
   const end = pose.t + PLOT.hw + 1.2;
-  if (end > lane.builtT) {
+  if (!pose.polar && end > lane.builtT) {
     const from = lane.builtT;
     lane.builtT = end;
     ctx.space.addPath({
@@ -598,7 +820,8 @@ function claimFree(
     angle: pose.angle,
     pinned,
   };
-  claimSpur(ctx, lane, houseId, pose);
+  if (pose.polar) claimPolarSpur(ctx, lane, houseId, pose);
+  else claimSpur(ctx, lane, houseId, pose);
 }
 
 /** Rückfall (v2): erste freie Lage im Quartier, wenn kein Bauplatz und keine neue Gasse mehr passt. */
@@ -623,6 +846,16 @@ function placeFreeAuto(ctx: Ctx, h: SettlementHouse): boolean {
 }
 
 /**
+ * Gasse eines Quartiers für eine Lage: die mit Wegform, wenn die Lage in ihrem Bereich um den Platz liegt,
+ * sonst die nächste Gassenachse.
+ */
+export function pickLane<L extends Lane>(lanes: L[], x: number, z: number): L {
+  const polar = lanes.find((l) => freePose(l, x, z).polar);
+  if (polar) return polar;
+  return lanes.reduce((a, b) => (spineAt(a, x, z).dist <= spineAt(b, x, z).dist ? a : b));
+}
+
+/**
  * Prüft eine freie Lage für ein Haus im Register einer fertigen Welt (Bau-Modus, Ziehen): Das Haus selbst darf
  * darin nicht mehr stehen. Liefert die Lage samt Ausrichtung oder den Grund.
  */
@@ -638,7 +871,7 @@ export function checkFreeHouse(
   const lanes = [...ctx.lanes.values()].filter((l) => l.quarterId === quarterId);
   if (!lanes.length) return { ok: false, grund: "kein Quartier" };
   // Nächste eigene Gasse bestimmt Ausrichtung und Weg
-  const lane = lanes.reduce((a, b) => (spineAt(a, x, z).dist <= spineAt(b, x, z).dist ? a : b));
+  const lane = pickLane(lanes, x, z);
   const pose = freePose(lane, x, z);
   if (!space.inBounds(plotShape(pose.x, pose.z, pose.angle)))
     return { ok: false, grund: "ausserhalb der Karte" };
@@ -663,9 +896,7 @@ export function checkFreeGroup(
   if (!lanes.length) return { ok: false, id: list[0]?.id ?? "", grund: "kein Quartier" };
   const poses: Record<string, ReturnType<typeof freePose> & { dir: number }> = {};
   for (const h of list) {
-    const lane = lanes.reduce((a, b) =>
-      spineAt(a, h.x, h.z).dist <= spineAt(b, h.x, h.z).dist ? a : b,
-    );
+    const lane = pickLane(lanes, h.x, h.z);
     const pose = freePose(lane, h.x, h.z);
     if (!ctx.space.inBounds(plotShape(pose.x, pose.z, pose.angle)))
       return { ok: false, id: h.id, grund: "ausserhalb der Karte" };
@@ -694,8 +925,28 @@ function editCtx(space: Space, s: Settlement): Ctx {
     failed: new Set(),
     room: [],
     v2: true,
-    spurs: {},
+    spurs: { ...s.spurs },
+    v3: s.v3,
+    roads: {},
+    bends: {},
+    trunks: trunksOf(s),
+    droppedBends: [],
+    pinning: false,
   };
+}
+
+/** v3 «Intelligent»: bestehende Wege je Quartier (Mündungsziele beim Prüfen im Bau-Modus). */
+function trunksOf(s: Settlement): Map<FachbereichId, Pt[][]> {
+  const smart = new Set(
+    s.lanes.filter((l) => l.road?.form === "intelligent").map((l) => l.quarterId),
+  );
+  const out = new Map<FachbereichId, Pt[][]>();
+  for (const [id, pts] of Object.entries(s.spurs)) {
+    const q = s.houses[id]?.quarterId;
+    if (!q || !smart.has(q)) continue;
+    out.set(q, [...(out.get(q) ?? []), pts]);
+  }
+  return out;
 }
 
 /** Öffnet einen Ausgang für ein Quartier: Quartierplatz (bei der ersten Gasse) samt Zuweg. */
@@ -766,8 +1017,12 @@ function openLane(ctx: Ctx, q: FachbereichId, k: number, primary: boolean): Lane
     });
     lane.builtT = lane.nodeT + NODE_RP - 0.35;
     ctx.nodes.push(node);
+    // v3: Wegform des Quartiers (Ring, Halbkreis, Intelligent); passt ihr Kernweg nicht, bleibt die Gasse
+    const road = ctx.v3 && ctx.pinning ? ctx.roads[q] : undefined;
+    if (road && isPolar(road.form)) applyRoad(ctx, lane, q, road, { x: c.x, z: c.z, h: c.h });
   }
-  if (!slotKeys(ctx.seed, ctx.space, lane).some((key) => slotFree(ctx.space, lane, key))) {
+  const keys = slotKeys(ctx.seed, ctx.space, lane);
+  if (!keys.some((key) => slotFree(ctx.space, lane, key, ctx))) {
     ctx.space.rollback(m);
     if (primary) ctx.nodes.pop();
     ctx.failed.add(`${k}:${primary}`);
@@ -778,6 +1033,34 @@ function openLane(ctx: Ctx, q: FachbereichId, k: number, primary: boolean): Lane
   dirs.push(k);
   ctx.quarterDirs.set(q, dirs);
   return lane;
+}
+
+/** v3: Wegform auf die erste Gasse eines Quartiers anwenden, sofern ihr Kernweg frei ist. */
+function applyRoad(ctx: Ctx, lane: Lane, q: FachbereichId, road: QuarterRoad, frame: QuarterFrame) {
+  const geo = roadsForQuarter(frame, road);
+  const ign = new Set([
+    corridorId(lane.dir),
+    `weg-zugang-${lane.dir}`,
+    nodeClaimId(q),
+    `tafel-${q}`,
+    ...geo.core.map((_, i) => coreId(q, i)),
+  ]);
+  for (const pts of geo.core)
+    if (ctx.space.pathConflict(pts, LANE_WIDTH / 2, ign, 0, 0, false, 0.3)) return;
+  geo.core.forEach((pts, i) =>
+    ctx.space.addPath({ id: coreId(q, i), pts, hw: LANE_WIDTH / 2, label: "auf dem Ringweg" }),
+  );
+  lane.road = road;
+  lane.frame = frame;
+  lane.polar = geo.slots;
+  lane.core = geo.core;
+  lane.reach = geo.reach;
+  // Häuser an der Gasse erst ausserhalb des Bereichs, in dem Häuser zur Mitte schauen
+  lane.gSlot0 = lane.nodeT + geo.reach;
+  if (geo.coreEnd) {
+    lane.gStart = lane.nodeT + geo.coreEnd;
+    lane.builtT = lane.gStart - 0.35;
+  }
 }
 
 /**
@@ -833,7 +1116,7 @@ function rankDirections(ctx: Ctx, q: FachbereichId): number[] {
 function placeAuto(ctx: Ctx, h: SettlementHouse): boolean {
   const tryLane = (lane: Lane) => {
     for (const key of slotKeys(ctx.seed, ctx.space, lane)) {
-      if (slotFree(ctx.space, lane, key)) {
+      if (slotFree(ctx.space, lane, key, ctx)) {
         claimSlot(ctx, lane, key, h.id, false);
         return true;
       }
@@ -856,6 +1139,8 @@ export function placeSettlement(
   houses: SettlementHouse[],
   pins: SettlementPins,
   beforeAuto?: () => void,
+  /** Generator-Version der Welt (v3: Wegformen und Eckpunkte; die Karte bleibt v2). */
+  worldVersion = map2(space),
 ): Settlement {
   const map = space.map;
   const plaza = map.plaza;
@@ -872,6 +1157,12 @@ export function placeSettlement(
     room: [],
     v2: map.version === 2,
     spurs: {},
+    v3: map.version === 2 && worldVersion >= 3,
+    roads: pins.roads ?? {},
+    bends: pins.bends ?? {},
+    trunks: new Map(),
+    droppedBends: [],
+    pinning: false,
   };
   ctx.room = ctx.axes.map((a) => axisRoom(space, a));
   const droppedPins: string[] = [];
@@ -894,6 +1185,7 @@ export function placeSettlement(
 
   // 1. Fixierte Quartiere (Ausgänge) und Häuser
   const present = new Set([...houses.map((h) => h.fach), ...(pins.keep ?? [])]);
+  ctx.pinning = true;
   for (const q of FACH_ORDER) {
     const dirs = pins.quartiere?.[q];
     if (!dirs || !present.has(q)) continue;
@@ -902,6 +1194,7 @@ export function placeSettlement(
       if (!ok || !openLane(ctx, q, k, i === 0)) droppedPins.push(`${q}:${k}`);
     });
   }
+  ctx.pinning = false;
   const pinned = new Set<string>();
   // Bauplätze zuerst, dann freie Lagen (jede Reihenfolge gibt dasselbe Ergebnis, die Prüfungen sind symmetrisch)
   const pinOrder = houses
@@ -925,7 +1218,7 @@ export function placeSettlement(
       }
       claimFree(ctx, lane, pose, h.id, true);
     } else {
-      if (!/^(p[01]|g\d{1,2})$/.test(pin.s) || !slotFree(space, lane, pin.s as SlotKey)) {
+      if (!SLOT_RE.test(pin.s) || !slotFree(space, lane, pin.s as SlotKey, ctx)) {
         droppedPins.push(h.id);
         continue;
       }
@@ -962,7 +1255,7 @@ export function placeSettlement(
         seed: 1,
       });
     }
-    const start = lane.primary ? lane.nodeT + NODE_RP - 0.35 : 0;
+    const start = lane.primary ? (lane.gStart ?? lane.nodeT + NODE_RP) - 0.35 : 0;
     if (lane.builtT > start + 0.5) {
       paths.push({
         id: `gasse-${lane.quarterId}-${lane.dir}`,
@@ -974,6 +1267,20 @@ export function placeSettlement(
         seed: 2 + lane.dir,
       });
     }
+  }
+  // v3: Kernwege (Ring, Halbkreis)
+  for (const lane of lanes0(ctx)) {
+    lane.core?.forEach((pts, i) =>
+      paths.push({
+        id: coreId(lane.quarterId, i),
+        kind: "gasse",
+        ownerId: lane.quarterId,
+        quarterIndex: quarterIndex(lane.quarterId),
+        points: pts,
+        width: LANE_WIDTH,
+        seed: 30 + i,
+      }),
+    );
   }
   // v2: Stichwege vom Tor zum Rückgrat (konstante Breite)
   for (const [id, pts] of Object.entries(ctx.spurs)) {
@@ -1013,8 +1320,25 @@ export function placeSettlement(
     unplaced,
     droppedPins,
     spurs: ctx.spurs,
+    v3: ctx.v3,
+    droppedForms: ctx.v3
+      ? (Object.keys(ctx.roads) as FachbereichId[]).filter(
+          (q) =>
+            isPolar(ctx.roads[q]?.form) &&
+            lanes.some(
+              (l) => l.quarterId === q && l.primary && l.road?.form !== ctx.roads[q]?.form,
+            ),
+        )
+      : [],
+    droppedBends: [...new Set(ctx.droppedBends)].filter((id) => ctx.houses[id]),
   };
 }
+
+/** Gassen in fester Reihenfolge (nach Ausgang). */
+const lanes0 = (ctx: Ctx) => [...ctx.lanes.values()].sort((a, b) => a.dir - b.dir);
+
+/** Kartenversion als Standard der Welt-Version (v1-Karte = v1, v2-Karte = v2). */
+const map2 = (space: Space) => space.map.version ?? 1;
 
 /** Fixierungen, die den aktuellen Stand genau festhalten (Bau-Modus speichert immer alles fixiert). */
 export function pinsFromSettlement(

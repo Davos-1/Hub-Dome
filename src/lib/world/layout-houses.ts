@@ -75,5 +75,8 @@ export function pruneDoc(doc: WorldDoc, houseIds: ReadonlySet<string>): WorldDoc
   if (doc.haeuser) out.haeuser = keep(doc.haeuser);
   if (doc.deko) out.deko = doc.deko;
   if (doc.varianten) out.varianten = keep(doc.varianten);
+  if (doc.quarterRoads) out.quarterRoads = doc.quarterRoads;
+  if (doc.roadBends) out.roadBends = keep(doc.roadBends);
+  if (doc.treeMoves) out.treeMoves = doc.treeMoves;
   return out;
 }

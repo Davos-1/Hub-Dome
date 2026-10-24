@@ -171,11 +171,22 @@ export function violations(w: ReturnType<typeof generateWorld>): string[] {
       (q) => q.kind !== "stich" && distPointPolyline(end.x, end.z, q.points) < q.width / 2 + 0.05,
     );
     const onNode = settlement.nodes.some((n) => Math.hypot(n.x - end.x, n.z - end.z) < 3.05);
-    if (!onSpine && !onNode) out.push(`Stichweg ${p.id} endet nicht am Rückgrat`);
+    // v3 «Intelligent»: ein Weg darf in einen anderen Stichweg münden
+    const into = settlement.v3
+      ? spurs.find((q) => q !== p && distPointPolyline(end.x, end.z, q.points) < q.width / 2 + 0.05)
+      : undefined;
+    if (!onSpine && !onNode && !into) out.push(`Stichweg ${p.id} endet nicht am Rückgrat`);
     for (const q of spurs) {
       if (q === p) continue;
-      const inner = p.points.slice(0, -1);
-      if (inner.some((pt) => distPointPolyline(pt.x, pt.z, q.points.slice(0, -1)) < SPUR_WIDTH))
+      // Die letzten Meter vor einer Mündung (in die eine oder andere Richtung) dürfen sich nähern
+      const qEnd = q.points[q.points.length - 1];
+      const near = (pt: { x: number; z: number }, e: { x: number; z: number }, m: number) =>
+        Math.hypot(pt.x - e.x, pt.z - e.z) < m;
+      const inner = p.points
+        .slice(0, -1)
+        .filter((pt) => !(into === q && near(pt, end, 3.2)) && !near(pt, qEnd, 3.2));
+      const other = q.points.slice(0, -1);
+      if (other.length && inner.some((pt) => distPointPolyline(pt.x, pt.z, other) < SPUR_WIDTH))
         out.push(`Stichwege ${p.id}/${q.id} berühren sich`);
     }
   }
