@@ -642,6 +642,11 @@ export function vegetationVisible(
   };
 }
 
+/** v3: Passt ein Baum an diese Stelle (Bau-Modus, Vorschau beim Ziehen)? Gleiche Regel wie beim Erzeugen. */
+export function treeFits(space: Space, t: Pick<Tree, "kind" | "s">, x: number, z: number): boolean {
+  return !blocked(space, x, z, treeRadius(t.kind, t.s), 1.6, true);
+}
+
 /** v3: Sichtbare Pflanzen samt versetzten Bäumen (Nummer `i` bleibt für den Bau-Modus erhalten). */
 export function placeVegetationV3(
   space: Space,

@@ -9,6 +9,10 @@ import { sampleDoc } from "@/lib/world/sample";
 import { ZENTRALE_STYLES } from "@/lib/styles";
 import type { Artifact, House } from "@/lib/types";
 import { GENERATOR_VERSION, isSeed } from "@/lib/world/seed";
+import { generateWorld } from "@/lib/world/generate";
+import { WEGFORMEN, type QuarterRoad } from "@/lib/world/roads";
+import { pinsFromSettlement } from "@/lib/world/settlement";
+import type { WorldDoc } from "@/lib/world/doc";
 import { devRerollWorld, devSaveWorld } from "./actions";
 import { devDoc } from "./dev-store";
 
@@ -96,6 +100,19 @@ function devFriends(village: string) {
     ],
   };
 }
+/** Welt-Dokument mit einer Wegform in allen Quartieren (Quartiere an ihrem heutigen Ausgang fixiert). */
+function formDoc(
+  seed: string,
+  version: number,
+  houses: ReturnType<typeof toLayoutHouses>,
+  road: QuarterRoad,
+): WorldDoc {
+  const w = generateWorld({ seed, version, houses });
+  const quartiere = pinsFromSettlement(w.settlement).quartiere;
+  const quarterRoads = Object.fromEntries(Object.keys(quartiere).map((k) => [k, road]));
+  return { v: 1, quartiere, quarterRoads };
+}
+
 const KAMERAS =
   /^(uebersicht|vogel|strasse|quartier|ufer|zentrale|panorama|weg|haus-(werkstatt|block|solar|atelier|stadt|haus|turm|digital|baustelle))$/;
 
@@ -103,7 +120,8 @@ const KAMERAS =
  * Entwickler-Vorschau mit erfundenen Daten (ohne Datenbank). Parameter: `h` Häuser, `o` Objekte pro Haus,
  * `zentrale` Stil, `seed` Welt-Seed, `zeit` Tageszeit, `kamera` feste Pose, `bewegung=0` friert alles ein,
  * `besitzer=1` zeigt die Bedienelemente des Besitzers, `deko=1` setzt Beispiel-Deko (gültig eingerastet),
- * `v=1` rechnet mit Generator v1 (Standard: aktuelle Version).
+ * `v=1`/`v=2` rechnet mit Generator v1 bzw. v2 (Standard: aktuelle Version), `wege=ring|halbkreis|intelligent`
+ * setzt diese Wegform in allen Quartieren (Quartiere fixiert, wie nach dem Bau-Modus).
  */
 async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchParams">) {
   if (process.env.NODE_ENV === "production") notFound();
@@ -117,7 +135,8 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
   const zeit = ZEITEN.find((z) => z === q.zeit);
   const kamera = typeof q.kamera === "string" && KAMERAS.test(q.kamera) ? q.kamera : undefined;
   // Generator-Version: Standard die aktuelle, `v=1` zeigt ein Dorf auf dem eingefrorenen Generator v1
-  const version = q.v === "1" ? 1 : GENERATOR_VERSION;
+  const version = q.v === "1" ? 1 : q.v === "2" ? 2 : GENERATOR_VERSION;
+  const form = WEGFORMEN.find((f) => f === q.wege);
 
   const village = "00000000-0000-4000-8000-000000000001";
   const old = "2026-01-01T00:00:00Z";
@@ -187,8 +206,9 @@ async function Content({ searchParams }: Pick<PageProps<"/dev/dorf">, "searchPar
         seed,
         version,
         // Beispiel-Deko, sonst das im Dev-Server Gespeicherte (ohne Häuser, die es hier nicht gibt)
-        doc:
-          q.deko === "1"
+        doc: form
+          ? formDoc(seed, version, toLayoutHouses(houses, artifacts), { form })
+          : q.deko === "1"
             ? sampleDoc({ seed, version, houses: toLayoutHouses(houses, artifacts) })
             : pruneDoc(devDoc(seed) ?? { v: 1 }, new Set(houses.map((h) => h.id))),
       }}

@@ -116,6 +116,8 @@ export function Labels({
       if (selected && l.houseId === selected) op = 0;
       if (nq && l.ownerQuarter !== nq) op *= 0.3;
       if (nq && l.quarterId === nq) op = 0;
+      // Bau-Modus: Quartiernamen stehen im Plan (über dem Griff), nicht als Schild in der Welt
+      if (s.building && l.quarterId) op = 0;
       if (
         nav.level === "dorf" &&
         homes > 15 &&

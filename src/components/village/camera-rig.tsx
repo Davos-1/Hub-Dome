@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { planFlight, type Flight, type Obstacle } from "@/lib/camera-flight";
-import { poseFor, shiftPose, type Pose, type PoseOpts } from "@/lib/camera-poses";
+import { planPose, poseFor, shiftPose, type Pose, type PoseOpts } from "@/lib/camera-poses";
 import type { VillageLayout } from "@/lib/layout";
-import { hudLayout } from "./hud/layout";
+import { buildFrame, hudLayout } from "./hud/layout";
 import type { OverlayStore } from "./overlay-store";
 import { useScene, type SceneStore } from "./scene-store";
 
@@ -98,13 +98,10 @@ export function CameraRig({
   const controls = useThree((s) => s.controls) as unknown as Controls | null;
   const invalidate = useThree((s) => s.invalidate);
 
-  const storeNav = useScene(store, (s) => s.nav);
+  const nav = useScene(store, (s) => s.nav);
+  const building = useScene(store, (s) => s.building);
+  // Bau-Modus: Plan von oben, gewähltes Quartier in der Mitte des freien Ausschnitts
   const focus = useScene(store, (s) => (s.building ? s.buildFocus : null));
-  // Bau-Modus: Kamera zum gewählten Quartier (die Navigation selbst bleibt beim Dorf)
-  const nav = useMemo<typeof storeNav>(
-    () => (focus && storeNav.level === "dorf" ? { level: "quartier", q: focus } : storeNav),
-    [focus, storeNav],
-  );
   const view = useScene(store, (s) => s.view);
   const intro = useScene(store, (s) => s.intro);
   const devPose = useScene(store, (s) => s.devPose);
@@ -118,6 +115,13 @@ export function CameraRig({
   const aspect = width / Math.max(1, height);
   const pose: Pose = useMemo(() => {
     if (devPose) return fitPortrait(devPose, aspect, 2);
+    if (building) {
+      const q = focus ? layout.quarters.find((x) => x.id === focus) : undefined;
+      const frame = buildFrame(width, height);
+      return q
+        ? planPose(q.x, q.z, Math.max(q.radius + 4, 24), frame, aspect)
+        : planPose(0, 0, layout.extent * 0.92, frame, aspect);
+    }
     const hud = hudLayout({
       width,
       height,
@@ -145,6 +149,8 @@ export function CameraRig({
   }, [
     layout,
     nav,
+    building,
+    focus,
     view,
     intro,
     devPose,

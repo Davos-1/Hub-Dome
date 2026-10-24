@@ -467,3 +467,19 @@ export function navUp(nav: Nav): Nav {
   if (nav.level === "haus" && nav.q) return { level: "quartier", q: nav.q };
   return { level: "dorf" };
 }
+
+/**
+ * Bau-Modus als Plan (Phase 4h): Blick senkrecht von oben auf den Kreis (cx, cz, r), der in den freien Ausschnitt
+ * `frame` passt und dort mittig liegt. Bildschirm oben = Norden (−z), rechts = +x.
+ */
+export function planPose(cx: number, cz: number, r: number, frame: Frame, aspect: number): Pose {
+  const ty = Math.tan(FOV_Y / 2);
+  const fw = Math.max(0.2, frame.right - frame.left);
+  const fh = Math.max(0.2, frame.top - frame.bottom);
+  const d = Math.max((2 * r) / (ty * fh), (2 * r) / (ty * aspect * fw), 12);
+  const fx = (frame.left + frame.right) / 2;
+  const fy = (frame.bottom + frame.top) / 2;
+  const tx = cx - fx * d * ty * aspect;
+  const tz = cz + fy * d * ty;
+  return { position: [tx, d, tz + 0.01], target: [tx, 0, tz] };
+}

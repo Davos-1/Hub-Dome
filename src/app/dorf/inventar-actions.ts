@@ -18,11 +18,11 @@ const ids = z
   .min(1, "Keine Objekte gewählt.")
   .max(200, "Höchstens 200 Objekte auf einmal.");
 
-export const bulkMoveSchema = z.object({ ids, houseId: z.uuid() });
-export const bulkVisibilitySchema = z.object({ ids, visibility: z.enum(["shared", "private"]) });
-export const bulkKindSchema = z.object({ ids, kind: z.enum(ARTIFACT_KINDS) });
-export const bulkDeleteSchema = z.object({ ids });
-export const reorderSchema = z.object({ houseId: z.uuid(), ids });
+const bulkMoveSchema = z.object({ ids, houseId: z.uuid() });
+const bulkVisibilitySchema = z.object({ ids, visibility: z.enum(["shared", "private"]) });
+const bulkKindSchema = z.object({ ids, kind: z.enum(ARTIFACT_KINDS) });
+const bulkDeleteSchema = z.object({ ids });
+const reorderSchema = z.object({ houseId: z.uuid(), ids });
 
 const firstError = (e: { issues: { message: string }[] }) => e.issues[0].message;
 const done = (count: number): BulkResult => {

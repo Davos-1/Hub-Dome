@@ -207,3 +207,32 @@ export function sucherAround(hull: Rect): { sucher: Rect; tiles: { x: number; y:
     ],
   };
 }
+
+/** Bau-Modus (Prototyp 12a): Leiste oben, Werkzeuge links, Panel rechts, Meldung unten (Pixel). */
+export const BUILD_HUD = {
+  bar: 52,
+  railLeft: 16,
+  railW: 58,
+  panelRight: 16,
+  panelW: 268,
+  top: 70,
+  bottom: 64,
+} as const;
+
+/**
+ * Freier Ausschnitt des Plans im Bau-Modus (NDC): zwischen Werkzeugleiste und Panel, unter der Leiste und
+ * über der Meldung. Auf schmalen Fenstern (unter 768 px) liegt das Panel unten; dann bleibt der obere Teil.
+ */
+export function buildFrame(width: number, height: number): Frame {
+  const sheet = width < HUD.sheetBelow;
+  const left = BUILD_HUD.railLeft + BUILD_HUD.railW + 12;
+  const right = sheet ? width - 12 : width - BUILD_HUD.panelRight - BUILD_HUD.panelW - 12;
+  const top = BUILD_HUD.bar + 12;
+  const bottom = sheet ? height * 0.55 : height - BUILD_HUD.bottom;
+  return {
+    left: (2 * left) / width - 1,
+    right: (2 * right) / width - 1,
+    top: 1 - (2 * top) / height,
+    bottom: 1 - (2 * bottom) / height,
+  };
+}

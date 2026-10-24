@@ -46,7 +46,7 @@ import { ToastView, UiProvider, useUi } from "./hud/ui-context";
 import { ZOOM_END, ZoomSlider } from "./hud/zoom-slider";
 import { createOverlayStore } from "./overlay-store";
 import { makeActions, type SceneActions } from "./scene-actions";
-import { BuildPanel } from "./build/build-panel";
+import { BuildHud } from "./build/build-hud";
 import { createBuildStore, useBuild } from "./build/build-store";
 import { createSceneStore, loadSettings, saveSettings, useScene } from "./scene-store";
 
@@ -259,11 +259,18 @@ function VillageShell(props: Props) {
 
   // Die Live-Prüfung rechnet gegen die aktuelle (Entwurfs-)Welt
   useEffect(() => build.setWorld(model.world, model.input, model.byId), [build, model]);
+  // Nur Entwickler-Vorschau: Welt und Bau-Store für E2E-Tests (Wege, Bäume, Eckpunkte finden)
+  const isDev = !!props.dev;
+  useEffect(() => {
+    if (isDev) window.__hubDomeDev = { world: model.world, build };
+  }, [isDev, model, build]);
   useEffect(() => store.set({ building, buildFocus: null }), [store, building]);
   // Bau-Modus: Haus oder Quartier gewählt → Kamera zum Quartier (beim Abwählen bleibt sie dort)
   useEffect(() => {
     const off = build.subscribe(() => {
       const s = build.get();
+      // Während des Ziehens bleibt die Kamera stehen (sonst wandert der Punkt unter dem Zeiger)
+      if (s.drag || s.point) return;
       const q =
         s.quarter ?? (s.house ? (model.world.settlement.houses[s.house]?.quarterId ?? null) : null);
       if (q && q !== store.get().buildFocus) store.set({ buildFocus: q });
@@ -724,7 +731,7 @@ function VillageShell(props: Props) {
             </>
           )}
           {building && (
-            <BuildPanel
+            <BuildHud
               build={build}
               model={model}
               onSave={saveBuild}

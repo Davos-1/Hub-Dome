@@ -75,7 +75,11 @@ declare global {
       frameMs?: number;
       /** Anzahl gezeichneter Frames seit dem Laden. */
       frames?: number;
+      /** Bildschirmlage (CSS-Pixel) eines Bodenpunkts (E2E im Bau-Modus). */
+      toScreen?: (x: number, z: number) => [number, number];
     };
+    /** Nur Entwickler-Vorschau: Welt und Bau-Store für E2E-Tests. */
+    __hubDomeDev?: { world: unknown; build: unknown };
   }
 }
 
@@ -102,6 +106,11 @@ function PerfProbe({
       times.push(performance.now());
       if (times.length > 61) times.shift();
       window.__hubDome = {
+        toScreen: (x, z) => {
+          const v = new THREE.Vector3(x, 0, z).project(camera);
+          const el = gl.domElement.getBoundingClientRect();
+          return [el.left + ((v.x + 1) / 2) * el.width, el.top + ((1 - v.y) / 2) * el.height];
+        },
         calls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
         houses,
@@ -278,7 +287,8 @@ export default function VillageScene(props: SceneProps) {
   const building = useScene(store, (s) => s.building);
   const map = view === "karte";
   const [hour] = useState(() => zurichHour());
-  const timeKey = resolveTime(time, hour);
+  // Bau-Modus: Plan bei Tageslicht (gut lesbar), unabhängig von der gewählten Tageszeit
+  const timeKey = building ? "mittag" : resolveTime(time, hour);
 
   const world = model.world;
   const env = useMemo(() => environmentOf(world), [world]);
@@ -471,11 +481,11 @@ export default function VillageScene(props: SceneProps) {
       <OrbitControls
         makeDefault
         enableDamping={!reducedMotion}
-        enableRotate={!map}
+        enableRotate={!map && !building}
         minDistance={MIN_DISTANCE}
         maxDistance={maxDistance}
-        maxPolarAngle={map ? 0.001 : Math.PI / 2.15}
-        minPolarAngle={map ? 0 : 0.15}
+        maxPolarAngle={map || building ? 0.001 : Math.PI / 2.15}
+        minPolarAngle={map || building ? 0 : 0.15}
       />
       <CameraRig
         layout={layout}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardClutter, poseFor, navUp, overviewPose } from "./camera-poses";
+import { boardClutter, planPose, poseFor, navUp, overviewPose } from "./camera-poses";
 import { FACH_ORDER } from "./fachbereiche";
 import { computeLayout } from "./layout";
 
@@ -90,5 +90,35 @@ describe("camera poses", () => {
     expect(up1).toEqual({ level: "quartier", q: "tragwerk" });
     expect(navUp(up1)).toEqual({ level: "dorf" });
     expect(navUp({ level: "haus", q: null, h: "z" })).toEqual({ level: "dorf" });
+  });
+});
+
+describe("planPose (Bau-Modus von oben)", () => {
+  it("legt den Kreis mittig in den freien Ausschnitt und ganz hinein", () => {
+    const frame = { left: -0.8, right: 0.5, bottom: -0.7, top: 0.75 };
+    const aspect = 1.6;
+    const p = planPose(10, -4, 20, frame, aspect);
+    const ty = Math.tan((45 * Math.PI) / 180 / 2);
+    const d = p.position[1];
+    // Projektion von oben: x nach rechts, −z nach oben
+    const ndc = (x: number, z: number) => [
+      (x - p.target[0]) / (d * ty * aspect),
+      -(z - p.target[2]) / (d * ty),
+    ];
+    const [cx, cy] = ndc(10, -4);
+    expect(cx).toBeCloseTo((frame.left + frame.right) / 2, 6);
+    expect(cy).toBeCloseTo((frame.bottom + frame.top) / 2, 6);
+    for (const [x, z] of [
+      [30, -4],
+      [-10, -4],
+      [10, 16],
+      [10, -24],
+    ]) {
+      const [nx, ny] = ndc(x, z);
+      expect(nx).toBeGreaterThanOrEqual(frame.left - 1e-9);
+      expect(nx).toBeLessThanOrEqual(frame.right + 1e-9);
+      expect(ny).toBeGreaterThanOrEqual(frame.bottom - 1e-9);
+      expect(ny).toBeLessThanOrEqual(frame.top + 1e-9);
+    }
   });
 });

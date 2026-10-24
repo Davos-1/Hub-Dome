@@ -59,3 +59,18 @@ sich im Zielquartier einen freien Platz (Regeln wie beim Anlegen).
 - **Dachform im Bau-Modus:** entfällt; seit 4f gilt «Dach als Material statt Form» (Entscheid 2026-10-23).
 - **Vorschaubilder:** keine Bilder von fremden Servern (Datenschutz, wie README-Bilder); die Kachel zeigt Kategoriefarbe und Objektsymbol, bei GitHub/Gist die vorhandene Vorschau.
 - **Platzhalter-Welt:** Der Prototyp zeichnet Häuser als Kästchen; in Hub Dome bleibt die 3D-Welt.
+
+## Phase E: Bau-Modus als Plan, Generator v3 (umgesetzt)
+
+| Plan | Code |
+|---|---|
+| `quarterMove(houses, quarterId, delta)` | `world/free-drag.ts` `quarterMove` (exakt) und `groupGhost` (Vorschau mit Einrasten) |
+| `roadsForQuarter(houses, center, form, radius\|curve, bends)` | `world/roads.ts` `roadsForQuarter` (Kernweg, Bauplätze, Bereich), `smartPaths` (Intelligent), `coreSpur` (Ring/Halbkreis); geprüft in `settlement.ts` |
+| `vegetationVisible(trees, houses, roads, plazas)` | `world/vegetation.ts` `vegetationCandidates` (feste Lagen) und `vegetationVisible` |
+| `world_doc.quarterRoads / roadBends / treeMoves` | Felder im Welt-Dokument (`world/doc.ts`), Entwurf `world/build.ts`, Prüfung `saveWorld` |
+| Generator-Version erhöhen | `GENERATOR_VERSION = 3`, Migration `20261024000300_world_v3_default.sql`; v1/v2 eingefroren (Golden-Tests) |
+| Bau-Modus Plan 12a | `village/build/build-hud.tsx` (Leiste, Werkzeuge, Panel, Meldung), `build-layer.tsx` (Plan), `build-store.ts` |
+
+Bewusste Abweichungen: Bei Ring, Halbkreis und Intelligent ordnen sich die Häuser des Quartiers um den Platz (sonst
+führte der Weg durch Gärten); Wegformen gelten nur für fixierte Quartiere; die eigene Deko bleibt im Deko-Werkzeug;
+Dachform bleibt Material (siehe oben).

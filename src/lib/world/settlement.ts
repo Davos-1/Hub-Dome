@@ -846,6 +846,29 @@ function placeFreeAuto(ctx: Ctx, h: SettlementHouse): boolean {
 }
 
 /**
+ * Bewegungsraum eines Quartiers (Bau-Modus): Umriss der Fläche, in der Hausmitten liegen dürfen, als Polygon
+ * um den Quartierplatz (Strahlen alle 5°, Schritt 1 m). Nur die Flächenregel, nicht Gärten oder Wege.
+ */
+export function quarterOutline(space: Space, s: Settlement, quarterId: FachbereichId): Pt[] {
+  const ctx = editCtx(space, s);
+  const lanes = [...ctx.lanes.values()].filter((l) => l.quarterId === quarterId);
+  const node = s.nodes.find((n) => n.quarterId === quarterId);
+  if (!lanes.length || !node) return [];
+  const inside = (x: number, z: number) => !inQuarterArea(ctx, pickLane(lanes, x, z), x, z);
+  const out: Pt[] = [];
+  for (let k = 0; k < 72; k++) {
+    const a = (k / 72) * Math.PI * 2;
+    let last = 0;
+    for (let r = 1; r <= 70; r += 1) {
+      if (inside(node.x + Math.cos(a) * r, node.z + Math.sin(a) * r)) last = r;
+      else if (r - last > 6) break;
+    }
+    out.push({ x: node.x + Math.cos(a) * last, z: node.z + Math.sin(a) * last });
+  }
+  return out;
+}
+
+/**
  * Gasse eines Quartiers für eine Lage: die mit Wegform, wenn die Lage in ihrem Bereich um den Platz liegt,
  * sonst die nächste Gassenachse.
  */
